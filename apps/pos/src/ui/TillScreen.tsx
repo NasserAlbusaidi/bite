@@ -1,5 +1,5 @@
 import type { MenuProduct } from "@bite/contracts";
-import type { Minor, PricedOrder } from "@bite/core";
+import type { PricedOrder } from "@bite/core";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
 	type CashSession,
@@ -20,16 +20,13 @@ import {
 	type TillLine,
 } from "../domain/sale.js";
 import { useI18n } from "../i18n/I18nProvider.js";
-import type { Lang } from "../i18n/i18n.js";
-import { ticketLabels } from "../print/labels.js";
-import { kitchenTicket, receipt } from "../print/ticket.js";
+import { DrawerSheet } from "./DrawerSheet.js";
 import { ModifierSheet } from "./ModifierSheet.js";
 import { fmt } from "./money.js";
+import { OrdersSheet } from "./OrdersSheet.js";
 import { PaySheet } from "./PaySheet.js";
+import { kitchenFor, loc, receiptFor } from "./receipts.js";
 import { useServices } from "./services.js";
-
-const loc = (text: { en: string; ar?: string | undefined }, lang: Lang) =>
-	(lang === "ar" && text.ar) || text.en;
 
 export function TillScreen() {
 	const { db, sync, device, member, print } = useServices();
@@ -49,6 +46,7 @@ export function TillScreen() {
 		printError: string | null;
 	} | null>(null);
 	const [type, setType] = useState<"dine_in" | "takeaway">("takeaway");
+	const [sheet, setSheet] = useState<"orders" | "drawer" | null>(null);
 
 	const reloadMenu = useCallback(async () => {
 		const snap = await loadMenu(db);
@@ -128,45 +126,20 @@ export function TillScreen() {
 		setLines([]);
 
 		// Print after the sale is safely stored. Failures are shown, never block.
-		const labels = ticketLabels(lang);
 		const tz = snap.location.timezone;
-		const base = {
-			ticketNumber: res.order.ticketNumber,
-			type: res.order.type,
-			placedAt: new Date(res.order.placedAt),
-			timeZone: tz,
-			note: res.order.note,
-			lines: res.order.lines.map((l) => ({
-				quantity: l.quantity,
-				name: loc(l.name, lang),
-				modifiers: l.modifiers.map((m) => loc(m.name, lang)),
-				note: l.note,
-				lineTotal: l.lineTotal as Minor,
-			})),
-		};
-		const ticketDir = dir;
 		const results = await Promise.all([
-			print.print("kitchen", kitchenTicket(base, labels, ticketDir)),
+			print.print("kitchen", kitchenFor(res.order, tz, lang, dir)),
 			print.print(
 				"receipt",
-				receipt(
-					{
-						...base,
-						locationName: device.name,
-						subtotal: res.order.subtotal as Minor,
-						discountTotal: res.order.discountTotal as Minor,
-						taxTotal: res.order.taxTotal as Minor,
-						total: res.order.total as Minor,
-						payments: res.payments.map((p) => ({
-							label: p.method === "cash" ? t("pay.cash") : t("pay.card"),
-							amount: p.amount as Minor,
-						})),
-						change: res.change,
-						openDrawer: res.payments.some((p) => p.method === "cash"),
-					},
-					labels,
-					ticketDir,
-				),
+				receiptFor(res.order, {
+					timeZone: tz,
+					lang,
+					dir,
+					locationName: device.name,
+					payments: res.payments,
+					change: res.change,
+					openDrawer: res.payments.some((p) => p.method === "cash"),
+				}),
 			),
 		]);
 		const failed = results.flat().find((r) => !r.ok);
@@ -221,6 +194,14 @@ export function TillScreen() {
 			</section>
 
 			<aside className="cart-pane">
+				<div className="row tools">
+					<button type="button" onClick={() => setSheet("orders")}>
+						{t("orders.title")}
+					</button>
+					<button type="button" onClick={() => setSheet("drawer")}>
+						{drawer ? t("drawer.title") : t("drawer.open")}
+					</button>
+				</div>
 				<div className="row">
 					<h2>{t("till.cart")}</h2>
 					<span className="spacer" />
@@ -351,6 +332,16 @@ export function TillScreen() {
 					}}
 					onCancel={() => setPaying(null)}
 					onCharge={charge}
+				/>
+			)}
+			{sheet === "orders" && <OrdersSheet onClose={() => setSheet(null)} />}
+			{sheet === "drawer" && (
+				<DrawerSheet
+					onClose={() => {
+						setSheet(null);
+						// The drawer may have been opened or closed in there.
+						void openSession(db).then(setDrawer);
+					}}
 				/>
 			)}
 			{done && (

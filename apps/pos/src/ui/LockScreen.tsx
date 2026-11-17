@@ -3,11 +3,12 @@ import type { ApiClient } from "../api/client.js";
 import {
 	cacheStaffList,
 	listCachedStaff,
-	pinLogin,
 	type StaffMember,
 } from "../auth/staff.js";
 import type { SqlDriver } from "../db/driver.js";
 import { useI18n } from "../i18n/I18nProvider.js";
+import { loginError, loginWithPin } from "./login.js";
+import { PinPad } from "./PinPad.js";
 
 export function LockScreen(props: {
 	db: SqlDriver;
@@ -18,7 +19,6 @@ export function LockScreen(props: {
 	const { t, lang, setLang } = useI18n();
 	const [staff, setStaff] = useState<StaffMember[]>([]);
 	const [who, setWho] = useState<StaffMember | null>(null);
-	const [pin, setPin] = useState("");
 	const [error, setError] = useState<string | null>(null);
 	const [busy, setBusy] = useState(false);
 
@@ -38,39 +38,10 @@ export function LockScreen(props: {
 	async function submit(p: string) {
 		if (!who) return;
 		setBusy(true);
-		const res = await pinLogin(
-			db,
-			async (memberId, value) => {
-				const r = await api.pinLogin(memberId, value);
-				return {
-					memberId: r.member.memberId,
-					displayName: r.member.displayName,
-					role: r.member.role,
-				};
-			},
-			who.memberId,
-			p,
-		);
+		const res = await loginWithPin(db, api, who.memberId, p);
 		setBusy(false);
-		setPin("");
 		if (res.ok) return props.onUnlock(res.member);
-		setError(
-			res.reason === "wrong_pin"
-				? t("lock.wrong")
-				: res.reason === "offline_unknown"
-					? t("lock.offlineUnknown", { name: who.displayName })
-					: res.reason === "offline_expired"
-						? t("lock.offlineExpired")
-						: res.reason === "rate_limited"
-							? t("lock.rateLimited")
-							: (res.message ?? "error"),
-		);
-	}
-
-	function press(d: string) {
-		setError(null);
-		const next = (pin + d).slice(0, 8);
-		setPin(next);
+		setError(loginError(t, res, who.displayName));
 	}
 
 	return (
@@ -105,41 +76,13 @@ export function LockScreen(props: {
 					</div>
 				)}
 				{who && (
-					<div className="pinpad">
-						<div className="pin-dots" dir="ltr">
-							{"•".repeat(pin.length) || " "}
-						</div>
-						{error && <p className="error">{error}</p>}
-						<div className="keys" dir="ltr">
-							{["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((d) => (
-								<button
-									type="button"
-									key={d}
-									onClick={() => press(d)}
-									disabled={busy}
-								>
-									{d}
-								</button>
-							))}
-							<button
-								type="button"
-								onClick={() => (pin ? setPin(pin.slice(0, -1)) : setWho(null))}
-							>
-								{pin ? "⌫" : t("lock.back")}
-							</button>
-							<button type="button" onClick={() => press("0")} disabled={busy}>
-								0
-							</button>
-							<button
-								type="button"
-								className="primary"
-								disabled={busy || pin.length < 4}
-								onClick={() => submit(pin)}
-							>
-								OK
-							</button>
-						</div>
-					</div>
+					<PinPad
+						busy={busy}
+						error={error}
+						onType={() => setError(null)}
+						onSubmit={submit}
+						onBack={() => setWho(null)}
+					/>
 				)}
 			</div>
 		</div>

@@ -4,7 +4,15 @@ import { useI18n } from "../i18n/I18nProvider.js";
 import type { SyncEngine, SyncState } from "../sync/engine.js";
 import { type SyncCounts, syncCounts } from "../sync/status.js";
 
-export function SyncBadge({ db, sync }: { db: SqlDriver; sync: SyncEngine }) {
+export function SyncBadge({
+	db,
+	sync,
+	onOpen,
+}: {
+	db: SqlDriver;
+	sync: SyncEngine;
+	onOpen: () => void;
+}) {
 	const { t } = useI18n();
 	const [counts, setCounts] = useState<SyncCounts>({
 		pending: 0,
@@ -28,9 +36,14 @@ export function SyncBadge({ db, sync }: { db: SqlDriver; sync: SyncEngine }) {
 	const title = state.lastError ?? undefined;
 	if (counts.attention > 0) {
 		return (
-			<span className="badge badge-bad" title={title}>
+			<button
+				type="button"
+				className="badge badge-bad"
+				title={title}
+				onClick={onOpen}
+			>
 				{t("sync.attention", { count: counts.attention })}
-			</span>
+			</button>
 		);
 	}
 	if (!state.online) {
