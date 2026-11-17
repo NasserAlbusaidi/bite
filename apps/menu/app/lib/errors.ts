@@ -16,6 +16,10 @@ export function errorMessageKey(
 				return "invalid_modifiers";
 			case "total_too_high":
 				return "total_too_high";
+			case "cart_not_open":
+				return "group_not_open";
+			case "cart_empty":
+				return "group_empty";
 			default:
 				return "generic_error";
 		}
