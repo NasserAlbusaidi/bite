@@ -128,21 +128,30 @@ export class SyncEngine {
 	}
 
 	private async pull() {
-		for (let page = 0; page < 20; page++) {
-			const cursor = await kvGet(this.db, "sync.cursor");
-			const menuVersion = await kvGet(this.db, "menu.version");
-			const res = SyncPullResponse.parse(
-				await this.api.pull({ cursor, menuVersion }),
-			);
-			if (res.menu) {
-				await saveMenu(this.db, res.menu);
-				await kvSet(this.db, "menu.version", res.menuVersion);
-				for (const fn of this.menuListeners) fn();
+		// Orders land before the menu is announced, and the menu only after the
+		// last page: the till can't ring a sale until it has seen today's
+		// tickets, which is what keeps a freshly re-paired tablet from reusing
+		// ticket numbers (nextTicketNumber floors on them).
+		let menuChanged = false;
+		try {
+			for (let page = 0; page < 20; page++) {
+				const cursor = await kvGet(this.db, "sync.cursor");
+				const menuVersion = await kvGet(this.db, "menu.version");
+				const res = SyncPullResponse.parse(
+					await this.api.pull({ cursor, menuVersion }),
+				);
+				await upsertOrders(this.db, res.orders);
+				if (res.orders.length > 0) for (const fn of this.orderListeners) fn();
+				if (res.menu) {
+					await saveMenu(this.db, res.menu);
+					await kvSet(this.db, "menu.version", res.menuVersion);
+					menuChanged = true;
+				}
+				await kvSet(this.db, "sync.cursor", res.cursor);
+				if (!res.hasMore) return;
 			}
-			await upsertOrders(this.db, res.orders);
-			if (res.orders.length > 0) for (const fn of this.orderListeners) fn();
-			await kvSet(this.db, "sync.cursor", res.cursor);
-			if (!res.hasMore) return;
+		} finally {
+			if (menuChanged) for (const fn of this.menuListeners) fn();
 		}
 	}
 

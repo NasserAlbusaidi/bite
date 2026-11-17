@@ -47,6 +47,33 @@ describe("ticket numbers", () => {
 		expect(await next("2026-11-17")).toBe("A-003");
 	});
 
+	it("never reuses a ticket the server already has (re-pair, wiped database)", async () => {
+		const db = await openSqlJs();
+		await migrate(db);
+		const put = (ticket: string, day = "2026-11-17") =>
+			db.run(
+				`INSERT INTO orders (id, ticket_number, business_date, fulfillment_status, payment_status, placed_at, version, doc)
+				 VALUES (?, ?, ?, 'completed', 'paid', '2026-11-17T08:00:00Z', 1, '{}')`,
+				[`${ticket}-${day}`, ticket, day],
+			);
+		// What the first pull brings back after re-pairing: this device's
+		// tickets, another device's, a QR order, and yesterday's.
+		await put("A-007");
+		await put("A-012");
+		await put("AB-099");
+		await put("Q-050");
+		await put("A-040", "2026-11-16");
+		const next = (d: string) =>
+			db.transaction((tx) => nextTicketNumber(tx, "A", d));
+		expect(await next("2026-11-17")).toBe("A-013");
+		expect(await next("2026-11-17")).toBe("A-014");
+		expect(await next("2026-11-18")).toBe("A-001");
+		// A counter already ahead of the pulled orders keeps going.
+		await put("A-005", "2026-11-18");
+		expect(await next("2026-11-18")).toBe("A-006");
+		expect(await next("2026-11-18")).toBe("A-007");
+	});
+
 	it("rolls back the counter with the order", async () => {
 		const db = await openSqlJs();
 		await migrate(db);
