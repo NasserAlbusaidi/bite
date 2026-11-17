@@ -1,0 +1,37 @@
+{
+	"name": "@bite/pos",
+	"version": "0.0.0",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"dev": "vite",
+		"build": "tsc --noEmit && vite build",
+		"preview": "vite preview",
+		"test": "vitest run",
+		"typecheck": "tsc --noEmit",
+		"cap:sync": "cap sync"
+	},
+	"dependencies": {
+		"@bite/capacitor-printer-socket": "link:plugins/printer-socket",
+		"@bite/contracts": "workspace:*",
+		"@bite/core": "workspace:*",
+		"@capacitor-community/sqlite": "^8.1.1",
+		"@capacitor/core": "^8.6.2",
+		"react": "^19.3.1",
+		"react-dom": "^19.3.1",
+		"sql.js": "^1.16.0",
+		"uuid": "^14.0.3"
+	},
+	"devDependencies": {
+		"@capacitor/android": "^8.6.2",
+		"@capacitor/cli": "^8.6.2",
+		"@capacitor/ios": "^8.6.2",
+		"@types/react": "^19.3.0",
+		"@types/react-dom": "^19.3.0",
+		"@types/sql.js": "^1.4.11",
+		"@vitejs/plugin-react": "^6.3.0",
+		"typescript": "^5.9.3",
+		"vite": "^8.3.8",
+		"vitest": "^5.1.0"
+	}
+}
