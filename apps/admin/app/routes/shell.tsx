@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import {
 	NavLink,
 	Outlet,
+	useLocation,
 	useNavigate,
 	useParams,
 	useRevalidator,
@@ -29,6 +30,7 @@ export default function Shell({ loaderData }: Route.ComponentProps) {
 	const t = translator(lang);
 	const params = useParams();
 	const navigate = useNavigate();
+	const location = useLocation();
 	const { revalidate } = useRevalidator();
 	const locationId = params.locationId ?? loaderData.locationId;
 
@@ -46,7 +48,12 @@ export default function Shell({ loaderData }: Route.ComponentProps) {
 							onChange={(e) => {
 								rememberLocation(e.target.value);
 								if (params.locationId)
-									navigate(`/locations/${e.target.value}/menu`);
+									navigate(
+										location.pathname.replace(
+											`/locations/${params.locationId}/`,
+											`/locations/${e.target.value}/`,
+										),
+									);
 								else revalidate();
 							}}
 						>
@@ -77,6 +84,11 @@ export default function Shell({ loaderData }: Route.ComponentProps) {
 				{locationId && (
 					<NavLink to={`/locations/${locationId}/menu`}>
 						{t("prices_availability")}
+					</NavLink>
+				)}
+				{locationId && (
+					<NavLink to={`/locations/${locationId}/settings`}>
+						{t("location_nav")}
 					</NavLink>
 				)}
 				<NavLink to="/promotions">{t("promotions")}</NavLink>

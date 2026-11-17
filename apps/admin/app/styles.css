@@ -242,6 +242,7 @@ a {
 }
 .grid2 {
 	display: grid;
+	align-items: start;
 	grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
 	gap: 14px 20px;
 }
@@ -303,4 +304,64 @@ a {
 	align-items: center;
 	justify-content: space-between;
 	gap: 12px;
+}
+.form h2 {
+	font-size: 1rem;
+	margin: 8px 0 0;
+}
+.hours {
+	display: grid;
+	gap: 6px;
+}
+.hours-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-wrap: wrap;
+}
+.hours-row > span:first-child {
+	inline-size: 90px;
+}
+.pause {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: 12px;
+	flex-wrap: wrap;
+}
+.pause--on {
+	border-color: var(--bad);
+	background: color-mix(in srgb, var(--bad) 8%, var(--surface));
+}
+.token {
+	display: grid;
+	gap: 8px;
+	padding: 12px;
+	border: 1px dashed var(--accent);
+	border-radius: var(--radius);
+}
+.token .btn {
+	justify-self: start;
+}
+.token code {
+	font-size: 0.85rem;
+	word-break: break-all;
+	user-select: all;
+}
+.input--short {
+	inline-size: 5em;
+}
+.input--color {
+	inline-size: 64px;
+	padding: 2px;
+	block-size: 40px;
+}
+.link-btn.danger {
+	color: var(--bad);
+}
+fieldset.bare {
+	border: 0;
+	padding: 0;
+	margin: 0;
+	min-inline-size: 0;
 }

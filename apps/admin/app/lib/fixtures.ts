@@ -6,6 +6,7 @@
 import { type AdminApi, AdminApiError } from "./api-types";
 import {
 	type AdminCategory,
+	type AdminDevice,
 	type AdminLocationSettings,
 	type AdminMe,
 	type AdminMenu,
@@ -18,9 +19,11 @@ import {
 	CreatePromotion,
 	InviteStaff,
 	type LocationProduct,
+	RegisterDeviceRequest,
 	ResetPin,
 	SetLocationProduct,
 	UpdateCategory,
+	UpdateLocation,
 	UpdateProduct,
 	UpdatePromotion,
 	UpdateStaff,
@@ -36,6 +39,8 @@ type DemoState = {
 	overrides: Record<string, Record<string, SetLocationProduct>>;
 	promotions: AdminPromotion[];
 	staff: AdminStaff[];
+	locations: AdminLocationSettings[];
+	devices: AdminDevice[];
 };
 
 const azaiba = {
@@ -253,10 +258,31 @@ export function demoState(): DemoState {
 				],
 			},
 		],
+		locations: structuredClone(DEMO_LOCATIONS),
+		devices: [
+			{
+				id: id(600),
+				locationId: id(9000),
+				name: "Counter iPad",
+				kind: "pos",
+				ticketPrefix: "A",
+				lastSeenAt: "2026-11-17T10:12:00Z",
+				revokedAt: null,
+			},
+			{
+				id: id(601),
+				locationId: id(9000),
+				name: "Kitchen screen",
+				kind: "kds",
+				ticketPrefix: "K",
+				lastSeenAt: "2026-11-17T10:14:00Z",
+				revokedAt: null,
+			},
+		],
 	};
 }
 
-const KEY = "bite.admin.demo.v4";
+const KEY = "bite.admin.demo.v5";
 
 export function fixtureAdminApi(
 	initial: DemoState = demoState(),
@@ -349,10 +375,21 @@ export function fixtureAdminApi(
 
 	return {
 		async me() {
-			return clone(DEMO_ME);
+			const me = clone(DEMO_ME);
+			for (const l of me.locations) {
+				const s = state.locations.find((x) => x.id === l.location.id);
+				if (s)
+					l.location = {
+						id: s.id,
+						name: s.name,
+						slug: s.slug,
+						isActive: s.isActive,
+					};
+			}
+			return me;
 		},
 		async locations() {
-			return clone(DEMO_LOCATIONS);
+			return clone(state.locations);
 		},
 		async menu() {
 			return clone(state.menu);
@@ -481,6 +518,53 @@ export function fixtureAdminApi(
 			Object.assign(existing, merged);
 			persist();
 			return clone(existing);
+		},
+		async updateLocation(lid, input) {
+			const l = state.locations.find((x) => x.id === lid);
+			if (!l) throw new AdminApiError("not_found", 404);
+			for (const [k, v] of Object.entries(valid(UpdateLocation, input)))
+				if (v !== undefined) Object.assign(l, { [k]: v });
+			persist();
+			return clone(l);
+		},
+		async devices(lid) {
+			if (!state.locations.some((x) => x.id === lid))
+				throw new AdminApiError("not_found", 404);
+			return clone(state.devices.filter((d) => d.locationId === lid));
+		},
+		async registerDevice(input) {
+			const v = valid(RegisterDeviceRequest, input);
+			if (v.ticketPrefix === "G") throw new AdminApiError("bad_request", 400);
+			if (!state.locations.some((x) => x.id === v.locationId))
+				throw new AdminApiError("not_found", 404);
+			if (
+				state.devices.some(
+					(d) =>
+						d.locationId === v.locationId &&
+						!d.revokedAt &&
+						d.ticketPrefix === v.ticketPrefix,
+				)
+			)
+				throw new AdminApiError("conflict", 409);
+			const deviceId = uuidv7();
+			state.devices.push({
+				id: deviceId,
+				locationId: v.locationId,
+				name: v.name,
+				kind: v.kind,
+				ticketPrefix: v.ticketPrefix,
+				lastSeenAt: null,
+				revokedAt: null,
+			});
+			persist();
+			// Demo only: a real token comes from the API and is shown once.
+			return { deviceId, token: `demo_${deviceId.replaceAll("-", "")}` };
+		},
+		async revokeDevice(did) {
+			const d = state.devices.find((x) => x.id === did);
+			if (!d) throw new AdminApiError("not_found", 404);
+			d.revokedAt ??= new Date().toISOString();
+			persist();
 		},
 		async staff() {
 			return clone(state.staff);
