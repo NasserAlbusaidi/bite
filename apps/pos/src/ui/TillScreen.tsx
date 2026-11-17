@@ -41,6 +41,8 @@ export function TillScreen() {
 		at: number;
 	} | null>(null);
 	const [drawer, setDrawer] = useState<CashSession | null>(null);
+	// Mirrors the API's cash.* role rules.
+	const canDrawer = member.role === "manager" || member.role === "cashier";
 	const [done, setDone] = useState<{
 		ticket: string;
 		change: number;
@@ -201,9 +203,11 @@ export function TillScreen() {
 					<button type="button" onClick={() => setSheet("orders")}>
 						{t("orders.title")}
 					</button>
-					<button type="button" onClick={() => setSheet("drawer")}>
-						{drawer ? t("drawer.title") : t("drawer.open")}
-					</button>
+					{canDrawer && (
+						<button type="button" onClick={() => setSheet("drawer")}>
+							{drawer ? t("drawer.title") : t("drawer.open")}
+						</button>
+					)}
 				</div>
 				<div className="row">
 					<h2>{t("till.cart")}</h2>
@@ -303,6 +307,23 @@ export function TillScreen() {
 					product={picking}
 					onCancel={() => setPicking(null)}
 					onAdd={(optionIds, note) => {
+						// Same product, same choices, same note: one line, qty + 1,
+						// so the kitchen reads "2× Karak", not two Karak lines.
+						const key = [...optionIds].sort().join(",");
+						const same = lines.find(
+							(l) =>
+								l.productId === picking.id &&
+								[...l.modifierOptionIds].sort().join(",") === key &&
+								(l.note ?? "") === (note ?? ""),
+						);
+						if (same) {
+							setLines(
+								lines.map((l) =>
+									l === same ? { ...l, quantity: l.quantity + 1 } : l,
+								),
+							);
+							return setPicking(null);
+						}
 						setLines([
 							...lines,
 							{
@@ -321,6 +342,7 @@ export function TillScreen() {
 				<PaySheet
 					total={paying.priced.total}
 					drawer={drawer}
+					canOpenDrawer={canDrawer}
 					onOpenDrawer={async (float) => {
 						const s = await openCashSession(db, {
 							openingFloat: float,
