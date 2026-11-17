@@ -135,6 +135,20 @@ async function salesReport(
 		)
 		.groupBy(payments.method)
 		.orderBy(payments.method);
+	const [refunds] = await tx
+		.select({
+			amount: sql<string>`coalesce(-sum(${payments.amount}), 0)`,
+			count: sql<number>`count(*)::int`,
+		})
+		.from(payments)
+		.where(
+			and(
+				eq(payments.locationId, q.locationId),
+				between(payments.businessDate, q.from, q.to),
+				eq(payments.state, "succeeded"),
+				lt(payments.amount, 0),
+			),
+		);
 	const top = await tx
 		.select({
 			productId: orderLines.productId,
@@ -170,6 +184,8 @@ async function salesReport(
 			count: m.count,
 		})),
 		tips: methods.reduce((s, m) => s + n(m.tips), 0),
+		refunds: n(refunds?.amount),
+		refundCount: refunds?.count ?? 0,
 		topProducts: top.map((t) => ({
 			productId: t.productId,
 			name: t.name,

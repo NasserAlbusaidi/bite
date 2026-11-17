@@ -153,6 +153,9 @@ export function demoReport(
 		total,
 		net: total - tax,
 		tips: add((o) => o.tip),
+		// Demo orders are never refunded.
+		refunds: 0,
+		refundCount: 0,
 		byMethod: [...byMethod].map(([method, v]) => ({ method, ...v })),
 		topProducts: [...top]
 			.sort((a, b) => b[1].revenue - a[1].revenue)

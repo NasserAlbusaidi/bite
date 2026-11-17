@@ -137,6 +137,8 @@ describe.runIf(ownerUrl)("admin reports", () => {
 			net: 4000,
 			byMethod: [{ method: "card", amount: 2200, count: 2 }],
 			tips: 200,
+			refunds: 500,
+			refundCount: 1,
 			topProducts: [
 				{
 					productId: h.A.prod,
