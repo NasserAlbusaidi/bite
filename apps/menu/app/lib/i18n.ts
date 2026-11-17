@@ -98,6 +98,10 @@ const en = {
 	total_too_high:
 		"Your order total is too high to place online. Please order at the counter.",
 	generic_error: "Something went wrong. Please try again.",
+	offline_banner: "No connection. We'll keep trying, nothing is lost.",
+	offline_retry:
+		"No connection. Your order wasn't sent yet. Check your wifi and tap again.",
+	try_again: "Try again",
 	order_placed: "Order placed",
 	ticket: "Ticket",
 	track_show_counter: "Show this at the counter",
@@ -206,6 +210,10 @@ const ar: Record<MessageKey, string> = {
 	total_too_high:
 		"إجمالي طلبك مرتفع جداً ولا يمكن إرساله عبر الإنترنت. يرجى الطلب عند الكاونتر.",
 	generic_error: "حدث خطأ ما. يرجى المحاولة مرة أخرى.",
+	offline_banner: "لا يوجد اتصال. سنواصل المحاولة، ولن يضيع شيء.",
+	offline_retry:
+		"لا يوجد اتصال. لم يُرسل طلبك بعد. تحقق من الواي فاي واضغط مرة أخرى.",
+	try_again: "حاول مرة أخرى",
 	order_placed: "تم إرسال الطلب",
 	ticket: "رقم الطلب",
 	track_show_counter: "أظهر هذا عند الكاونتر",
