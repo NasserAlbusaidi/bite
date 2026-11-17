@@ -89,7 +89,15 @@ The legacy JSON blob is replaced by real rows:
 
 ### Pre-tenant lookups
 
-Some requests must find their tenant before one is set: a device token, a guest menu slug, a guest tracking link, a group cart share link. `bite_app` can't see those rows without a tenant, so four `SECURITY DEFINER` functions (migration 0004) do exact-match lookups and return only ids: `auth_device(token_hash)`, `resolve_location_slug(slug)`, `resolve_tracking_token(uuid)`, `resolve_group_cart_token(uuid)`. Revoked devices, inactive locations and suspended orgs resolve to nothing. They are `EXECUTE`-only to `bite_app`, and the caller then opens `withTenant()` with the returned org. Don't add a definer function that returns rows or takes a pattern.
+Some requests must find their tenant before one is set: a device token, a guest menu slug, a guest tracking link, a group cart share link. `bite_app` can't see those rows without a tenant, so `SECURITY DEFINER` functions do exact-match lookups and return only ids: `auth_device(token_hash)`, `resolve_location_slug(slug)`, `resolve_tracking_token(uuid)`, `resolve_group_cart_token(uuid)` (migration 0004), and `user_memberships(user_id)` (0011, back-office login to its active memberships). Revoked devices, inactive locations and suspended orgs resolve to nothing. They are `EXECUTE`-only to `bite_app`, and the caller then opens `withTenant()` with the returned org. Don't add a definer function that returns rows or takes a pattern.
+
+### Back-office logins (Better Auth)
+
+`auth_users`, `auth_sessions`, `auth_accounts`, `auth_verifications` hold identities only and have **no RLS**: one login can belong to several orgs, and the session is read before any tenant is known. Nothing tenant-shaped goes in them. `members.user_id` points at `auth_users.id` (set null on delete). What a login may do is decided by its `members` row, read under RLS after `user_memberships()` picks the org. A test pins the full list of tables without RLS (the four above plus `webhook_events`), so adding another one is a deliberate act.
+
+Onboarding needs no definer function: the API mints the new org id, opens `withTenant(newId)` and inserts the org, location and owner. The `own_org_insert` policy only allows inserting the org whose id is the current tenant.
+
+`webhook_events` is system-only. Migration 0011 revokes the blanket default grant from `bite_app`.
 
 Roles are created once per cluster by `packages/db/sql/bootstrap-roles.sql`. `withTenant()` uses `set_config(..., true)` (transaction-local), so it is safe behind a transaction-mode pooler.
 
@@ -99,6 +107,5 @@ Roles are created once per cluster by `packages/db/sql/bootstrap-roles.sql`. `wi
 
 ## Not in yet
 
-- Better Auth tables (generated when auth lands)
 - KDS stations/routing, printers
 - Fawtara/e-invoice fields (phase 5)
