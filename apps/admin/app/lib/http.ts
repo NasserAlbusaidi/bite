@@ -7,12 +7,14 @@ import {
 	AdminLocationSettings,
 	AdminMe,
 	AdminModifierGroup,
+	AdminOrderRow,
 	AdminProduct,
 	AdminPromotion,
 	AdminStaff,
 	LocationProduct,
 	Page,
 	RegisterDeviceResponse,
+	SalesReport,
 } from "./contracts";
 
 /** Back office over HTTP, under /v1/admin. Auth is the Better Auth session cookie. */
@@ -64,6 +66,14 @@ export function httpAdminApi(
 		}
 		return out;
 	}
+
+	/** ?a=1&b=2 from the defined values only. */
+	const qs = (q: Record<string, string | number | undefined>) => {
+		const p = new URLSearchParams();
+		for (const [k, v] of Object.entries(q))
+			if (v !== undefined) p.set(k, String(v));
+		return `?${p.toString()}`;
+	};
 
 	const send = (method: string, body: unknown): RequestInit => ({
 		method,
@@ -130,6 +140,19 @@ export function httpAdminApi(
 			all(AdminDevice, `/locations/${enc(locationId)}/devices`),
 		registerDevice: (d) =>
 			call(RegisterDeviceResponse, "/devices", send("POST", d)),
+		salesReport: (q) => call(SalesReport, `/reports/sales${qs(q)}`),
+		orders: (q) => call(Page(AdminOrderRow), `/orders${qs(q)}`),
+		ordersCsv: async (q) => {
+			const res = await fetchImpl(
+				new URL(`/v1/admin/orders.csv${qs(q)}`, baseUrl),
+				{
+					credentials: "include",
+					headers: { accept: "text/csv" },
+				},
+			);
+			if (!res.ok) throw new AdminApiError("internal", res.status);
+			return res.blob();
+		},
 		revokeDevice: async (id) => {
 			await call(z.unknown(), `/devices/${enc(id)}/revoke`, { method: "POST" });
 		},

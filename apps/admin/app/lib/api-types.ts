@@ -4,6 +4,8 @@ import type {
 	AdminLocationSettings,
 	AdminMe,
 	AdminMenu,
+	AdminOrderRow,
+	AdminOrdersQuery,
 	AdminProduct,
 	AdminPromotion,
 	AdminStaff,
@@ -15,6 +17,8 @@ import type {
 	LocationProduct,
 	RegisterDeviceRequest,
 	RegisterDeviceResponse,
+	SalesReport,
+	SalesReportQuery,
 	SetLocationProduct,
 	UpdateCategory,
 	UpdateLocation,
@@ -61,4 +65,9 @@ export interface AdminApi {
 	devices(locationId: string): Promise<AdminDevice[]>;
 	registerDevice(d: RegisterDeviceRequest): Promise<RegisterDeviceResponse>;
 	revokeDevice(id: string): Promise<void>;
+	salesReport(q: SalesReportQuery): Promise<SalesReport>;
+	orders(
+		q: Omit<AdminOrdersQuery, "limit"> & { limit?: number },
+	): Promise<{ items: AdminOrderRow[]; nextCursor?: string | undefined }>;
+	ordersCsv(q: Omit<AdminOrdersQuery, "cursor" | "limit">): Promise<Blob>;
 }

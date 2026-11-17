@@ -28,6 +28,7 @@ import {
 	UpdatePromotion,
 	UpdateStaff,
 } from "./contracts";
+import { demoOrders, demoReport, ordersCsv } from "./demo-orders";
 import { uuidv7 } from "./uuid";
 
 const id = (n: number) =>
@@ -565,6 +566,36 @@ export function fixtureAdminApi(
 			if (!d) throw new AdminApiError("not_found", 404);
 			d.revokedAt ??= new Date().toISOString();
 			persist();
+		},
+		async salesReport(q) {
+			if (!state.locations.some((x) => x.id === q.locationId))
+				throw new AdminApiError("not_found", 404);
+			const orders = demoOrders(q.locationId, state.menu, q.from, q.to);
+			return demoReport(q.locationId, q.from, q.to, orders, state.menu);
+		},
+		async orders(q) {
+			if (!state.locations.some((x) => x.id === q.locationId))
+				throw new AdminApiError("not_found", 404);
+			const rows = demoOrders(q.locationId, state.menu, q.from, q.to)
+				.map((o) => o.row)
+				.filter(
+					(r) =>
+						(!q.paymentStatus || r.paymentStatus === q.paymentStatus) &&
+						(!q.fulfillmentStatus ||
+							r.fulfillmentStatus === q.fulfillmentStatus),
+				)
+				.sort((a, b) => b.placedAt.localeCompare(a.placedAt));
+			const start = q.cursor ? Number.parseInt(q.cursor, 10) : 0;
+			const limit = q.limit ?? 50;
+			const items = rows.slice(start, start + limit);
+			const next = start + limit;
+			return next < rows.length
+				? { items, nextCursor: String(next) }
+				: { items };
+		},
+		async ordersCsv(q) {
+			const { items } = await this.orders({ ...q, limit: 100_000 });
+			return new Blob([ordersCsv(items, 3)], { type: "text/csv" });
 		},
 		async staff() {
 			return clone(state.staff);
