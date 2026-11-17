@@ -1,12 +1,19 @@
-import type { RealtimeEvent } from "@bite/contracts";
+import type { GroupCartEvent, RealtimeEvent } from "@bite/contracts";
 
-/** What the database sends on the bite_events channel (see migration 0008). */
-type Wire = RealtimeEvent & { org: string; loc: string | null };
+export type HubEvent = RealtimeEvent | GroupCartEvent;
 
+/** What the database sends on the bite_events channel (migrations 0008, 0009). */
+type Wire = HubEvent & { org: string; loc: string | null; cart?: string };
+
+/**
+ * A location subscriber (tablet) gets location events; a cart subscriber
+ * (guest) gets only that cart's events.
+ */
 export type Subscriber = {
 	orgId: string;
 	locationId: string;
-	send: (e: RealtimeEvent) => void;
+	cartId?: string;
+	send: (e: HubEvent) => void;
 };
 
 export type Listen = (
@@ -59,10 +66,11 @@ export class RealtimeHub {
 		} catch {
 			return;
 		}
-		const { org, loc, ...event } = w;
+		const { org, loc, cart, ...event } = w;
 		for (const s of this.subs) {
 			if (s.orgId !== org) continue;
 			if (loc && s.locationId !== loc) continue;
+			if ((cart ?? null) !== (s.cartId ?? null)) continue;
 			if (event.type === "menu.changed") {
 				if (this.menuTimers.has(s)) continue;
 				this.menuTimers.set(
@@ -74,7 +82,7 @@ export class RealtimeHub {
 				);
 				continue;
 			}
-			s.send(event as RealtimeEvent);
+			s.send(event as HubEvent);
 		}
 	}
 }
