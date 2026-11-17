@@ -28,7 +28,7 @@ import {
 	refund,
 	voidUnpaidLine,
 } from "./orders.js";
-import { commitSale, type TenderInput } from "./sale.js";
+import { commitSale, type TenderInput, upsertOrders } from "./sale.js";
 
 const CASHIER = "0190f000-0000-7000-8000-0000000000aa";
 const MANAGER = "0190f000-0000-7000-8000-0000000000cc";
@@ -211,7 +211,75 @@ describe("refunds", () => {
 		);
 		expect(await orderPayments(db, order.id)).toEqual([]);
 		expect(payments).toHaveLength(1);
-		expect((await loadOrder(db, order.id))?.payments).toBeNull();
+		expect((await loadOrder(db, order.id))?.payments).toEqual([]);
+	});
+
+	it("refunds an order paid on another device, and doesn't double count once the server echoes it", async () => {
+		const s = await drawer();
+		const { order } = await sale(
+			[{ method: "card", amount: 3_225 as Minor }],
+			null,
+		);
+		// Pretend a pull brought the server copy: a QR order paid by card elsewhere.
+		const OTHER = "0190f000-0000-7000-8000-0000000000dd";
+		const pulled = {
+			...order,
+			id: newId(),
+			ticketNumber: "Q-7",
+			source: "guest" as const,
+			version: 3,
+			payments: [
+				{
+					...order.payments[0],
+					id: OTHER,
+					orderId: "x",
+					method: "thawani" as const,
+				},
+			],
+		} as typeof order;
+		await upsertOrders(db, [pulled]);
+		const res = await refund(db, {
+			orderId: pulled.id,
+			amount: 1_000 as Minor,
+			reason: "Cold",
+			managerId: MANAGER,
+			cashSessionId: s.id,
+			place: PLACE,
+		});
+		expect(res).toEqual({ ok: true, parts: 1 });
+		const r = (await listOutbox(db)).find((m) => m.kind === "order.refund");
+		const rp = RefundPayment.parse(r?.payload);
+		expect(rp.reversesPaymentId).toBe(OTHER);
+		// Not cash, so no drawer on the wire.
+		expect(rp.cashSessionId).toBeUndefined();
+
+		const local = await loadOrder(db, pulled.id);
+		expect(local?.refundable).toBe(2_225);
+		expect(local?.payments.map((p) => p.local)).toEqual([false, true]);
+
+		// The next pull includes the refund row: still one refund, not two.
+		await upsertOrders(db, [
+			{
+				...pulled,
+				version: 4,
+				paymentStatus: "partially_refunded",
+				payments: [
+					...pulled.payments,
+					{
+						...pulled.payments[0],
+						id: rp.id,
+						amount: -1_000,
+						reversesPaymentId: OTHER,
+						reason: "Cold",
+						createdAt: new Date().toISOString(),
+					},
+				],
+			} as typeof order,
+		]);
+		const echoed = await loadOrder(db, pulled.id);
+		expect(echoed?.payments).toHaveLength(2);
+		expect(echoed?.payments.every((p) => !p.local)).toBe(true);
+		expect(echoed?.refundable).toBe(2_225);
 	});
 
 	it("lists the day's orders and finds them by ticket", async () => {
@@ -360,9 +428,15 @@ describe("sync problems", () => {
 			ok: false,
 			error: "rejected_cannot_retry",
 		});
-		expect(await dismissProblem(db, order.id)).toBe(2);
+		expect(await dismissProblem(db, order.id)).toEqual({
+			dismissed: 1,
+			resent: 1,
+		});
 		expect((await syncCounts(db)).attention).toBe(0);
 		expect(await listProblems(db)).toEqual([]);
+		// What waited behind it goes out again under its own id.
+		const q = (await listOutbox(db)).filter((m) => m.entityId === order.id);
+		expect(q.map((m) => m.status)).toEqual(["rejected", "pending"]);
 		// Still flagged on the order itself, so nobody mistakes it for a clean sale.
 		const [row] = await listOrders(db, "2026-11-17");
 		expect(row?.problem).toBe(true);

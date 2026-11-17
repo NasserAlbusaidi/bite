@@ -118,8 +118,8 @@ const en = {
 	"orders.refundItem": "Refund item",
 	"orders.voidItem": "Void item",
 	"orders.refund": "Refund",
-	"orders.paidElsewhere":
-		"Paid on another device. Refund it from there for now.",
+	"orders.paymentsMissing":
+		"Payment details haven't synced to this tablet yet.",
 	"orders.refundAmount": "Refund amount",
 	"orders.approveRefund": "Refund {amount}",
 	"orders.refunded": "Refunded {amount}. Give it back the way it was paid.",
@@ -129,8 +129,7 @@ const en = {
 	"orders.reason.wrongItem": "Wrong item",
 	"orders.reason.quality": "Quality",
 	"orders.error.not_found": "Order not found on this tablet.",
-	"orders.error.no_local_payments":
-		"This tablet has no record of the payment, so it can't refund it.",
+	"orders.error.nothing_paid": "Nothing was paid on this order.",
 	"orders.error.refund_too_large": "That is more than is left to refund.",
 	"orders.error.no_cash_session":
 		"Open the cash drawer first: cash refunds come out of it.",
@@ -186,7 +185,7 @@ const en = {
 	"problems.hintConflict":
 		"Someone changed this on another device first. Check it, then send again.",
 	"problems.hintRejected":
-		"The server refused this. Fix it by hand (re-ring the sale, recount), then set it aside.",
+		"The server refused this. Fix it by hand (re-ring the sale, recount), then set it aside. Anything waiting behind it is sent on.",
 	"problems.kind.order.create": "New order",
 	"problems.kind.order.addPayment": "Payment",
 	"problems.kind.order.refund": "Refund",
@@ -315,7 +314,7 @@ const ar: Record<MessageKey, string> = {
 	"orders.refundItem": "استرداد الصنف",
 	"orders.voidItem": "إلغاء الصنف",
 	"orders.refund": "استرداد",
-	"orders.paidElsewhere": "تم الدفع على جهاز آخر. استرده من هناك حالياً.",
+	"orders.paymentsMissing": "لم تصل تفاصيل الدفع إلى هذا الجهاز بعد.",
 	"orders.refundAmount": "استرداد مبلغ",
 	"orders.approveRefund": "استرداد {amount}",
 	"orders.refunded": "تم استرداد {amount}. أعده بنفس طريقة الدفع.",
@@ -325,8 +324,7 @@ const ar: Record<MessageKey, string> = {
 	"orders.reason.wrongItem": "صنف خاطئ",
 	"orders.reason.quality": "الجودة",
 	"orders.error.not_found": "الطلب غير موجود على هذا الجهاز.",
-	"orders.error.no_local_payments":
-		"لا يوجد سجل للدفع على هذا الجهاز، لذا لا يمكن استرداده.",
+	"orders.error.nothing_paid": "لم يُدفع شيء على هذا الطلب.",
 	"orders.error.refund_too_large": "المبلغ أكبر من المتبقي للاسترداد.",
 	"orders.error.no_cash_session":
 		"افتح درج النقد أولاً: الاسترداد النقدي يخرج منه.",
@@ -381,7 +379,7 @@ const ar: Record<MessageKey, string> = {
 	"problems.hintConflict":
 		"غيّر شخص هذا على جهاز آخر أولاً. راجعه ثم أرسله مجدداً.",
 	"problems.hintRejected":
-		"رفض الخادم هذا. عالجه يدوياً (أعد تسجيل البيع أو أعد العد) ثم تجاهله.",
+		"رفض الخادم هذا. عالجه يدوياً (أعد تسجيل البيع أو أعد العد) ثم تجاهله. سيُرسل ما بعده.",
 	"problems.kind.order.create": "طلب جديد",
 	"problems.kind.order.addPayment": "دفعة",
 	"problems.kind.order.refund": "استرداد",

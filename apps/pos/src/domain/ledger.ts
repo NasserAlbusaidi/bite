@@ -1,4 +1,4 @@
-import type { PaymentMethod } from "@bite/contracts";
+import type { Order, PaymentMethod, PaymentState } from "@bite/contracts";
 import {
 	type LedgerEntry,
 	type Minor,
@@ -112,19 +112,74 @@ export async function sessionPayments(
 	return rows.map(fromRow);
 }
 
-export function toLedger(payments: readonly LocalPayment[]): LedgerEntry[] {
-	return payments.map((p) => ({
+/** One payment or refund as the till shows it, whichever side it came from. */
+export type LedgerRow = {
+	id: string;
+	/** Negative = refund. */
+	amount: number;
+	method: PaymentMethod;
+	state: PaymentState;
+	reversesPaymentId: string | null;
+	reason: string | null;
+	createdAt: string;
+	/** Recorded on this tablet and not yet seen in a pulled copy. */
+	local: boolean;
+};
+
+/**
+ * The order's ledger: the server's rows (pulled copies carry them) plus this
+ * tablet's rows the server hasn't echoed back yet. A local-only copy
+ * (version 0) was built on this tablet, so only the local table counts:
+ * that is where a rejected payment drops out.
+ */
+export function mergeLedger(
+	order: Order,
+	version: number,
+	local: readonly LocalPayment[],
+): LedgerRow[] {
+	const rows: LedgerRow[] =
+		version > 0
+			? order.payments.map((p) => ({
+					id: p.id,
+					amount: p.amount,
+					method: p.method,
+					state: p.state,
+					reversesPaymentId: p.reversesPaymentId,
+					reason: p.reason,
+					createdAt: p.createdAt,
+					local: false,
+				}))
+			: [];
+	const seen = new Set(rows.map((r) => r.id));
+	for (const p of local) {
+		if (seen.has(p.id)) continue;
+		rows.push({
+			id: p.id,
+			amount: p.amount,
+			method: p.method,
+			state: "succeeded",
+			reversesPaymentId: p.reversesPaymentId,
+			reason: p.reason,
+			createdAt: p.createdAt,
+			local: true,
+		});
+	}
+	return rows.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+}
+
+export function toLedger(rows: readonly LedgerRow[]): LedgerEntry[] {
+	return rows.map((p) => ({
 		id: p.id,
 		amount: p.amount as Minor,
 		method: p.method,
-		state: "succeeded",
+		state: p.state,
 		reversesPaymentId: p.reversesPaymentId,
 	}));
 }
 
 export function summarize(
 	total: number,
-	payments: readonly LocalPayment[],
+	rows: readonly LedgerRow[],
 ): PaymentSummary {
-	return summarizePayments(total as Minor, toLedger(payments));
+	return summarizePayments(total as Minor, toLedger(rows));
 }

@@ -58,6 +58,13 @@ for a role (`receipt`, `kitchen`). It never throws into the sale flow.
 - Printing is local (LAN/Bluetooth), so it works with the internet down. This
   replaces the legacy single global PrintNode printer.
 
+## Orders, refunds, drawer, sync problems
+
+- **Ledger.** An order's payments are the server's rows (`Order.payments` on every pulled copy) plus this tablet's own rows in the local `payments` table that the server hasn't echoed back yet (`mergeLedger`). A local row whose own mutation was rejected never counts.
+- **Refunds** go back to the methods the order was paid with, newest payment first (core `planRefund`), one `order.refund` per payment touched. They are queued under a manager's id: if the person at the till isn't a manager, a manager types their PIN on the spot. Cash refunds need this tablet's drawer open. "Refund item" on an open order also queues `order.voidLine` after the refund, because the server refuses to void a paid line first. Unpaid lines (QR orders waiting at the counter) can be voided by a cashier.
+- **Drawer.** Pay in, pay out and safe drop are `cash.movement`. The X report (drawer open) and Z report (after the count) are computed from this tablet's own rows with the server's formula: float + cash payments and tips - cash refunds + pay ins - pay outs - drops. Both print on the receipt printer.
+- **Sync problems.** The red badge opens them, grouped by record. A conflict (someone else changed it first) can be sent again under a new id. A real rejection can't: a manager fixes it by hand and sets it aside. It stays in the outbox for the record, stops blocking, and anything waiting behind it is sent on.
+
 ## Storage drivers
 
 - Tablet: `@capacitor-community/sqlite` (durable, Android and iOS)

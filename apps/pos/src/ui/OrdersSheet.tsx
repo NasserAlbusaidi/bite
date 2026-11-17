@@ -80,7 +80,10 @@ export function OrdersSheet(props: { onClose: () => void }) {
 		o &&
 		o.fulfillmentStatus !== "completed" &&
 		o.fulfillmentStatus !== "cancelled";
-	const net = detail?.summary?.net ?? o?.paidTotal ?? 0;
+	const net = detail?.summary.net ?? o?.paidTotal ?? 0;
+	const settled = (detail?.payments ?? []).filter(
+		(p) => p.state === "succeeded",
+	);
 
 	async function doRefund(
 		managerId: string,
@@ -110,8 +113,8 @@ export function OrdersSheet(props: { onClose: () => void }) {
 					lang,
 					dir,
 					locationName: device.name,
-					payments: after.payments ?? [],
-					openDrawer: (after.payments ?? []).some(
+					payments: after.payments.filter((p) => p.state === "succeeded"),
+					openDrawer: after.payments.some(
 						(p) => p.amount < 0 && p.method === "cash",
 					),
 					reprint: true,
@@ -144,7 +147,7 @@ export function OrdersSheet(props: { onClose: () => void }) {
 					lang,
 					dir,
 					locationName: device.name,
-					payments: detail?.payments ?? [],
+					payments: settled,
 					reprint: true,
 				}),
 			)
@@ -263,7 +266,7 @@ export function OrdersSheet(props: { onClose: () => void }) {
 												<span className="amount">{fmt(gross, lang)}</span>
 												{!voided &&
 													paidFor &&
-													detail?.payments &&
+													detail &&
 													detail.refundable > 0 && (
 														<button
 															type="button"
@@ -311,10 +314,10 @@ export function OrdersSheet(props: { onClose: () => void }) {
 									))}
 									<Pair label={t("money.paid")} value={fmt(net, lang)} />
 								</div>
-								{!detail?.payments && net > 0 && (
-									<p className="muted small">{t("orders.paidElsewhere")}</p>
+								{detail && detail.payments.length === 0 && net > 0 && (
+									<p className="muted small">{t("orders.paymentsMissing")}</p>
 								)}
-								{detail?.payments && detail.refundable > 0 && (
+								{detail && detail.refundable > 0 && (
 									<div className="row">
 										<span className="spacer" />
 										<button

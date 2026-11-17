@@ -10,7 +10,9 @@ import type { SqlDriver, SqlExecutor } from "../db/driver.js";
 import { enqueue } from "../sync/outbox.js";
 import { newId } from "./ids.js";
 import {
+	type LedgerRow,
 	type LocalPayment,
+	mergeLedger,
 	orderPayments,
 	recordPayment,
 	summarize,
@@ -55,10 +57,10 @@ export async function listOrders(
 
 export type OrderDetail = {
 	order: Order;
-	/** Null when this tablet did not take any payment for the order (QR, another till). */
-	payments: LocalPayment[] | null;
-	summary: PaymentSummary | null;
-	/** What can still be refunded from this tablet's ledger. */
+	/** Server rows plus this tablet's not yet echoed back. Empty for an unpaid order. */
+	payments: LedgerRow[];
+	summary: PaymentSummary;
+	/** What can still be refunded. */
 	refundable: Minor;
 };
 
@@ -66,15 +68,17 @@ export async function loadOrder(
 	db: SqlExecutor,
 	orderId: string,
 ): Promise<OrderDetail | null> {
-	const [row] = await db.all<{ doc: string }>(
-		"SELECT doc FROM orders WHERE id = ?",
+	const [row] = await db.all<{ doc: string; version: number }>(
+		"SELECT doc, version FROM orders WHERE id = ?",
 		[orderId],
 	);
 	if (!row) return null;
 	const order = JSON.parse(row.doc) as Order;
-	const payments = await orderPayments(db, orderId);
-	if (payments.length === 0)
-		return { order, payments: null, summary: null, refundable: 0 as Minor };
+	const payments = mergeLedger(
+		order,
+		row.version,
+		await orderPayments(db, orderId),
+	);
 	const ledger = toLedger(payments);
 	const refundable = ledger
 		.filter((e) => e.amount > 0)
@@ -146,7 +150,7 @@ export type Place = { timeZone: string; dayCutoffMinutes: number };
 
 export type RefundError =
 	| "not_found"
-	| "no_local_payments"
+	| "nothing_paid"
 	| "refund_too_large"
 	| "no_cash_session"
 	| "order_closed"
@@ -187,8 +191,8 @@ export async function refund(
 	return db.transaction(async (tx) => {
 		const d = await loadOrder(tx, input.orderId);
 		if (!d) return { ok: false as const, error: "not_found" as const };
-		if (!d.payments)
-			return { ok: false as const, error: "no_local_payments" as const };
+		if (d.payments.length === 0)
+			return { ok: false as const, error: "nothing_paid" as const };
 		if (input.voidLineId) {
 			const line = d.order.lines.find((l) => l.id === input.voidLineId);
 			if (!line || line.voidedAt !== null)
@@ -240,7 +244,16 @@ export async function refund(
 				createdAt: iso,
 			};
 			await recordPayment(tx, row);
-			all.push(row);
+			all.push({
+				id: row.id,
+				amount: row.amount,
+				method: row.method,
+				state: "succeeded",
+				reversesPaymentId: row.reversesPaymentId,
+				reason: row.reason,
+				createdAt: row.createdAt,
+				local: true,
+			});
 		}
 
 		let order = d.order;
@@ -299,7 +312,7 @@ export async function voidUnpaidLine(
 			input.reason,
 			new Date(at).toISOString(),
 		);
-		const net = d.summary?.net ?? o.paidTotal;
+		const net = d.summary.net;
 		if (net > after.total) return { ok: false as const, error: "refund_first" };
 		const payload: VoidLine = {
 			orderId: o.id,
@@ -314,11 +327,12 @@ export async function voidUnpaidLine(
 			...(await baseVersionFor(tx, o.id)),
 			now: new Date(at),
 		});
-		const s = d.payments ? summarize(after.total, d.payments) : null;
-		await saveLocal(
-			tx,
-			s ? { ...after, paymentStatus: s.status, paidTotal: s.net } : after,
-		);
+		const s = summarize(after.total, d.payments);
+		await saveLocal(tx, {
+			...after,
+			paymentStatus: s.status,
+			paidTotal: s.net,
+		});
 		return { ok: true as const };
 	});
 }

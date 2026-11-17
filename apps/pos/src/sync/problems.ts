@@ -104,21 +104,36 @@ export async function retryProblem(
 
 /**
  * A manager has read the problem and dealt with it by hand (re-rang the
- * sale, fixed the count). The rows stay for the record and keep blocking
- * later changes to the same record, they just stop showing as alerts.
+ * sale, recounted). The refused rows stay for the record but stop alerting
+ * and stop blocking. Rows that were only waiting behind them go out again
+ * under their own ids (the server never recorded them), so a drawer close
+ * stuck behind a refused pay-out still reaches the server. If one of those
+ * makes no sense without the refused change, the server refuses it too and
+ * it shows up here on its own.
  */
 export async function dismissProblem(
-	db: SqlExecutor,
+	db: SqlDriver,
 	entityId: string,
 	at = Date.now(),
-): Promise<number> {
-	const before = await db.all<{ n: number }>(
-		"SELECT COUNT(*) AS n FROM outbox WHERE entity_id = ? AND status IN ('rejected','blocked') AND dismissed_at IS NULL",
-		[entityId],
-	);
-	await db.run(
-		"UPDATE outbox SET dismissed_at = ? WHERE entity_id = ? AND status IN ('rejected','blocked') AND dismissed_at IS NULL",
-		[new Date(at).toISOString(), entityId],
-	);
-	return before[0]?.n ?? 0;
+): Promise<{ dismissed: number; resent: number }> {
+	return db.transaction(async (tx) => {
+		const [d] = await tx.all<{ n: number }>(
+			"SELECT COUNT(*) AS n FROM outbox WHERE entity_id = ? AND status = 'rejected' AND dismissed_at IS NULL",
+			[entityId],
+		);
+		const [b] = await tx.all<{ n: number }>(
+			"SELECT COUNT(*) AS n FROM outbox WHERE entity_id = ? AND status = 'blocked'",
+			[entityId],
+		);
+		await tx.run(
+			"UPDATE outbox SET dismissed_at = ? WHERE entity_id = ? AND status = 'rejected' AND dismissed_at IS NULL",
+			[new Date(at).toISOString(), entityId],
+		);
+		await tx.run(
+			`UPDATE outbox SET status = 'pending', attempts = 0, next_attempt_at = 0, last_error = NULL
+			 WHERE entity_id = ? AND status = 'blocked'`,
+			[entityId],
+		);
+		return { dismissed: d?.n ?? 0, resent: b?.n ?? 0 };
+	});
 }

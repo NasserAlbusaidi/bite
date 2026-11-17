@@ -72,6 +72,7 @@ export function ProblemsSheet(props: { onClose: () => void }) {
 								onClick={() =>
 									gate(t("problems.approveDismiss"), async () => {
 										await dismissProblem(db, g.entityId);
+										sync.kick();
 										await reload();
 									})
 								}
