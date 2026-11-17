@@ -52,12 +52,14 @@ function lanIps(): string[] {
 }
 
 function writeIfMissing(path: string, body: string) {
-	if (existsSync(path)) {
+	try {
+		// "wx": create only, atomically; never overwrite an existing env file.
+		writeFileSync(path, body, { flag: "wx" });
+		console.log(`wrote  ${path}`);
+	} catch (err) {
+		if ((err as NodeJS.ErrnoException).code !== "EEXIST") throw err;
 		console.log(`keep   ${path}`);
-		return;
 	}
-	writeFileSync(path, body);
-	console.log(`wrote  ${path}`);
 }
 
 function dbUrl(user: string, password: string): string {
