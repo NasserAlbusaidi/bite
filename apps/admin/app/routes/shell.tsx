@@ -79,6 +79,7 @@ export default function Shell({ loaderData }: Route.ComponentProps) {
 						{t("prices_availability")}
 					</NavLink>
 				)}
+				<NavLink to="/promotions">{t("promotions")}</NavLink>
 			</nav>
 			<main className="content">
 				<Outlet />

@@ -4,12 +4,15 @@ import type {
 	AdminMe,
 	AdminMenu,
 	AdminProduct,
+	AdminPromotion,
 	CreateCategory,
 	CreateProduct,
+	CreatePromotion,
 	LocationProduct,
 	SetLocationProduct,
 	UpdateCategory,
 	UpdateProduct,
+	UpdatePromotion,
 } from "./contracts";
 
 export class AdminApiError extends Error {
@@ -37,4 +40,7 @@ export interface AdminApi {
 		productId: string,
 		s: SetLocationProduct,
 	): Promise<void>;
+	promotions(): Promise<AdminPromotion[]>;
+	createPromotion(p: CreatePromotion): Promise<AdminPromotion>;
+	updatePromotion(id: string, p: UpdatePromotion): Promise<AdminPromotion>;
 }

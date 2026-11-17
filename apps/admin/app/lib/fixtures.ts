@@ -10,12 +10,15 @@ import {
 	type AdminMe,
 	type AdminMenu,
 	type AdminProduct,
+	type AdminPromotion,
 	CreateCategory,
 	CreateProduct,
+	CreatePromotion,
 	type LocationProduct,
 	SetLocationProduct,
 	UpdateCategory,
 	UpdateProduct,
+	UpdatePromotion,
 } from "./contracts";
 import { uuidv7 } from "./uuid";
 
@@ -26,6 +29,7 @@ type DemoState = {
 	menu: AdminMenu;
 	/** locationId -> productId -> override */
 	overrides: Record<string, Record<string, SetLocationProduct>>;
+	promotions: AdminPromotion[];
 };
 
 const azaiba = {
@@ -181,10 +185,28 @@ export function demoState(): DemoState {
 				[id(20)]: { price: 1300, isAvailable: true },
 			},
 		},
+		promotions: [
+			{
+				id: id(500),
+				locationId: null,
+				name: "Pastry hour",
+				kind: "percent",
+				value: 2000,
+				productId: null,
+				categoryId: pastries,
+				startsAt: null,
+				endsAt: null,
+				dailyStart: "07:00",
+				dailyEnd: "09:00",
+				daysOfWeek: null,
+				priority: 0,
+				isActive: true,
+			},
+		],
 	};
 }
 
-const KEY = "bite.admin.demo.v2";
+const KEY = "bite.admin.demo.v3";
 
 export function fixtureAdminApi(
 	initial: DemoState = demoState(),
@@ -241,6 +263,24 @@ export function fixtureAdminApi(
 		) {
 			throw new AdminApiError("bad_request", 400);
 		}
+	};
+
+	const checkPromoRefs = (p: {
+		locationId?: string | null | undefined;
+		productId?: string | null | undefined;
+		categoryId?: string | null | undefined;
+	}) => {
+		if (
+			p.locationId &&
+			!DEMO_ME.locations.some((l) => l.location.id === p.locationId)
+		)
+			throw new AdminApiError("bad_request", 400);
+		if (p.productId) product(p.productId);
+		if (
+			p.categoryId &&
+			!state.menu.categories.some((c) => c.id === p.categoryId)
+		)
+			throw new AdminApiError("bad_request", 400);
 	};
 
 	return {
@@ -337,6 +377,46 @@ export function fixtureAdminApi(
 			if (s.price === null && s.isAvailable) delete loc[productId];
 			else loc[productId] = s;
 			persist();
+		},
+		async promotions() {
+			return clone(state.promotions);
+		},
+		async createPromotion(input) {
+			const v = valid(CreatePromotion, input);
+			checkPromoRefs(v);
+			const created: AdminPromotion = {
+				id: uuidv7(),
+				name: v.name,
+				kind: v.kind,
+				value: v.value,
+				locationId: v.locationId ?? null,
+				productId: v.productId ?? null,
+				categoryId: v.categoryId ?? null,
+				startsAt: v.startsAt ?? null,
+				endsAt: v.endsAt ?? null,
+				dailyStart: v.dailyStart ?? null,
+				dailyEnd: v.dailyEnd ?? null,
+				daysOfWeek: v.daysOfWeek ?? null,
+				priority: v.priority ?? 0,
+				isActive: v.isActive ?? true,
+			};
+			state.promotions.push(created);
+			persist();
+			return clone(created);
+		},
+		async updatePromotion(pid, input) {
+			const existing = state.promotions.find((p) => p.id === pid);
+			if (!existing) throw new AdminApiError("not_found", 404);
+			const v = valid(UpdatePromotion, input);
+			// Rules apply to the merged result, the way the API checks it.
+			const merged = { ...existing };
+			for (const [k, val] of Object.entries(v))
+				if (val !== undefined) Object.assign(merged, { [k]: val });
+			valid(CreatePromotion, merged);
+			checkPromoRefs(merged);
+			Object.assign(existing, merged);
+			persist();
+			return clone(existing);
 		},
 	};
 }

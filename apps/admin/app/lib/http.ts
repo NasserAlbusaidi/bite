@@ -7,6 +7,7 @@ import {
 	AdminMe,
 	AdminModifierGroup,
 	AdminProduct,
+	AdminPromotion,
 	LocationProduct,
 	Page,
 } from "./contracts";
@@ -98,5 +99,10 @@ export function httpAdminApi(
 				send("PUT", s),
 			);
 		},
+		promotions: () => all(AdminPromotion, "/promotions"),
+		createPromotion: (p) =>
+			call(AdminPromotion, "/promotions", send("POST", p)),
+		updatePromotion: (id, p) =>
+			call(AdminPromotion, `/promotions/${enc(id)}`, send("PATCH", p)),
 	};
 }
