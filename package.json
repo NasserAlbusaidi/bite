@@ -1,0 +1,22 @@
+{
+	"name": "bite",
+	"private": true,
+	"packageManager": "pnpm@10.28.0",
+	"engines": {
+		"node": ">=22"
+	},
+	"scripts": {
+		"build": "turbo run build",
+		"dev": "turbo run dev",
+		"test": "turbo run test",
+		"typecheck": "turbo run typecheck",
+		"lint": "biome check .",
+		"format": "biome format --write ."
+	},
+	"devDependencies": {
+		"@biomejs/biome": "^2.6.8",
+		"turbo": "^2.11.11",
+		"typescript": "^5.9.3",
+		"vitest": "^5.1.0"
+	}
+}

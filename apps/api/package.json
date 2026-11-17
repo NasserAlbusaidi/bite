@@ -1,0 +1,22 @@
+{
+	"name": "@bite/api",
+	"version": "0.0.0",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"dev": "tsx watch src/server.ts",
+		"test": "vitest run",
+		"typecheck": "tsc --noEmit"
+	},
+	"dependencies": {
+		"@bite/core": "workspace:*",
+		"@hono/node-server": "^2.1.9",
+		"hono": "^4.13.19"
+	},
+	"devDependencies": {
+		"@types/node": "^26.6.6",
+		"tsx": "^4.23.15",
+		"typescript": "^5.9.3",
+		"vitest": "^5.1.0"
+	}
+}
