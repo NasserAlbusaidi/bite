@@ -5,14 +5,18 @@ import type {
 	AdminMenu,
 	AdminProduct,
 	AdminPromotion,
+	AdminStaff,
 	CreateCategory,
+	CreatePinStaff,
 	CreateProduct,
 	CreatePromotion,
+	InviteStaff,
 	LocationProduct,
 	SetLocationProduct,
 	UpdateCategory,
 	UpdateProduct,
 	UpdatePromotion,
+	UpdateStaff,
 } from "./contracts";
 
 export class AdminApiError extends Error {
@@ -43,4 +47,10 @@ export interface AdminApi {
 	promotions(): Promise<AdminPromotion[]>;
 	createPromotion(p: CreatePromotion): Promise<AdminPromotion>;
 	updatePromotion(id: string, p: UpdatePromotion): Promise<AdminPromotion>;
+	staff(): Promise<AdminStaff[]>;
+	inviteStaff(s: InviteStaff): Promise<AdminStaff>;
+	createPinStaff(s: CreatePinStaff): Promise<AdminStaff>;
+	updateStaff(id: string, s: UpdateStaff): Promise<AdminStaff>;
+	resetPin(id: string, pin: string): Promise<void>;
+	deactivateStaff(id: string): Promise<void>;
 }

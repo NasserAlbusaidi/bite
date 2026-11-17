@@ -8,6 +8,7 @@ import {
 	AdminModifierGroup,
 	AdminProduct,
 	AdminPromotion,
+	AdminStaff,
 	LocationProduct,
 	Page,
 } from "./contracts";
@@ -104,5 +105,22 @@ export function httpAdminApi(
 			call(AdminPromotion, "/promotions", send("POST", p)),
 		updatePromotion: (id, p) =>
 			call(AdminPromotion, `/promotions/${enc(id)}`, send("PATCH", p)),
+		staff: () => all(AdminStaff, "/staff"),
+		inviteStaff: (s) => call(AdminStaff, "/staff/invite", send("POST", s)),
+		createPinStaff: (s) => call(AdminStaff, "/staff", send("POST", s)),
+		updateStaff: (id, s) =>
+			call(AdminStaff, `/staff/${enc(id)}`, send("PATCH", s)),
+		resetPin: async (id, pin) => {
+			await call(
+				z.unknown(),
+				`/staff/${enc(id)}/reset-pin`,
+				send("POST", { pin }),
+			);
+		},
+		deactivateStaff: async (id) => {
+			await call(z.unknown(), `/staff/${enc(id)}/deactivate`, {
+				method: "POST",
+			});
+		},
 	};
 }
