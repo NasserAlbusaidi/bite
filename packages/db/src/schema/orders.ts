@@ -10,6 +10,7 @@ import {
 	jsonb,
 	pgEnum,
 	pgTable,
+	primaryKey,
 	smallint,
 	text,
 	timestamp,
@@ -157,6 +158,30 @@ export const orders = pgTable(
 			"orders_totals_nonneg",
 			sql`${t.subtotal} >= 0 and ${t.discountTotal} >= 0 and ${t.taxTotal} >= 0 and ${t.total} >= 0`,
 		),
+		tenantPolicy(),
+	],
+);
+
+/**
+ * Server-allocated ticket sequences (guest/QR "Q-<n>", kiosk), per location
+ * per business day. Tablets number their own tickets offline with their
+ * device prefix and never touch this.
+ */
+export const ticketCounters = pgTable(
+	"ticket_counters",
+	{
+		orgId: orgId(),
+		locationId: uuid("location_id").notNull(),
+		businessDate: date("business_date").notNull(),
+		prefix: text("prefix").notNull(),
+		lastSeq: integer("last_seq").notNull().default(0),
+	},
+	(t) => [
+		primaryKey({ columns: [t.locationId, t.businessDate, t.prefix] }),
+		foreignKey({
+			columns: [t.orgId, t.locationId],
+			foreignColumns: [locations.orgId, locations.id],
+		}).onDelete("cascade"),
 		tenantPolicy(),
 	],
 );

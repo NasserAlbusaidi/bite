@@ -152,6 +152,67 @@ const cases: Record<string, Case> = {
 		});
 		expect(res.status).toBe(404);
 	},
+	"POST /v1/public/locations/:slug/orders": async (h) => {
+		// A's product ordered through B's menu: not on B's menu.
+		const lineId = uuidv7();
+		const res = await h.app.request(
+			"/v1/public/locations/b-main/orders",
+			json(
+				{
+					locationSlug: "b-main",
+					type: "takeaway",
+					lines: [
+						{
+							id: lineId,
+							productId: h.A.prod,
+							quantity: 1,
+							modifierOptionIds: [],
+						},
+					],
+				},
+				{ "idempotency-key": uuidv7() },
+			),
+		);
+		expect(await res.json()).toMatchObject({
+			error: { details: { reason: "items_unavailable", lineIds: [lineId] } },
+		});
+		// And an Idempotency-Key A already used doesn't leak A's order to B.
+		const key = uuidv7();
+		const lines = [
+			{ id: uuidv7(), productId: h.A.prod, quantity: 1, modifierOptionIds: [] },
+		];
+		await h.app.request(
+			"/v1/public/locations/a-main/orders",
+			json(
+				{ locationSlug: "a-main", type: "takeaway", lines },
+				{ "idempotency-key": key },
+			),
+		);
+		const b = await h.app.request(
+			"/v1/public/locations/b-main/orders",
+			json(
+				{
+					locationSlug: "b-main",
+					type: "takeaway",
+					lines: [{ ...lines[0], productId: h.B.prod }],
+				},
+				{ "idempotency-key": key },
+			),
+		);
+		expect(b.status).toBe(201);
+		expect(await b.text()).not.toContain(h.A.prod);
+	},
+	"GET /v1/public/orders/:trackingToken": async (h) => {
+		const [a] =
+			await h.owner`select tracking_token from orders where org_id = ${h.A.org} limit 1`;
+		const res = await h.app.request(`/v1/public/orders/${a?.tracking_token}`);
+		const text = await res.text();
+		for (const id of [h.B.org, h.B.prod, h.B.loc])
+			expect(text).not.toContain(id);
+		// Staff/device ids never appear on the public view.
+		for (const id of [h.A.device, h.A.cashier, h.A.org])
+			expect(text).not.toContain(id);
+	},
 	"GET /v1/device/session": async (h) => {
 		// A's staff token presented with B's device token.
 		const a = await staffLogin(h, h.A, h.A.cashier);
