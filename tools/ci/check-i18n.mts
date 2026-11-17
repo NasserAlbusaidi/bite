@@ -9,7 +9,7 @@
  *
  * Run: node tools/ci/check-i18n.mts
  */
-const CATALOGS = ["apps/menu/app/lib/i18n.ts"];
+const CATALOGS = ["apps/menu/app/lib/i18n.ts", "apps/pos/src/i18n/messages.ts"];
 
 // Strings allowed to be identical across languages (brand names, codes).
 const SAME_OK = new Set<string>(["Bite", "OMR"]);

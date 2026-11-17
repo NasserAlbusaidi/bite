@@ -41,6 +41,47 @@ CREATE TABLE kv (
 );
 `,
 	},
+	{
+		version: 2,
+		sql: `
+-- Orders this tablet knows about: its own (written at sale time) and pulled
+-- ones (QR, other tablets). The DTO is stored whole, as @bite/contracts Order.
+CREATE TABLE orders (
+	id                 TEXT PRIMARY KEY,
+	ticket_number      TEXT NOT NULL,
+	business_date      TEXT NOT NULL,
+	fulfillment_status TEXT NOT NULL,
+	payment_status     TEXT NOT NULL,
+	placed_at          TEXT NOT NULL,
+	version            INTEGER NOT NULL,                -- 0 = local only, not yet confirmed
+	doc                TEXT NOT NULL
+);
+CREATE INDEX orders_day ON orders (business_date, placed_at);
+CREATE INDEX orders_kitchen ON orders (fulfillment_status, placed_at);
+
+-- One open drawer session per device, mirrored from what we pushed.
+CREATE TABLE cash_sessions (
+	id             TEXT PRIMARY KEY,
+	business_date  TEXT NOT NULL,
+	opening_float  INTEGER NOT NULL,
+	opened_by      TEXT NOT NULL,
+	opened_at      TEXT NOT NULL,
+	closed_at      TEXT
+);
+
+-- Staff who logged in here online at least once. The verifier lets them
+-- unlock while offline. It is a PBKDF2 hash made on this device, never the
+-- server's PIN hash.
+CREATE TABLE staff (
+	member_id      TEXT PRIMARY KEY,
+	display_name   TEXT NOT NULL,
+	role           TEXT NOT NULL,
+	pin_salt       TEXT,
+	pin_verifier   TEXT,
+	verified_at    INTEGER                           -- epoch ms of last online login
+);
+`,
+	},
 ];
 
 export async function migrate(db: SqlDriver): Promise<number> {

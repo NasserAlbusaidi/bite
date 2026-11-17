@@ -1,5 +1,5 @@
-import type { RealtimeEvent } from "@bite/contracts";
 import { describe, expect, it } from "vitest";
+import type { HubEvent as RealtimeEvent } from "./hub.js";
 import { RealtimeHub } from "./hub.js";
 
 const wire = (o: Record<string, unknown>) => JSON.stringify(o);

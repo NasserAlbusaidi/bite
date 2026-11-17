@@ -114,3 +114,16 @@ cashChange(amount, tendered): Minor
 3. Legacy rounded tax once per order; new orders round per line. Expect ±1 baisa per order versus legacy on multi-line orders. `taxMode: "legacy"` is exact.
 4. Legacy daily windows could not wrap midnight; new ones can.
 5. Legacy rates were decimal percent with 3 places (5.125%); bps can't hold half a basis point. Migration must reject or flag any rate that isn't a whole number of bps.
+
+## Parity harness
+
+`tools/parity/export-legacy.sh /path/to/pos-system/bite` copies `tools/parity/LegacyParityExportTest.php` into the legacy app and runs it there, then deletes it. It builds 400 seeded random menus and carts (sale discounts, pricing rules, modifiers including negative ones, mixed tax rates, and prices chosen to land on rounding halves) and prices them through the **real** `GuestOrderService::buildOrderItems`. The output goes to `packages/core/src/parity/legacy-cases.json`, which is committed so CI doesn't need PHP.
+
+`packages/core/src/parity/parity.test.ts` replays every cart through `priceCart`:
+
+- Promotion windows agree with legacy `PricingRule::activeNow` on every rule.
+- `taxMode: "legacy"` matches unit prices, subtotal, tax and total **to the baisa** on all 309 carts that don't stack discounts.
+- `per_line` (new orders) has the same subtotal, and its tax is within 1 baisa per line. It differed on 59 of the 309 carts.
+- The 91 carts that stacked a sale discount with a pricing rule are a deliberate difference (see above).
+
+**Legacy bug found by the harness:** when two pricing rules of the same tier (for example two shop-wide rules) were live at once, legacy picked "the first one" with no `ORDER BY`, so the database's row order decided the price. Bite picks deterministically (priority, then specificity, then id). Migration must give overlapping rules explicit priorities.

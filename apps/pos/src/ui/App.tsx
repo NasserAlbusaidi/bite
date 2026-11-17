@@ -1,25 +1,35 @@
-import { useCallback, useEffect, useState } from "react";
+import type { DeviceMe } from "@bite/contracts";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { ApiClient, type ApiConfig } from "../api/client.js";
+import type { StaffMember } from "../auth/staff.js";
 import type { SqlDriver } from "../db/driver.js";
 import { kvGet, kvSet } from "../db/kv.js";
 import { I18nProvider, useI18n } from "../i18n/I18nProvider.js";
 import type { Lang } from "../i18n/i18n.js";
+import type { PrintService } from "../print/printers.js";
+import { SyncEngine } from "../sync/engine.js";
 import { KdsShell } from "./KdsShell.js";
-import { ModePicker } from "./ModePicker.js";
-import { PosShell } from "./PosShell.js";
+import { LockScreen } from "./LockScreen.js";
+import { PairScreen } from "./PairScreen.js";
+import { createPrintService } from "./printing.js";
+import { SettingsSheet } from "./SettingsSheet.js";
 import { SyncBadge } from "./SyncBadge.js";
+import { ServicesCtx } from "./services.js";
+import { TillScreen } from "./TillScreen.js";
 
-export type Mode = "pos" | "kds";
-
-type Settings = { mode: Mode | null; lang: Lang };
+type Paired = { cfg: ApiConfig; device: DeviceMe };
 
 export function App({ db }: { db: SqlDriver }) {
-	const [settings, setSettings] = useState<Settings | null>(null);
+	const [boot, setBoot] = useState<{
+		lang: Lang;
+		paired: Paired | null;
+	} | null>(null);
 
 	useEffect(() => {
 		(async () => {
-			const mode = (await kvGet(db, "device.mode")) as Mode | null;
 			const lang = ((await kvGet(db, "device.lang")) as Lang | null) ?? "en";
-			setSettings({ mode, lang });
+			const raw = await kvGet(db, "device.pairing");
+			setBoot({ lang, paired: raw ? (JSON.parse(raw) as Paired) : null });
 		})();
 	}, [db]);
 
@@ -28,52 +38,104 @@ export function App({ db }: { db: SqlDriver }) {
 		[db],
 	);
 
-	if (!settings) return null;
+	if (!boot) return null;
 	return (
-		<I18nProvider initial={settings.lang} onChange={saveLang}>
-			<Shell
-				db={db}
-				mode={settings.mode}
-				setMode={(mode) => {
-					setSettings({ ...settings, mode });
-					void (mode
-						? kvSet(db, "device.mode", mode)
-						: db.run("DELETE FROM kv WHERE key = 'device.mode'"));
-				}}
-			/>
+		<I18nProvider initial={boot.lang} onChange={saveLang}>
+			{boot.paired ? (
+				<PairedApp
+					db={db}
+					paired={boot.paired}
+					onUnpair={async () => {
+						await db.run(
+							"DELETE FROM kv WHERE key IN ('device.pairing', 'sync.cursor', 'menu.version')",
+						);
+						setBoot({ ...boot, paired: null });
+					}}
+				/>
+			) : (
+				<PairScreen
+					onPaired={async (cfg, device) => {
+						const paired = { cfg, device };
+						await kvSet(db, "device.pairing", JSON.stringify(paired));
+						setBoot({ ...boot, paired });
+					}}
+				/>
+			)}
 		</I18nProvider>
 	);
 }
 
-function Shell(props: {
+function PairedApp(props: {
 	db: SqlDriver;
-	mode: Mode | null;
-	setMode: (m: Mode | null) => void;
+	paired: Paired;
+	onUnpair: () => void;
 }) {
+	const { db, paired } = props;
+	const api = useMemo(() => new ApiClient(paired.cfg), [paired.cfg]);
+	const sync = useMemo(
+		() => new SyncEngine(db, api, paired.device.deviceId),
+		[db, api, paired.device.deviceId],
+	);
+	const [print, setPrint] = useState<{
+		service: PrintService;
+		holder: { printers: import("../print/printers.js").PrinterConfig[] };
+	} | null>(null);
+	const [member, setMember] = useState<StaffMember | null>(null);
+	const [settings, setSettings] = useState(false);
 	const { t, lang, setLang } = useI18n();
+
+	useEffect(() => {
+		sync.start();
+		return () => sync.stop();
+	}, [sync]);
+	useEffect(() => {
+		void createPrintService(db).then(setPrint);
+	}, [db]);
+
+	if (!print) return null;
+	if (!member) return <LockScreen db={db} api={api} onUnlock={setMember} />;
+
+	const services = {
+		db,
+		api,
+		sync,
+		device: paired.device,
+		print: print.service,
+		member,
+		lock: () => setMember(null),
+	};
 	return (
-		<div className="app">
-			<header className="topbar">
-				<strong>{t("app.title")}</strong>
-				<span className="spacer" />
-				<SyncBadge db={props.db} />
-				{props.mode && (
-					<button type="button" onClick={() => props.setMode(null)}>
-						{t("mode.switch")}
+		<ServicesCtx.Provider value={services}>
+			<div className="app">
+				<header className="topbar">
+					<strong>{paired.device.name}</strong>
+					<span className="muted">{member.displayName}</span>
+					<span className="spacer" />
+					<SyncBadge db={db} sync={sync} />
+					<button
+						type="button"
+						onClick={() => setLang(lang === "en" ? "ar" : "en")}
+					>
+						{t("lang.toggle")}
 					</button>
+					<button type="button" onClick={() => setSettings(true)}>
+						{t("settings.title")}
+					</button>
+					<button type="button" onClick={() => setMember(null)}>
+						{t("lock.lock")}
+					</button>
+				</header>
+				<main className="main-full">
+					{paired.device.kind === "kds" ? <KdsShell /> : <TillScreen />}
+				</main>
+				{settings && (
+					<SettingsSheet
+						holder={print.holder}
+						onClose={() => setSettings(false)}
+						onUnpair={props.onUnpair}
+					/>
 				)}
-				<button
-					type="button"
-					onClick={() => setLang(lang === "en" ? "ar" : "en")}
-				>
-					{t("lang.toggle")}
-				</button>
-			</header>
-			<main>
-				{props.mode === "pos" && <PosShell />}
-				{props.mode === "kds" && <KdsShell />}
-				{props.mode === null && <ModePicker onPick={props.setMode} />}
-			</main>
-		</div>
+			</div>
+		</ServicesCtx.Provider>
 	);
 }

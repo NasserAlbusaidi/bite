@@ -26,6 +26,7 @@ export const realtimeRoutes = new Hono<AppEnv>()
 				orgId: d.orgId,
 				locationId: d.locationId,
 				send: (e) => {
+					if (e.type === "cart.changed") return;
 					queue.push(e);
 					wake?.();
 				},
