@@ -5,13 +5,16 @@ export {
 	AdminMe,
 	AdminModifierGroup,
 	AdminProduct,
+	AdminPromotion,
 	CreateCategory,
 	CreateProduct,
+	CreatePromotion,
 	LocationProduct,
 	Page,
 	SetLocationProduct,
 	UpdateCategory,
 	UpdateProduct,
+	UpdatePromotion,
 } from "@bite/contracts";
 
 import type {

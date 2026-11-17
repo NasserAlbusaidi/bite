@@ -284,3 +284,12 @@ a {
 	gap: 8px;
 	cursor: pointer;
 }
+.fieldset--row {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px 16px;
+	align-items: center;
+}
+.row-muted td {
+	opacity: 0.55;
+}
