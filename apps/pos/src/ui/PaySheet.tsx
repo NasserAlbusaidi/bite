@@ -16,6 +16,8 @@ function quickCash(total: number): number[] {
 export function PaySheet(props: {
 	total: number;
 	drawer: CashSession | null;
+	/** Servers may take payment but not open a drawer (the server rejects cash.open). */
+	canOpenDrawer: boolean;
 	onOpenDrawer: (float: number) => Promise<void>;
 	onCancel: () => void;
 	onCharge: (tenders: TenderInput[]) => Promise<string | null | undefined>;
@@ -68,7 +70,11 @@ export function PaySheet(props: {
 					</button>
 				</div>
 
-				{needsDrawer && (
+				{needsDrawer && !props.canOpenDrawer && (
+					<p className="muted">{t("drawer.askCashier")}</p>
+				)}
+
+				{needsDrawer && props.canOpenDrawer && (
 					<div className="stack">
 						<h3>{t("drawer.open")}</h3>
 						<label>

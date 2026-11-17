@@ -41,6 +41,8 @@ export function TillScreen() {
 		at: number;
 	} | null>(null);
 	const [drawer, setDrawer] = useState<CashSession | null>(null);
+	// Mirrors the API's cash.* role rules.
+	const canDrawer = member.role === "manager" || member.role === "cashier";
 	const [done, setDone] = useState<{
 		ticket: string;
 		change: number;
@@ -201,9 +203,11 @@ export function TillScreen() {
 					<button type="button" onClick={() => setSheet("orders")}>
 						{t("orders.title")}
 					</button>
-					<button type="button" onClick={() => setSheet("drawer")}>
-						{drawer ? t("drawer.title") : t("drawer.open")}
-					</button>
+					{canDrawer && (
+						<button type="button" onClick={() => setSheet("drawer")}>
+							{drawer ? t("drawer.title") : t("drawer.open")}
+						</button>
+					)}
 				</div>
 				<div className="row">
 					<h2>{t("till.cart")}</h2>
@@ -321,6 +325,7 @@ export function TillScreen() {
 				<PaySheet
 					total={paying.priced.total}
 					drawer={drawer}
+					canOpenDrawer={canDrawer}
 					onOpenDrawer={async (float) => {
 						const s = await openCashSession(db, {
 							openingFloat: float,

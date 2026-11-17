@@ -13,11 +13,17 @@ import { PinPad } from "./PinPad.js";
 export function LockScreen(props: {
 	db: SqlDriver;
 	api: ApiClient;
+	/** A till only lists people the server lets sell; kitchen staff use the KDS. */
+	deviceKind: string;
 	onUnlock: (m: StaffMember) => void;
 }) {
 	const { db, api } = props;
 	const { t, lang, setLang } = useI18n();
-	const [staff, setStaff] = useState<StaffMember[]>([]);
+	const [allStaff, setStaff] = useState<StaffMember[]>([]);
+	const staff =
+		props.deviceKind !== "kds"
+			? allStaff.filter((s) => s.role !== "kitchen")
+			: allStaff;
 	const [who, setWho] = useState<StaffMember | null>(null);
 	const [error, setError] = useState<string | null>(null);
 	const [busy, setBusy] = useState(false);
@@ -70,7 +76,7 @@ export function LockScreen(props: {
 								onClick={() => setWho(s)}
 							>
 								<span className="tile-title">{s.displayName}</span>
-								<span className="muted">{s.role}</span>
+								<span className="muted">{t(`role.${s.role}`)}</span>
 							</button>
 						))}
 					</div>

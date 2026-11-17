@@ -112,7 +112,15 @@ function PairedApp(props: {
 	}, [db]);
 
 	if (!print) return null;
-	if (!member) return <LockScreen db={db} api={api} onUnlock={setMember} />;
+	if (!member)
+		return (
+			<LockScreen
+				db={db}
+				api={api}
+				deviceKind={paired.device.kind}
+				onUnlock={setMember}
+			/>
+		);
 
 	const services = {
 		db,
