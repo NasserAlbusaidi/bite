@@ -13,5 +13,7 @@ export default [
 		route("locations/:locationId/menu", "routes/location-menu.tsx"),
 		route("promotions", "routes/promotions.tsx"),
 		route("promotions/:promotionId", "routes/promotion.tsx"),
+		route("staff", "routes/staff.tsx"),
+		route("staff/:staffId", "routes/staff-member.tsx"),
 	]),
 ] satisfies RouteConfig;

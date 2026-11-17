@@ -80,6 +80,7 @@ export default function Shell({ loaderData }: Route.ComponentProps) {
 					</NavLink>
 				)}
 				<NavLink to="/promotions">{t("promotions")}</NavLink>
+				<NavLink to="/staff">{t("staff")}</NavLink>
 			</nav>
 			<main className="content">
 				<Outlet />

@@ -11,14 +11,19 @@ import {
 	type AdminMenu,
 	type AdminProduct,
 	type AdminPromotion,
+	type AdminStaff,
 	CreateCategory,
+	CreatePinStaff,
 	CreateProduct,
 	CreatePromotion,
+	InviteStaff,
 	type LocationProduct,
+	ResetPin,
 	SetLocationProduct,
 	UpdateCategory,
 	UpdateProduct,
 	UpdatePromotion,
+	UpdateStaff,
 } from "./contracts";
 import { uuidv7 } from "./uuid";
 
@@ -30,6 +35,7 @@ type DemoState = {
 	/** locationId -> productId -> override */
 	overrides: Record<string, Record<string, SetLocationProduct>>;
 	promotions: AdminPromotion[];
+	staff: AdminStaff[];
 };
 
 const azaiba = {
@@ -203,10 +209,54 @@ export function demoState(): DemoState {
 				isActive: true,
 			},
 		],
+		staff: [
+			{
+				id: DEMO_ME.member.id,
+				displayName: "Nasser",
+				email: "owner@example.com",
+				orgRole: "owner",
+				hasPin: true,
+				isActive: true,
+				locations: [
+					{ locationId: id(9000), role: "manager" },
+					{ locationId: id(9001), role: "manager" },
+				],
+			},
+			{
+				id: id(7001),
+				displayName: "Mohammed",
+				email: "manager@example.com",
+				orgRole: "staff",
+				hasPin: true,
+				isActive: true,
+				locations: [{ locationId: id(9000), role: "manager" }],
+			},
+			{
+				id: id(7002),
+				displayName: "Aisha",
+				email: null,
+				orgRole: "staff",
+				hasPin: true,
+				isActive: true,
+				locations: [{ locationId: id(9000), role: "cashier" }],
+			},
+			{
+				id: id(7003),
+				displayName: "Ravi",
+				email: null,
+				orgRole: "staff",
+				hasPin: true,
+				isActive: true,
+				locations: [
+					{ locationId: id(9000), role: "kitchen" },
+					{ locationId: id(9001), role: "kitchen" },
+				],
+			},
+		],
 	};
 }
 
-const KEY = "bite.admin.demo.v3";
+const KEY = "bite.admin.demo.v4";
 
 export function fixtureAdminApi(
 	initial: DemoState = demoState(),
@@ -279,6 +329,20 @@ export function fixtureAdminApi(
 		if (
 			p.categoryId &&
 			!state.menu.categories.some((c) => c.id === p.categoryId)
+		)
+			throw new AdminApiError("bad_request", 400);
+	};
+
+	const member = (sid: string) => {
+		const s = state.staff.find((x) => x.id === sid);
+		if (!s) throw new AdminApiError("not_found", 404);
+		return s;
+	};
+	const checkStaffLocations = (ls: { locationId: string }[]) => {
+		const ids = ls.map((l) => l.locationId);
+		if (
+			new Set(ids).size !== ids.length ||
+			!ids.every((i) => DEMO_ME.locations.some((l) => l.location.id === i))
 		)
 			throw new AdminApiError("bad_request", 400);
 	};
@@ -417,6 +481,70 @@ export function fixtureAdminApi(
 			Object.assign(existing, merged);
 			persist();
 			return clone(existing);
+		},
+		async staff() {
+			return clone(state.staff);
+		},
+		async inviteStaff(input) {
+			const v = valid(InviteStaff, input);
+			checkStaffLocations(v.locations);
+			if (
+				state.staff.some(
+					(s) => s.email?.toLowerCase() === v.email.toLowerCase(),
+				)
+			)
+				throw new AdminApiError("conflict", 409);
+			const created: AdminStaff = {
+				id: uuidv7(),
+				displayName: v.displayName,
+				email: v.email,
+				orgRole: v.orgRole,
+				hasPin: false,
+				isActive: true,
+				locations: v.locations,
+			};
+			state.staff.push(created);
+			persist();
+			return clone(created);
+		},
+		async createPinStaff(input) {
+			const v = valid(CreatePinStaff, input);
+			checkStaffLocations(v.locations);
+			const created: AdminStaff = {
+				id: uuidv7(),
+				displayName: v.displayName,
+				email: null,
+				orgRole: "staff",
+				hasPin: true,
+				isActive: true,
+				locations: v.locations,
+			};
+			state.staff.push(created);
+			persist();
+			return clone(created);
+		},
+		async updateStaff(sid, input) {
+			const s = member(sid);
+			const v = valid(UpdateStaff, input);
+			if (s.orgRole === "owner" && v.orgRole !== undefined)
+				throw new AdminApiError("forbidden", 403);
+			if (v.locations) checkStaffLocations(v.locations);
+			if (v.displayName !== undefined) s.displayName = v.displayName;
+			if (v.orgRole !== undefined) s.orgRole = v.orgRole;
+			if (v.locations !== undefined) s.locations = v.locations;
+			persist();
+			return clone(s);
+		},
+		async resetPin(sid, pin) {
+			valid(ResetPin, { pin });
+			member(sid).hasPin = true;
+			persist();
+		},
+		async deactivateStaff(sid) {
+			const s = member(sid);
+			if (s.orgRole === "owner") throw new AdminApiError("forbidden", 403);
+			s.isActive = false;
+			persist();
 		},
 	};
 }

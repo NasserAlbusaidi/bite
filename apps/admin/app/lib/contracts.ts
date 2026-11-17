@@ -6,15 +6,20 @@ export {
 	AdminModifierGroup,
 	AdminProduct,
 	AdminPromotion,
+	AdminStaff,
 	CreateCategory,
+	CreatePinStaff,
 	CreateProduct,
 	CreatePromotion,
+	InviteStaff,
 	LocationProduct,
 	Page,
+	ResetPin,
 	SetLocationProduct,
 	UpdateCategory,
 	UpdateProduct,
 	UpdatePromotion,
+	UpdateStaff,
 } from "@bite/contracts";
 
 import type {

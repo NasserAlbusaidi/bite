@@ -1,0 +1,123 @@
+import { describe, expect, it } from "vitest";
+import { AdminApiError } from "./api-types";
+import { DEMO_ME, demoState, fixtureAdminApi } from "./fixtures";
+import { mergeRoles, parseNewStaff, parseRoles } from "./staff-form";
+
+const A = DEMO_ME.locations[0]?.location.id ?? "a";
+const B = DEMO_ME.locations[1]?.location.id ?? "b";
+
+const form = (entries: Record<string, string>) => {
+	const f = new FormData();
+	for (const [k, v] of Object.entries(entries)) f.append(k, v);
+	return f;
+};
+
+describe("staff form", () => {
+	it("reads one role per visible location and ignores the rest", () => {
+		const f = form({
+			[`role:${A}`]: "cashier",
+			[`role:${B}`]: "",
+			"role:other": "manager",
+		});
+		expect(parseRoles(f, [A, B])).toEqual([{ locationId: A, role: "cashier" }]);
+	});
+
+	it("keeps roles at locations this manager can't see", () => {
+		const merged = mergeRoles(
+			[
+				{ locationId: A, role: "cashier" },
+				{ locationId: B, role: "kitchen" },
+			],
+			[{ locationId: A, role: "server" }],
+			[A],
+		);
+		expect(merged).toEqual([
+			{ locationId: B, role: "kitchen" },
+			{ locationId: A, role: "server" },
+		]);
+	});
+
+	it("needs a 4-8 digit PIN and a location for floor staff", () => {
+		const r = parseNewStaff(
+			form({ kind: "pin", displayName: "Sara", pin: "12a" }),
+			[A],
+		);
+		expect(r.ok).toBe(false);
+		if (r.ok) return;
+		expect(Object.keys(r.errors).sort()).toEqual(["locations", "pin"]);
+	});
+
+	it("lets an admin invite go out without location roles", () => {
+		const r = parseNewStaff(
+			form({
+				kind: "invite",
+				displayName: "Huda",
+				email: "huda@example.com",
+				orgRole: "admin",
+			}),
+			[A],
+		);
+		expect(r.ok && r.value).toMatchObject({
+			kind: "invite",
+			orgRole: "admin",
+			locations: [],
+		});
+	});
+});
+
+describe("demo staff api", () => {
+	const api = () => fixtureAdminApi(demoState(), null);
+
+	it("invites, rejects a duplicate email and adds PIN staff", async () => {
+		const a = api();
+		const invited = await a.inviteStaff({
+			email: "new@example.com",
+			displayName: "New",
+			orgRole: "staff",
+			locations: [{ locationId: A, role: "manager" }],
+		});
+		expect(invited).toMatchObject({ hasPin: false, isActive: true });
+		await expect(
+			a.inviteStaff({
+				email: "NEW@example.com",
+				displayName: "Dup",
+				orgRole: "staff",
+				locations: [],
+			}),
+		).rejects.toMatchObject({ status: 409 });
+		const floor = await a.createPinStaff({
+			displayName: "Floor",
+			pin: "4321",
+			locations: [{ locationId: B, role: "server" }],
+		});
+		expect(floor).toMatchObject({
+			email: null,
+			hasPin: true,
+			orgRole: "staff",
+		});
+	});
+
+	it("never demotes or deactivates the owner", async () => {
+		const a = api();
+		await expect(
+			a.updateStaff(DEMO_ME.member.id, { orgRole: "staff" }),
+		).rejects.toBeInstanceOf(AdminApiError);
+		await expect(a.deactivateStaff(DEMO_ME.member.id)).rejects.toMatchObject({
+			status: 403,
+		});
+	});
+
+	it("deactivates and rejects a bad PIN reset", async () => {
+		const a = api();
+		const someone = (await a.staff()).find((s) => s.orgRole === "staff");
+		expect(someone).toBeDefined();
+		if (!someone) return;
+		await expect(a.resetPin(someone.id, "12")).rejects.toBeInstanceOf(
+			AdminApiError,
+		);
+		await a.deactivateStaff(someone.id);
+		expect((await a.staff()).find((s) => s.id === someone.id)?.isActive).toBe(
+			false,
+		);
+	});
+});
