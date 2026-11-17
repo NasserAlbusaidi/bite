@@ -6,8 +6,8 @@ Legacy app: `NasserAlbusaidi/pos-system` (Laravel). It stays in production until
 
 - `apps/api` Hono API (Node 22)
 - `apps/pos` React + Vite + Capacitor POS and KDS, offline with a local SQLite outbox. Read `apps/pos/README.md` first.
-- `apps/menu` SSR guest menu (not yet scaffolded)
-- `apps/admin` back office (not yet scaffolded)
+- `apps/menu` SSR guest menu + group carts (React Router framework mode). With `BITE_API_URL` unset it runs on in-memory fixtures (`app/lib/fixtures.server.ts`).
+- `apps/admin` back office SPA (React Router, `ssr: false`) on the `/v1/admin` contracts. With `VITE_API_URL` unset it runs on in-browser demo data (`app/lib/fixtures.ts`, saved to localStorage).
 - `packages/core` pure TS, zero runtime deps: money, pricing, VAT, order state machine. Runs on the server AND offline on the tablet.
 - `packages/db` Drizzle schema, migrations, RLS policies. Read `docs/data-model.md` before touching it.
 - `packages/contracts` Zod schemas shared by API and clients (not yet scaffolded)

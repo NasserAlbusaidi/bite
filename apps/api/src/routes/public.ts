@@ -5,7 +5,7 @@ import {
 	type PublicMenuResponse,
 } from "@bite/contracts";
 import { schema, withTenant } from "@bite/db";
-import { eq, sql } from "drizzle-orm";
+import { eq, sql } from "@bite/db/orm";
 import { Hono } from "hono";
 import { z } from "zod";
 import type { AppEnv } from "../env.js";

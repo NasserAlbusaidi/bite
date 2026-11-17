@@ -16,7 +16,7 @@ import {
 	priceCart,
 } from "@bite/core";
 import { schema, type Tx } from "@bite/db";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "@bite/db/orm";
 import { ApiError } from "../lib/errors.js";
 import { isOpenAt } from "../menu/hours.js";
 import { loadMenuSnapshot } from "../menu/snapshot.js";

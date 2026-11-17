@@ -10,7 +10,7 @@ import {
 	UpsertGroupCartItem,
 } from "@bite/contracts";
 import { schema } from "@bite/db";
-import { and, count, eq } from "drizzle-orm";
+import { and, count, eq } from "@bite/db/orm";
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { v7 as uuidv7 } from "uuid";

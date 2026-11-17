@@ -277,4 +277,20 @@ describe.runIf(ownerUrl)("tenancy (RLS + composite FKs)", () => {
 			where c.relkind = 'r' and not c.relrowsecurity`;
 		expect(rows.map((r) => r.relname)).toEqual([]);
 	});
+
+	it("only allowlisted global tables run without RLS", async () => {
+		const rows = await owner<{ relname: string }[]>`
+			select c.relname from pg_class c
+			join pg_namespace n on n.oid = c.relnamespace and n.nspname = 'public'
+			where c.relkind = 'r' and not c.relrowsecurity
+			order by c.relname`;
+		expect(rows.map((r) => r.relname)).toEqual([
+			"auth_accounts",
+			"auth_sessions",
+			"auth_users",
+			"auth_verifications",
+			// Provider webhooks land before a tenant is known; bite_system only.
+			"webhook_events",
+		]);
+	});
 });

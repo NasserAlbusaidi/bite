@@ -1,6 +1,6 @@
 import type { GroupCartView } from "@bite/contracts";
 import { schema, type Tx, withTenant } from "@bite/db";
-import { and, asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq, sql } from "@bite/db/orm";
 import type { Context } from "hono";
 import type { AppEnv } from "../env.js";
 import { ApiError } from "../lib/errors.js";

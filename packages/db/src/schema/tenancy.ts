@@ -23,6 +23,7 @@ import {
 	tenantPolicy,
 	updatedAt,
 } from "./_shared.js";
+import { authUsers } from "./auth.js";
 
 export const orgStatus = pgEnum("org_status", ["trial", "active", "suspended"]);
 
@@ -44,6 +45,19 @@ export const orgs = pgTable(
 			for: "select",
 			to: appRole,
 			using: sql`${t.id} = app_org_id()`,
+		}),
+		// Onboarding: the API mints the org id, opens withTenant(newId) and
+		// inserts the org, its first location and the owner in one transaction.
+		pgPolicy("own_org_insert", {
+			for: "insert",
+			to: appRole,
+			withCheck: sql`${t.id} = app_org_id()`,
+		}),
+		pgPolicy("own_org_update", {
+			for: "update",
+			to: appRole,
+			using: sql`${t.id} = app_org_id()`,
+			withCheck: sql`${t.id} = app_org_id()`,
 		}),
 	],
 );
@@ -106,7 +120,9 @@ export const members = pgTable(
 		id: id(),
 		orgId: orgId().references(() => orgs.id, { onDelete: "restrict" }),
 		/** Better Auth user id (text). Null for PIN-only staff. */
-		userId: text("user_id"),
+		userId: text("user_id").references(() => authUsers.id, {
+			onDelete: "set null",
+		}),
 		displayName: text("display_name").notNull(),
 		orgRole: orgRole("org_role").notNull().default("staff"),
 		/** Argon2id hash of the staff PIN. */

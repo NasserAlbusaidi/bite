@@ -4,10 +4,11 @@
  * but skips everything else the API checks (tenancy, rate limits, shifts).
  */
 import { bps, priceCart } from "@bite/core";
-import type { GuestApi } from "./api.server";
+import type { GuestApi, ParticipantAuth } from "./api.server";
 import { GuestApiError } from "./api.server";
 import {
 	CreateGuestOrderRequest,
+	type GroupCartView,
 	type GuestOrderView,
 	type PublicMenuResponse,
 } from "./contracts";
@@ -211,8 +212,9 @@ export function fixtureApi(
 ): GuestApi {
 	const orders = new Map<string, GuestOrderView>();
 	const byKey = new Map<string, { body: string; order: GuestOrderView }>();
+	const carts = new Map<string, FixtureCart>();
 
-	return {
+	const api: GuestApi = {
 		async getMenu(slug) {
 			const m = source();
 			return slug === m.location.slug ? m : null;
@@ -313,6 +315,192 @@ export function fixtureApi(
 			};
 			orders.set(order.trackingToken, order);
 			byKey.set(key, { body, order });
+			return order;
+		},
+		...groupCartFixtures(carts, source, (req, key) => api.placeOrder(req, key)),
+	};
+	return api;
+}
+
+type FixtureCart = {
+	slug: string;
+	view: GroupCartView;
+	/** secret -> participant id. The real API stores only hashes. */
+	secrets: Map<string, string>;
+};
+
+const CART_TTL_MS = 2 * 60 * 60 * 1000;
+
+/** Group cart rules as the API documents them, in memory. */
+function groupCartFixtures(
+	carts: Map<string, FixtureCart>,
+	source: () => PublicMenuResponse,
+	placeOrder: GuestApi["placeOrder"],
+): Pick<
+	GuestApi,
+	| "createGroupCart"
+	| "joinGroupCart"
+	| "getGroupCart"
+	| "upsertGroupItem"
+	| "removeGroupItem"
+	| "lockGroupCart"
+	| "unlockGroupCart"
+	| "submitGroupCart"
+> {
+	const snapshot = (c: FixtureCart): GroupCartView => structuredClone(c.view);
+	const submitted = new Map<string, GuestOrderView>();
+
+	const find = (token: string): FixtureCart => {
+		const c = carts.get(token);
+		if (!c) throw new GuestApiError("not_found");
+		if (c.view.status === "open" || c.view.status === "locked") {
+			if (Date.parse(c.view.expiresAt) < Date.now()) c.view.status = "expired";
+		}
+		return c;
+	};
+
+	const join = (c: FixtureCart, displayName: string, isHost: boolean) => {
+		if (c.view.status !== "open") {
+			throw new GuestApiError("unprocessable", { reason: "cart_not_open" });
+		}
+		const participantId = uuidv7();
+		const secret = `${uuidv7()}${uuidv7()}`.replaceAll("-", "");
+		c.secrets.set(secret, participantId);
+		c.view.participants.push({ id: participantId, displayName, isHost });
+		c.view.version++;
+		return { participantId, secret, cart: snapshot(c) };
+	};
+
+	/** Authenticate, check the version, run the write, bump the version. */
+	const write = (
+		token: string,
+		auth: ParticipantAuth,
+		opts: {
+			hostOnly?: boolean;
+			status?: GroupCartView["status"];
+			bump?: boolean;
+		},
+		fn: (c: FixtureCart, me: string) => void,
+	): GroupCartView => {
+		const c = find(token);
+		const me = c.secrets.get(auth.secret);
+		if (!me) throw new GuestApiError("unauthenticated");
+		if (auth.version !== c.view.version) {
+			throw new GuestApiError("conflict", null, snapshot(c));
+		}
+		if (
+			opts.hostOnly &&
+			!c.view.participants.find((p) => p.id === me)?.isHost
+		) {
+			throw new GuestApiError("forbidden");
+		}
+		if (c.view.status !== (opts.status ?? "open")) {
+			throw new GuestApiError("unprocessable", { reason: "cart_not_open" });
+		}
+		fn(c, me);
+		if (opts.bump !== false) c.view.version++;
+		return snapshot(c);
+	};
+
+	return {
+		async createGroupCart(slug, displayName) {
+			if (slug !== source().location.slug) throw new GuestApiError("not_found");
+			const token = uuidv7();
+			const c: FixtureCart = {
+				slug,
+				secrets: new Map(),
+				view: {
+					token,
+					status: "open",
+					version: 1,
+					expiresAt: new Date(Date.now() + CART_TTL_MS).toISOString(),
+					participants: [],
+					items: [],
+					trackingToken: null,
+				},
+			};
+			carts.set(token, c);
+			return join(c, displayName, true);
+		},
+		async joinGroupCart(token, displayName) {
+			return join(find(token), displayName, false);
+		},
+		async getGroupCart(token) {
+			return carts.has(token) ? snapshot(find(token)) : null;
+		},
+		async upsertGroupItem(token, itemId, item, auth) {
+			return write(token, auth, {}, (c, me) => {
+				const existing = c.view.items.find((i) => i.id === itemId);
+				if (existing && existing.participantId !== me)
+					throw new GuestApiError("forbidden");
+				const next = {
+					id: itemId,
+					participantId: me,
+					productId: item.productId,
+					quantity: item.quantity,
+					modifierOptionIds: [...item.modifierOptionIds],
+					note: item.note ?? null,
+				};
+				c.view.items = existing
+					? c.view.items.map((i) => (i.id === itemId ? next : i))
+					: [...c.view.items, next];
+			});
+		},
+		async removeGroupItem(token, itemId, auth) {
+			return write(token, auth, {}, (c, me) => {
+				const existing = c.view.items.find((i) => i.id === itemId);
+				if (!existing) return;
+				if (existing.participantId !== me) throw new GuestApiError("forbidden");
+				c.view.items = c.view.items.filter((i) => i.id !== itemId);
+			});
+		},
+		async lockGroupCart(token, auth) {
+			return write(token, auth, { hostOnly: true }, (c) => {
+				c.view.status = "locked";
+			});
+		},
+		async unlockGroupCart(token, auth) {
+			return write(token, auth, { hostOnly: true, status: "locked" }, (c) => {
+				c.view.status = "open";
+			});
+		},
+		async submitGroupCart(token, req, auth, key) {
+			const replay = submitted.get(key);
+			if (replay) return replay;
+			let request: CreateGuestOrderRequest | undefined;
+			const view = write(
+				token,
+				auth,
+				{ hostOnly: true, status: "locked", bump: false },
+				(cart) => {
+					if (cart.view.items.length === 0) {
+						throw new GuestApiError("unprocessable", { reason: "cart_empty" });
+					}
+					const host = cart.view.participants.find((p) => p.isHost);
+					request = {
+						locationSlug: cart.slug,
+						type: req.type,
+						customerName: req.customerName ?? host?.displayName,
+						...(req.customerPhone ? { customerPhone: req.customerPhone } : {}),
+						...(req.note ? { note: req.note } : {}),
+						lines: cart.view.items.map((i) => ({
+							id: i.id,
+							productId: i.productId,
+							quantity: i.quantity,
+							modifierOptionIds: i.modifierOptionIds,
+							...(i.note ? { note: i.note } : {}),
+						})),
+					};
+				},
+			);
+			if (!request) throw new Error("unreachable");
+			// Rejections (sold out, closed) leave the cart locked for the host to fix.
+			const order = await placeOrder(request, key);
+			const c = find(view.token);
+			c.view.status = "submitted";
+			c.view.trackingToken = order.trackingToken;
+			c.view.version++;
+			submitted.set(key, order);
 			return order;
 		},
 	};

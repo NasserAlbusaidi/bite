@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import type { MenuSnapshot } from "@bite/contracts";
 import { schema, type Tx } from "@bite/db";
-import { and, asc, eq, isNull, or } from "drizzle-orm";
+import { and, asc, eq, isNull, or } from "@bite/db/orm";
 
 const {
 	categories,
