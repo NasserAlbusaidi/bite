@@ -38,6 +38,7 @@ function order(n: number, over: Partial<Order> = {}): Order {
 		version: 3,
 		updatedAt: "2026-11-17T10:00:00Z",
 		lines: [],
+		payments: [],
 		...over,
 	};
 }

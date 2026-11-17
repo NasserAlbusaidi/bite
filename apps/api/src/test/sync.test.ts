@@ -133,6 +133,11 @@ describe.runIf(ownerUrl)("sync push/pull", () => {
 				fulfillmentStatus: string;
 				total: number;
 				paidTotal: number;
+				payments: {
+					id: string;
+					amount: number;
+					reversesPaymentId: string | null;
+				}[];
 			}[];
 		};
 	}
@@ -480,6 +485,57 @@ describe.runIf(ownerUrl)("sync push/pull", () => {
 			status: "rejected",
 			error: { code: "forbidden" },
 		});
+	});
+
+	it("pulls the payment ledger with the order, so any tablet can refund", async () => {
+		const o = posOrder(h.A, 1);
+		const payId = uuidv7();
+		await push(h.A, [
+			mut(h.A, "order.create", o.id, o),
+			mut(h.A, "order.addPayment", o.id, {
+				id: payId,
+				orderId: o.id,
+				amount: 1500,
+				method: "card",
+				businessDate: DAY,
+			}),
+		]);
+		const before = await pull(h.A);
+		const paid = before.orders.find((x) => x.id === o.id);
+		expect(paid?.payments).toEqual([
+			expect.objectContaining({
+				id: payId,
+				amount: 1500,
+				reversesPaymentId: null,
+			}),
+		]);
+
+		const refundId = uuidv7();
+		await push(h.A, [
+			mut(
+				h.A,
+				"order.refund",
+				o.id,
+				{
+					id: refundId,
+					reversesPaymentId: payId,
+					amount: 400,
+					reason: "spilled",
+					businessDate: DAY,
+				},
+				{ memberId: h.A.manager },
+			),
+		]);
+		// The refund bumps the version, so an incremental pull re-sends the order.
+		const after = await pull(h.A, `?cursor=${before.cursor}`);
+		const refunded = after.orders.find((x) => x.id === o.id);
+		expect(refunded?.version).toBeGreaterThan(paid?.version ?? 0);
+		expect(
+			refunded?.payments.map((p) => [p.id, p.amount, p.reversesPaymentId]),
+		).toEqual([
+			[payId, 1500, null],
+			[refundId, -400, payId],
+		]);
 	});
 
 	it("pulls changes with a gap-free cursor and skips an unchanged menu", async () => {
