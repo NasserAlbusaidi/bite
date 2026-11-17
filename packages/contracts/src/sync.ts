@@ -18,7 +18,11 @@ import { AddPayment, RefundPayment } from "./payments.js";
  */
 const base = {
 	id: Id,
-	/** Row the mutation creates or changes (order id, cash session id, ...). */
+	/**
+	 * The aggregate the mutation belongs to: the ORDER id for every order.*
+	 * kind (payments and refunds included), the cash session id for cash.*,
+	 * the product id for menu.*. Chains are blocked per entityId (see below).
+	 */
 	entityId: Id,
 	/** Version the tablet last saw. Omit for creates. Mismatch => "conflict". */
 	baseVersion: Version.optional(),
@@ -81,6 +85,7 @@ export const SyncMutationStatus = z.enum([
 	"duplicate", // done before; this is the original result
 	"conflict", // baseVersion stale; pull, rebase, re-queue with a NEW id
 	"rejected", // invalid (validation, domain rule); do not retry as-is
+	"blocked", // not attempted: an earlier mutation on the same entityId in this push was rejected/conflicted
 ]);
 
 export const SyncMutationResult = z.object({
@@ -94,9 +99,13 @@ export const SyncMutationResult = z.object({
 export type SyncMutationResult = z.infer<typeof SyncMutationResult>;
 
 /**
- * Results come back in request order. Processing stops at nothing: a rejected
- * mutation does not block later ones, because mutations on different entities
- * are independent and same-entity ones will conflict or reject on their own.
+ * Results come back in request order. Mutations are applied in order, each in
+ * its own transaction. Once a mutation on entityId E is rejected or conflicts,
+ * every later mutation on E in the same push is answered "blocked" without
+ * being applied, because offline chains can't carry a reliable baseVersion
+ * and must not land on a state the cashier never saw. Other entities carry on.
+ * "blocked" mutations are NOT recorded, so the same ids can be pushed again
+ * once the blocker is resolved.
  */
 export const SyncPushResponse = z.object({
 	results: z.array(SyncMutationResult),
