@@ -1,0 +1,33 @@
+// Money is integer minor units (baisa), rates are integer basis points, and
+// rounding is half away from zero via @bite/core. This rejects the usual ways
+// floats sneak into money code. Scope: the money-bearing packages, plus any
+// file whose name says money/pricing/payment/tender/vat/tax/cart/refund/cash.
+// Tests are exempt: they feed floats in to prove they are rejected.
+language js
+
+or {
+	`parseFloat($_)`,
+	`Number.parseFloat($_)`,
+	`$_.toFixed($_)`,
+	`$_.toPrecision($_)`,
+	`Math.round($_)`,
+	`Math.fround($_)`
+} as $call where {
+	$filename <: or {
+		r".*packages/core/src/.*",
+		r".*packages/contracts/src/.*",
+		r".*packages/db/src/.*",
+		r".*apps/api/src/.*",
+		r".*/[^/]*money[^/]*",
+		r".*/[^/]*pric[^/]*",
+		r".*/[^/]*payment[^/]*",
+		r".*/[^/]*tender[^/]*",
+		r".*/[^/]*vat[^/]*",
+		r".*/[^/]*tax[^/]*",
+		r".*/[^/]*cart[^/]*",
+		r".*/[^/]*refund[^/]*",
+		r".*/[^/]*cash[^/]*"
+	},
+	not $filename <: r".*\.test\.tsx?",
+	register_diagnostic(span=$call, message="No float math in money code (parseFloat/toFixed/toPrecision/Math.round/fround). Use @bite/core Money helpers: integer baisa, half-away-from-zero rounding. Math.round(-2.5) is -2, which is wrong for refunds.", severity="error")
+}

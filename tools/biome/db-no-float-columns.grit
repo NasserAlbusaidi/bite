@@ -1,0 +1,13 @@
+// Money columns are bigint/integer baisa. No floating or arbitrary-precision
+// numeric types in the Drizzle schema.
+language js
+
+or {
+	`real($...)`,
+	`doublePrecision($...)`,
+	`numeric($...)`,
+	`decimal($...)`
+} as $col where {
+	$filename <: r".*packages/db/src/schema/.*",
+	register_diagnostic(span=$col, message="No real/double/numeric/decimal columns. Store money as integer baisa and rates as integer basis points.", severity="error")
+}

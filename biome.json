@@ -30,5 +30,22 @@
 				"organizeImports": "on"
 			}
 		}
-	}
+	},
+	"plugins": [
+		"./tools/biome/money-no-floats.grit",
+		"./tools/biome/money-no-float-literals.grit",
+		"./tools/biome/db-no-float-columns.grit"
+	],
+	"overrides": [
+		{
+			"includes": ["**/*.test.ts", "**/*.test.tsx", "**/test/**"],
+			"linter": {
+				"rules": {
+					"style": {
+						"noNonNullAssertion": "off"
+					}
+				}
+			}
+		}
+	]
 }

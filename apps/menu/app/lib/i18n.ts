@@ -199,7 +199,7 @@ const ar: Record<MessageKey, string> = {
 	placing: "جارٍ إرسال الطلب…",
 };
 
-const messages: Record<Lang, Record<MessageKey, string>> = { en, ar };
+export const messages: Record<Lang, Record<MessageKey, string>> = { en, ar };
 
 export type T = (
 	key: MessageKey,
