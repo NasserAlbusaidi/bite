@@ -2,6 +2,7 @@ import { data, Form, Link, redirect, useNavigation } from "react-router";
 import { adminApi } from "../lib/api";
 import { AdminApiError } from "../lib/api-types";
 import { loc } from "../lib/i18n";
+import { catalogPowers } from "../lib/permissions";
 import { loadPlaces } from "../lib/places";
 import { parsePromoForm, promoFormDefaults } from "../lib/promo-form";
 import { selectedLocationId } from "../lib/selected-location";
@@ -48,7 +49,8 @@ export default function PromotionPage({
 	actionData,
 }: Route.ComponentProps) {
 	const { promo, menu } = loaderData;
-	const { t, lang, places, place } = useShell();
+	const { t, lang, places, place, me } = useShell();
+	const powers = catalogPowers(me);
 	const nav = useNavigation();
 	const decimals = place?.decimals ?? 3;
 	const d = promoFormDefaults(promo, decimals);
@@ -94,7 +96,9 @@ export default function PromotionPage({
 							className="input"
 							defaultValue={d.locationId}
 						>
-							<option value="">{t("all_locations")}</option>
+							{powers.canPickAllLocations && (
+								<option value="">{t("all_locations")}</option>
+							)}
 							{places.map((l) => (
 								<option key={l.id} value={l.id}>
 									{l.name}

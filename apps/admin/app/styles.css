@@ -102,6 +102,7 @@ h2 {
 	font-weight: 700;
 }
 .content {
+	min-inline-size: 0;
 	padding: var(--space-6);
 	display: grid;
 	gap: var(--space-4);
@@ -109,8 +110,25 @@ h2 {
 	max-inline-size: 1040px;
 }
 @media (max-width: 760px) {
+	/* minmax(0, …): without it the nowrap nav and wide tables set the
+	   column's min width and the whole page scrolls sideways on a phone. */
 	.app {
-		grid-template-columns: 1fr;
+		grid-template-columns: minmax(0, 1fr);
+	}
+	.topbar {
+		flex-wrap: wrap;
+		gap: var(--space-2) var(--space-3);
+		padding: var(--space-2) var(--space-4);
+	}
+	/* The member name is already on the sign-out row on a desktop; drop it here. */
+	.topbar > .muted {
+		display: none;
+	}
+	.content .stats {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+	.inline-form label {
+		min-inline-size: 140px;
 	}
 	.sidenav {
 		flex-direction: row;

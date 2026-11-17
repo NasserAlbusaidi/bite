@@ -3,6 +3,7 @@ import { adminApi } from "../lib/api";
 import type { AdminMenu, AdminPromotion } from "../lib/contracts";
 import { type Lang, loc, type T } from "../lib/i18n";
 import { toDecimal } from "../lib/money";
+import { catalogPowers } from "../lib/permissions";
 import type { Place } from "../lib/places";
 import { useShell } from "../lib/use-shell";
 import type { Route } from "./+types/promotions";
@@ -66,7 +67,8 @@ export function describePromo(
 
 export default function Promotions({ loaderData }: Route.ComponentProps) {
 	const { promotions, menu } = loaderData;
-	const { t, lang, places, place } = useShell();
+	const { t, lang, places, place, me } = useShell();
+	const powers = catalogPowers(me);
 	const decimals = place?.decimals ?? 3;
 	const currency = place?.currencyCode ?? "OMR";
 	const sorted = [...promotions].sort(
@@ -111,6 +113,7 @@ export default function Promotions({ loaderData }: Route.ComponentProps) {
 										currency,
 									)}
 									t={t}
+									editable={powers.canEditPromotion(p)}
 								/>
 							))}
 						</tbody>
@@ -125,10 +128,12 @@ function PromoRow({
 	promo,
 	summary,
 	t,
+	editable,
 }: {
 	promo: AdminPromotion;
 	summary: string;
 	t: T;
+	editable: boolean;
 }) {
 	const fetcher = useFetcher();
 	const pending = fetcher.formData?.get("isActive");
@@ -136,7 +141,11 @@ function PromoRow({
 	return (
 		<tr className={active ? "" : "row-muted"}>
 			<td>
-				<Link to={`/promotions/${promo.id}`}>{promo.name}</Link>
+				{editable ? (
+					<Link to={`/promotions/${promo.id}`}>{promo.name}</Link>
+				) : (
+					<span className="strong">{promo.name}</span>
+				)}
 				<div className="muted small">{summary}</div>
 			</td>
 			<td>
@@ -144,6 +153,7 @@ function PromoRow({
 					<input
 						type="checkbox"
 						checked={active}
+						disabled={!editable}
 						onChange={(e) =>
 							fetcher.submit(
 								{ id: promo.id, isActive: String(e.currentTarget.checked) },

@@ -3,6 +3,7 @@ import { Form, Link, useNavigation } from "react-router";
 import { adminApi } from "../lib/api";
 import { loc } from "../lib/i18n";
 import { toDecimal } from "../lib/money";
+import { catalogPowers } from "../lib/permissions";
 import { useShell } from "../lib/use-shell";
 import type { Route } from "./+types/menu";
 
@@ -31,7 +32,8 @@ export default function MenuPage({
 	actionData,
 }: Route.ComponentProps) {
 	const { menu } = loaderData;
-	const { t, lang, place } = useShell();
+	const { t, lang, place, me, locationId } = useShell();
+	const { canEditMenu } = catalogPowers(me);
 	const [q, setQ] = useState("");
 	const nav = useNavigation();
 	const decimals = place?.decimals ?? 3;
@@ -44,10 +46,22 @@ export default function MenuPage({
 		<>
 			<div className="page-head">
 				<h1>{t("menu")}</h1>
-				<Link className="btn btn--primary" to="/menu/products/new">
-					{t("new_product")}
-				</Link>
+				{canEditMenu && (
+					<Link className="btn btn--primary" to="/menu/products/new">
+						{t("new_product")}
+					</Link>
+				)}
 			</div>
+			{!canEditMenu && (
+				<p className="card muted">
+					{t("menu_owner_only")}{" "}
+					{locationId && (
+						<Link to={`/locations/${locationId}/menu`}>
+							{t("prices_availability")}
+						</Link>
+					)}
+				</p>
+			)}
 			<input
 				type="search"
 				className="input"
@@ -109,7 +123,11 @@ export default function MenuPage({
 													</bdi>
 												</td>
 												<td className="actions">
-													<Link to={`/menu/products/${p.id}`}>{t("edit")}</Link>
+													{canEditMenu && (
+														<Link to={`/menu/products/${p.id}`}>
+															{t("edit")}
+														</Link>
+													)}
 												</td>
 											</tr>
 										))}
@@ -120,26 +138,32 @@ export default function MenuPage({
 					);
 				})}
 
-			<section className="card">
-				<h2>{t("new_category")}</h2>
-				<Form method="post" className="inline-form">
-					<input type="hidden" name="intent" value="createCategory" />
-					<label>
-						{t("category_name_en")}
-						<input name="nameEn" className="input" required />
-					</label>
-					<label>
-						{t("category_name_ar")}
-						<input name="nameAr" className="input" dir="rtl" lang="ar" />
-					</label>
-					<button type="submit" className="btn" disabled={nav.state !== "idle"}>
-						{t("add_category")}
-					</button>
-				</Form>
-				{actionData && "error" in actionData && (
-					<p className="error">{t(actionData.error)}</p>
-				)}
-			</section>
+			{canEditMenu && (
+				<section className="card">
+					<h2>{t("new_category")}</h2>
+					<Form method="post" className="inline-form">
+						<input type="hidden" name="intent" value="createCategory" />
+						<label>
+							{t("category_name_en")}
+							<input name="nameEn" className="input" required />
+						</label>
+						<label>
+							{t("category_name_ar")}
+							<input name="nameAr" className="input" dir="rtl" lang="ar" />
+						</label>
+						<button
+							type="submit"
+							className="btn"
+							disabled={nav.state !== "idle"}
+						>
+							{t("add_category")}
+						</button>
+					</Form>
+					{actionData && "error" in actionData && (
+						<p className="error">{t(actionData.error)}</p>
+					)}
+				</section>
+			)}
 		</>
 	);
 }
