@@ -358,6 +358,13 @@ export const SalesReport = z.object({
 		z.object({ method: PaymentMethod, amount: Minor, count: z.int() }),
 	),
 	tips: Minor,
+	/**
+	 * Money given back in the range, by the refund's own business date
+	 * (positive). Already netted out of byMethod. NOT taken out of total/net:
+	 * a refunded order that was never cancelled still counts as a sale there.
+	 */
+	refunds: Minor,
+	refundCount: z.int(),
 	topProducts: z.array(
 		z.object({
 			productId: Id.nullable(),

@@ -186,6 +186,15 @@ export default function Reports({ loaderData }: Route.ComponentProps) {
 										<td className="num">{money(m.amount)}</td>
 									</tr>
 								))}
+							{report.refundCount > 0 && (
+								<tr>
+									<td className="muted">{t("refunds_given")}</td>
+									<td className="num muted small">
+										<bdi dir="ltr">{report.refundCount}</bdi>
+									</td>
+									<td className="num muted">{money(-report.refunds)}</td>
+								</tr>
+							)}
 						</tbody>
 					</table>
 					<table className="table summary">
