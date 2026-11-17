@@ -14,8 +14,10 @@ import { syncCounts } from "../sync/status.js";
 import { menuFixture, O_OAT, P_CROISSANT, P_FLAT } from "../test/fixtures.js";
 import {
 	addCashMovement,
+	adoptCashSession,
 	closeCashSession,
 	openCashSession,
+	openSession,
 	sessionReport,
 } from "./cash.js";
 import { newId } from "./ids.js";
@@ -373,6 +375,66 @@ describe("drawer", () => {
 				memberId: CASHIER,
 			}),
 		).toEqual({ ok: false, error: "session_closed" });
+	});
+});
+
+describe("adopting the server's open drawer", () => {
+	const SERVER = {
+		id: "0190f000-0000-7000-8000-0000000000dd",
+		businessDate: "2026-11-17",
+		openingFloat: 20_000,
+		openedBy: MANAGER,
+		openedAt: "2026-11-17T04:00:00.000Z",
+		cashSoFar: 7_500,
+	};
+
+	it("takes over the drawer a re-paired tablet left open, and counts the cash already in it", async () => {
+		expect(await adoptCashSession(db, SERVER, AT)).toBe(true);
+		expect(await openSession(db)).toMatchObject({
+			id: SERVER.id,
+			openingFloat: 20_000,
+		});
+		// Nothing queued: the session already exists on the server.
+		expect(await listOutbox(db)).toEqual([]);
+		await sale([{ method: "cash", amount: 3_225 as Minor }], SERVER.id);
+		const x = await sessionReport(db, SERVER.id);
+		expect(x?.carried).toBe(7_500);
+		// float 20.000 + 7.500 already in + 3.225 now: the server's figure too.
+		expect(x?.expectedCash).toBe(30_725);
+		// Pulling again changes nothing.
+		expect(await adoptCashSession(db, SERVER, AT)).toBe(false);
+	});
+
+	it("leaves a drawer the server accepted alone, and does nothing without one", async () => {
+		expect(await adoptCashSession(db, null, AT)).toBe(false);
+		expect(await adoptCashSession(db, undefined, AT)).toBe(false);
+		const mine = await drawer();
+		await db.run("UPDATE outbox SET status = 'applied'");
+		expect(await adoptCashSession(db, SERVER, AT)).toBe(false);
+		expect((await openSession(db))?.id).toBe(mine.id);
+	});
+
+	it("swaps out a drawer the server refused because one was already open", async () => {
+		const mine = await drawer();
+		await db.run(
+			"UPDATE outbox SET status = 'rejected' WHERE kind = 'cash.open'",
+		);
+		expect(await adoptCashSession(db, SERVER, AT)).toBe(true);
+		expect((await openSession(db))?.id).toBe(SERVER.id);
+		const old = await sessionReport(db, mine.id);
+		expect(old?.session.closedAt).not.toBeNull();
+	});
+
+	it("doesn't reopen a drawer this tablet closed while the close is still on its way", async () => {
+		await adoptCashSession(db, SERVER, AT);
+		await closeCashSession(db, {
+			sessionId: SERVER.id,
+			countedCash: 27_500,
+			memberId: CASHIER,
+			at: AT,
+		});
+		expect(await adoptCashSession(db, SERVER, AT)).toBe(false);
+		expect(await openSession(db)).toBeNull();
 	});
 });
 

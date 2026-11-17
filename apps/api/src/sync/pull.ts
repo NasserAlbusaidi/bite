@@ -1,12 +1,17 @@
-import type { SyncPullQuery, SyncPullResponse } from "@bite/contracts";
+import type {
+	OpenDrawer,
+	SyncPullQuery,
+	SyncPullResponse,
+} from "@bite/contracts";
 import { schema, withTenant } from "@bite/db";
 import { and, asc, eq, gte, inArray, or, sql } from "@bite/db/orm";
 import type { Deps, DeviceCtx } from "../env.js";
 import { ApiError } from "../lib/errors.js";
 import { loadMenuSnapshot } from "../menu/snapshot.js";
 import { loadOrderDtos } from "../orders/dto.js";
+import { cashSoFar } from "./cash.js";
 
-const { orders } = schema;
+const { cashSessions, orders } = schema;
 const PAGE = 200;
 
 /**
@@ -88,12 +93,33 @@ export async function pullChanges(
 				next = { x: xmin };
 			}
 		}
+		const [open] = await tx
+			.select()
+			.from(cashSessions)
+			.where(
+				and(
+					eq(cashSessions.deviceId, device.deviceId),
+					eq(cashSessions.status, "open"),
+				),
+			)
+			.limit(1);
+		const cashSession: OpenDrawer | null = open
+			? {
+					id: open.id,
+					businessDate: open.businessDate,
+					openingFloat: open.openingFloat,
+					openedBy: open.openedBy,
+					openedAt: open.openedAt.toISOString(),
+					cashSoFar: await cashSoFar(tx, open.id),
+				}
+			: null;
 		return {
 			cursor: enc(next),
 			hasMore,
 			menuVersion: menu.menuVersion,
 			...(q.menuVersion === menu.menuVersion ? {} : { menu }),
 			orders: await loadOrderDtos(tx, rows),
+			cashSession,
 		};
 	});
 }

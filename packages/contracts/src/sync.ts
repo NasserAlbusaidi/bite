@@ -1,6 +1,14 @@
 import { z } from "zod";
 import { CashMovement, CloseCashSession, OpenCashSession } from "./cash.js";
-import { Cursor, Id, Instant, Version } from "./common.js";
+import {
+	BusinessDate,
+	Cursor,
+	Id,
+	Instant,
+	Minor,
+	NonNegMinor,
+	Version,
+} from "./common.js";
 import { ErrorBody } from "./errors.js";
 import { MenuSnapshot } from "./menu.js";
 import { CreatePosOrder, Order, SetFulfillment, VoidLine } from "./orders.js";
@@ -118,6 +126,21 @@ export const SyncPullQuery = z.object({
 	menuVersion: z.string().optional(),
 });
 
+export const OpenDrawer = z.object({
+	id: Id,
+	businessDate: BusinessDate,
+	openingFloat: NonNegMinor,
+	openedBy: Id,
+	openedAt: Instant,
+	/**
+	 * Cash that went into the drawer on the server so far, float excluded:
+	 * cash payments and tips, minus cash refunds, plus pay ins, minus pay
+	 * outs and drops. The server's expected cash at close is float + this.
+	 */
+	cashSoFar: Minor,
+});
+export type OpenDrawer = z.infer<typeof OpenDrawer>;
+
 export const SyncPullResponse = z.object({
 	cursor: Cursor,
 	/** True = call again immediately with the new cursor. */
@@ -127,6 +150,12 @@ export const SyncPullResponse = z.object({
 	menu: MenuSnapshot.optional(),
 	/** Orders at this location changed since the cursor (any device, QR included). */
 	orders: z.array(Order),
+	/**
+	 * The cash session the server still has open for THIS device, or null.
+	 * A re-paired or reset tablet adopts it instead of opening a second one
+	 * (the server allows one open session per device). Sent on every page.
+	 */
+	cashSession: OpenDrawer.nullable().optional(),
 });
 
 export type SyncPushRequest = z.infer<typeof SyncPushRequest>;
