@@ -91,6 +91,7 @@ export default function Shell({ loaderData }: Route.ComponentProps) {
 						{t("location_nav")}
 					</NavLink>
 				)}
+				<NavLink to="/reports">{t("reports")}</NavLink>
 				<NavLink to="/promotions">{t("promotions")}</NavLink>
 				<NavLink to="/staff">{t("staff")}</NavLink>
 			</nav>

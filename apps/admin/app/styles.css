@@ -365,3 +365,39 @@ fieldset.bare {
 	margin: 0;
 	min-inline-size: 0;
 }
+.presets {
+	display: flex;
+	justify-content: space-between;
+	align-items: end;
+	gap: 12px;
+	flex-wrap: wrap;
+}
+.chip {
+	padding: 6px 12px;
+	border: 1px solid var(--line);
+	border-radius: 999px;
+	text-decoration: none;
+	color: inherit;
+	font-size: 0.9rem;
+}
+.chip--on {
+	background: var(--accent);
+	border-color: var(--accent);
+	color: #fff;
+}
+.stats {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+	gap: 12px;
+	margin-block: 12px;
+}
+.stat {
+	display: grid;
+	gap: 4px;
+}
+.stat strong {
+	font-size: 1.25rem;
+}
+.summary .strong td {
+	font-weight: 700;
+}
