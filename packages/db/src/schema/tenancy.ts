@@ -161,7 +161,7 @@ export const devices = pgTable(
 		kind: deviceKind("kind").notNull(),
 		/** Offline-safe ticket prefix, e.g. "A" gives A-042. Unique per location. */
 		ticketPrefix: text("ticket_prefix").notNull(),
-		tokenHash: text("token_hash").notNull(),
+		tokenHash: text("token_hash").notNull().unique(),
 		lastSeenAt: timestamp("last_seen_at", { withTimezone: true }),
 		revokedAt: timestamp("revoked_at", { withTimezone: true }),
 		createdAt: createdAt(),
