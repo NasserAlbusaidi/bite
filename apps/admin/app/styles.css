@@ -401,3 +401,29 @@ fieldset.bare {
 .summary .strong td {
 	font-weight: 700;
 }
+
+.auth {
+	min-block-size: 100dvh;
+	display: grid;
+	place-content: center;
+	gap: 12px;
+	padding: 16px;
+}
+.auth .brand {
+	text-align: center;
+	font-weight: 700;
+	font-size: 1.4rem;
+}
+.auth-card {
+	inline-size: min(400px, calc(100vw - 32px));
+}
+.auth-card h1 {
+	font-size: 1.2rem;
+	margin: 0;
+}
+.org-pick {
+	inline-size: 100%;
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+}

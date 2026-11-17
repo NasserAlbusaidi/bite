@@ -2,20 +2,32 @@ import { useEffect } from "react";
 import {
 	NavLink,
 	Outlet,
+	redirect,
 	useLocation,
 	useNavigate,
 	useParams,
 	useRevalidator,
 } from "react-router";
-import { adminApi, isDemo } from "../lib/api";
+import { adminGate, saveOrg } from "../lib/account";
+import { account, adminApi, isDemo } from "../lib/api";
 import { savedLang, saveLang, translator } from "../lib/i18n";
 import { loadPlaces } from "../lib/places";
 import { rememberLocation, selectedLocationId } from "../lib/selected-location";
 import type { Route } from "./+types/shell";
 
-export async function clientLoader() {
+export async function clientLoader({ request }: Route.ClientLoaderArgs) {
 	const api = adminApi();
-	const [me, places] = await Promise.all([api.me(), loadPlaces(api)]);
+	let me: Awaited<ReturnType<typeof api.me>>;
+	try {
+		me = await api.me();
+	} catch (e) {
+		const url = new URL(request.url);
+		const gate = adminGate(e, url.pathname + url.search);
+		if (!gate) throw e;
+		if (gate.clearOrg) saveOrg(null);
+		throw redirect(gate.to);
+	}
+	const places = await loadPlaces(api);
 	return {
 		me,
 		places,
@@ -77,6 +89,26 @@ export default function Shell({ loaderData }: Route.ComponentProps) {
 					{t("language")}
 				</button>
 				<span className="muted small">{me.member.displayName}</span>
+				{!demo && (
+					<NavLink className="link-btn small" to="/orgs?switch=1">
+						{t("switch_business")}
+					</NavLink>
+				)}
+				{!demo && (
+					<button
+						type="button"
+						className="link-btn"
+						onClick={async () => {
+							await account()
+								?.signOut()
+								.catch(() => undefined);
+							saveOrg(null);
+							navigate("/sign-in");
+						}}
+					>
+						{t("sign_out")}
+					</button>
+				)}
 			</header>
 			{demo && <p className="demo">{t("demo_banner")}</p>}
 			<nav className="sidenav" aria-label="Main">

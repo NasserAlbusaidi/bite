@@ -1,4 +1,4 @@
-import { ErrorBody } from "@bite/contracts";
+import { ErrorBody, ORG_HEADER } from "@bite/contracts";
 import { z } from "zod";
 import { type AdminApi, AdminApiError } from "./api-types";
 import {
@@ -22,7 +22,13 @@ import {
 export function httpAdminApi(
 	baseUrl: string,
 	fetchImpl: typeof fetch = fetch,
+	/** Org to act on, for logins in several orgs. Read per request. */
+	orgId: () => string | undefined = () => undefined,
 ): AdminApi {
+	const orgHeader = (): Record<string, string> => {
+		const id = orgId();
+		return id ? { [ORG_HEADER]: id } : {};
+	};
 	async function call<S extends z.ZodType>(
 		schema: S,
 		path: string,
@@ -33,6 +39,7 @@ export function httpAdminApi(
 			...init,
 			headers: {
 				accept: "application/json",
+				...orgHeader(),
 				...(init.body ? { "content-type": "application/json" } : {}),
 				...init.headers,
 			},
@@ -151,7 +158,7 @@ export function httpAdminApi(
 				new URL(`/v1/admin/orders.csv${qs(q)}`, baseUrl),
 				{
 					credentials: "include",
-					headers: { accept: "text/csv" },
+					headers: { accept: "text/csv", ...orgHeader() },
 				},
 			);
 			if (!res.ok) throw new AdminApiError("internal", res.status);

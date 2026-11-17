@@ -6,6 +6,9 @@ import {
 } from "@react-router/dev/routes";
 
 export default [
+	route("sign-in", "routes/sign-in.tsx"),
+	route("orgs", "routes/orgs.tsx"),
+	route("accept-invite", "routes/accept-invite.tsx"),
 	layout("routes/shell.tsx", [
 		index("routes/home.tsx"),
 		route("menu", "routes/menu.tsx"),

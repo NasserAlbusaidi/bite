@@ -1,3 +1,4 @@
+import { accountApi, savedOrg } from "./account";
 import type { AdminApi } from "./api-types";
 import { fixtureAdminApi } from "./fixtures";
 import { httpAdminApi } from "./http";
@@ -10,9 +11,15 @@ let instance: AdminApi | undefined;
 export function adminApi(): AdminApi {
 	if (!instance) {
 		const base = import.meta.env.VITE_API_URL as string | undefined;
-		instance = base ? httpAdminApi(base) : fixtureAdminApi();
+		instance = base ? httpAdminApi(base, fetch, savedOrg) : fixtureAdminApi();
 	}
 	return instance;
 }
 
 export const isDemo = () => !import.meta.env.VITE_API_URL;
+
+/** Sign-in and org choice. Only exists against a real API. */
+export function account() {
+	const base = import.meta.env.VITE_API_URL as string | undefined;
+	return base ? accountApi(base) : undefined;
+}
