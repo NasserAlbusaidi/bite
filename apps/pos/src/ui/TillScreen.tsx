@@ -307,6 +307,23 @@ export function TillScreen() {
 					product={picking}
 					onCancel={() => setPicking(null)}
 					onAdd={(optionIds, note) => {
+						// Same product, same choices, same note: one line, qty + 1,
+						// so the kitchen reads "2× Karak", not two Karak lines.
+						const key = [...optionIds].sort().join(",");
+						const same = lines.find(
+							(l) =>
+								l.productId === picking.id &&
+								[...l.modifierOptionIds].sort().join(",") === key &&
+								(l.note ?? "") === (note ?? ""),
+						);
+						if (same) {
+							setLines(
+								lines.map((l) =>
+									l === same ? { ...l, quantity: l.quantity + 1 } : l,
+								),
+							);
+							return setPicking(null);
+						}
 						setLines([
 							...lines,
 							{
