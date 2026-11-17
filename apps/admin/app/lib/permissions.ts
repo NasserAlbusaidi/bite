@@ -29,3 +29,18 @@ export function staffPowers(me: AdminMe) {
 		},
 	};
 }
+
+/**
+ * The shared menu, categories and org-wide promotions belong to owners and
+ * admins (the API's requireOrgWide). A branch manager sets their branch's
+ * prices and sold-out items, and promotions for their own branches.
+ */
+export function catalogPowers(me: AdminMe) {
+	const orgWide = me.member.orgRole !== "staff";
+	return {
+		canEditMenu: orgWide,
+		canEditPromotion: (p: { locationId: string | null }) =>
+			orgWide || p.locationId !== null,
+		canPickAllLocations: orgWide,
+	};
+}

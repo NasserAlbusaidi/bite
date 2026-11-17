@@ -9,6 +9,8 @@ import {
 	useRouteError,
 } from "react-router";
 import "@bite/ui/styles.css";
+import { AdminApiError } from "./lib/api-types";
+import { translator } from "./lib/i18n";
 import "./styles.css";
 
 export function Layout({ children }: { children: ReactNode }) {
@@ -42,15 +44,32 @@ export function HydrateFallback() {
 
 export function ErrorBoundary() {
 	const error = useRouteError();
-	const message = isRouteErrorResponse(error)
-		? `${error.status} ${error.statusText}`
-		: error instanceof Error
-			? error.message
-			: "Something went wrong";
+	const forbidden =
+		(isRouteErrorResponse(error) && error.status === 403) ||
+		(error instanceof AdminApiError && error.status === 403);
+	const t = translator(
+		typeof document !== "undefined" && document.documentElement.lang === "ar"
+			? "ar"
+			: "en",
+	);
+	const message = forbidden
+		? t("forbidden_page")
+		: isRouteErrorResponse(error)
+			? `${error.status} ${error.statusText}`
+			: error instanceof Error
+				? error.message
+				: "";
 	return (
 		<main className="content">
-			<h1>Something went wrong</h1>
-			<p className="muted">{message}</p>
+			<h1>{forbidden ? t("forbidden_page") : "Something went wrong"}</h1>
+			{!forbidden && message && <p className="muted">{message}</p>}
+			<button
+				type="button"
+				className="btn"
+				onClick={() => window.history.back()}
+			>
+				{t("back_home")}
+			</button>
 		</main>
 	);
 }

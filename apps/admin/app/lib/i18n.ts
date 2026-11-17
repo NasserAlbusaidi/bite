@@ -9,6 +9,11 @@ export type Lang = "en" | "ar";
 const en = {
 	menu: "Menu",
 	prices_availability: "Prices & availability",
+	menu_owner_only:
+		"The menu is shared by every branch, so only the owner and admins change it. Set this branch's prices and sold-out items in Prices & availability.",
+	forbidden_page:
+		"You don't have access to this. Ask the owner if you need it.",
+	back_home: "Back",
 	location: "Location",
 	demo_banner: "Demo data: changes stay in this browser.",
 	language: "عربي",
@@ -316,6 +321,10 @@ export type MessageKey = keyof typeof en;
 const ar: Record<MessageKey, string> = {
 	menu: "القائمة",
 	prices_availability: "الأسعار والتوفر",
+	menu_owner_only:
+		"القائمة مشتركة بين كل الفروع، لذلك يعدلها المالك والمسؤولون فقط. حدد أسعار هذا الفرع والأصناف النافدة من الأسعار والتوفر.",
+	forbidden_page: "ليست لديك صلاحية لهذا. اطلبها من المالك إذا احتجتها.",
+	back_home: "رجوع",
 	location: "الفرع",
 	demo_banner: "بيانات تجريبية: التغييرات تبقى في هذا المتصفح فقط.",
 	language: "English",

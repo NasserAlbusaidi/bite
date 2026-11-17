@@ -1,6 +1,7 @@
 import { data, Form, Link, redirect, useNavigation } from "react-router";
 import { adminApi } from "../lib/api";
 import { loc } from "../lib/i18n";
+import { catalogPowers } from "../lib/permissions";
 import { loadPlaces } from "../lib/places";
 import { parseProductForm, productFormDefaults } from "../lib/product-form";
 import { selectedLocationId } from "../lib/selected-location";
@@ -46,8 +47,15 @@ export default function ProductPage({
 	actionData,
 }: Route.ComponentProps) {
 	const { menu, product } = loaderData;
-	const { t, lang, place } = useShell();
+	const { t, lang, place, me } = useShell();
 	const nav = useNavigation();
+	if (!catalogPowers(me).canEditMenu)
+		return (
+			<section className="card">
+				<p>{t("menu_owner_only")}</p>
+				<Link to="/menu">{t("back_home")}</Link>
+			</section>
+		);
 	const decimals = place?.decimals ?? 3;
 	const d = productFormDefaults(product, decimals);
 	const errors = actionData?.errors ?? {};
