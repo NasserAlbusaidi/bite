@@ -1,0 +1,249 @@
+/* Generated from src/tokens.ts by `pnpm --filter @bite/ui tokens`. Do not edit. */
+
+:root {
+	--brand-forest: #004225;
+	--brand-pine: #0b6b2e;
+	--brand-green: #37b34a;
+	--brand-lime: #7ac70c;
+	--brand-olive: #b7c40d;
+	--brand-lime-300: #98d641;
+	--brand-lime-200: #c3e88a;
+	--brand-lime-100: #e6f4ce;
+	--brand-cream: #f6f8f1;
+	--brand-mist: #ecf1e6;
+	--brand-line: #dce4d2;
+	--brand-charcoal: #16241b;
+	--brand-white: #ffffff;
+	--space-0: 0;
+	--space-1: 4px;
+	--space-2: 8px;
+	--space-3: 12px;
+	--space-4: 16px;
+	--space-5: 20px;
+	--space-6: 24px;
+	--space-7: 32px;
+	--space-8: 40px;
+	--space-9: 48px;
+	--space-10: 64px;
+	--space-11: 80px;
+	--space-12: 96px;
+	--fs-xs: 12px;
+	--fs-sm: 14px;
+	--fs-base: 16px;
+	--fs-md: 18px;
+	--fs-lg: 22px;
+	--fs-xl: 28px;
+	--fs-2xl: 34px;
+	--fs-3xl: 44px;
+	--radius-sm: 8px;
+	--radius-md: 14px;
+	--radius-lg: 22px;
+	--radius-xl: 32px;
+	--radius-pill: 999px;
+	--font-sans: "Bai Jamjuree", "IBM Plex Sans Arabic", system-ui, -apple-system, "Segoe UI", sans-serif;
+	--font-arabic: "IBM Plex Sans Arabic", "Bai Jamjuree", system-ui, -apple-system, "Segoe UI", "Geeza Pro", sans-serif;
+	--font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+	--ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+	--ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+	--dur-fast: 140ms;
+	--dur-base: 240ms;
+	--dur-slow: 420ms;
+	--leading-tight: 1.2;
+	--leading-normal: 1.5;
+	--leading-loose: 1.7;
+	--bg: #f6f8f1;
+	--surface: #ffffff;
+	--surface-sunken: #ecf1e6;
+	--surface-inverse: #004225;
+	--text: #16241b;
+	--text-strong: #004225;
+	--text-muted: #56634f;
+	--text-inverse: #ffffff;
+	--line: #dce4d2;
+	--line-strong: #7e8f72;
+	--action: #7ac70c;
+	--action-hover: #98d641;
+	--on-action: #004225;
+	--secondary: #004225;
+	--secondary-hover: #0a5534;
+	--on-secondary: #ffffff;
+	--link: #0b6b2e;
+	--focus: #004225;
+	--success: #0b6b2e;
+	--success-bg: #e6f4ce;
+	--warning: #875400;
+	--warning-bg: #fbf0d9;
+	--danger: #b4321b;
+	--danger-hover: #962814;
+	--danger-bg: #fbe9e6;
+	--on-danger: #ffffff;
+	--overlay: rgb(12 22 17 / 0.48);
+	--shadow-sm: 0 1px 2px rgb(0 66 37 / 0.08), 0 1px 3px rgb(0 66 37 / 0.06);
+	--shadow-md: 0 8px 24px rgb(0 66 37 / 0.12), 0 2px 6px rgb(0 66 37 / 0.06);
+	--shadow-lg: 0 18px 48px rgb(0 66 37 / 0.18);
+	--shadow-offset: 6px 6px 0 #0b6b2e;
+	--control-h: 48px;
+	--control-px: 20px;
+	--text-body: 16px;
+	--text-label: 14px;
+	--gap-stack: 16px;
+	--pad-card: 20px;
+}
+
+[lang="ar"] {
+	--leading-tight: 1.35;
+	--leading-normal: 1.65;
+	--leading-loose: 1.85;
+	--font-sans: "IBM Plex Sans Arabic", "Bai Jamjuree", system-ui, -apple-system, "Segoe UI", "Geeza Pro", sans-serif;
+}
+
+[data-theme="light"] {
+	--bg: #f6f8f1;
+	--surface: #ffffff;
+	--surface-sunken: #ecf1e6;
+	--surface-inverse: #004225;
+	--text: #16241b;
+	--text-strong: #004225;
+	--text-muted: #56634f;
+	--text-inverse: #ffffff;
+	--line: #dce4d2;
+	--line-strong: #7e8f72;
+	--action: #7ac70c;
+	--action-hover: #98d641;
+	--on-action: #004225;
+	--secondary: #004225;
+	--secondary-hover: #0a5534;
+	--on-secondary: #ffffff;
+	--link: #0b6b2e;
+	--focus: #004225;
+	--success: #0b6b2e;
+	--success-bg: #e6f4ce;
+	--warning: #875400;
+	--warning-bg: #fbf0d9;
+	--danger: #b4321b;
+	--danger-hover: #962814;
+	--danger-bg: #fbe9e6;
+	--on-danger: #ffffff;
+	--overlay: rgb(12 22 17 / 0.48);
+	--shadow-sm: 0 1px 2px rgb(0 66 37 / 0.08), 0 1px 3px rgb(0 66 37 / 0.06);
+	--shadow-md: 0 8px 24px rgb(0 66 37 / 0.12), 0 2px 6px rgb(0 66 37 / 0.06);
+	--shadow-lg: 0 18px 48px rgb(0 66 37 / 0.18);
+	--shadow-offset: 6px 6px 0 #0b6b2e;
+	color-scheme: light;
+}
+
+[data-theme="dark"] {
+	--bg: #0b1510;
+	--surface: #13221a;
+	--surface-sunken: #0f1c15;
+	--surface-inverse: #c3e88a;
+	--text: #e7eee2;
+	--text-strong: #f4f8f1;
+	--text-muted: #a3b09b;
+	--text-inverse: #0b1510;
+	--line: #26392d;
+	--line-strong: #5e7a66;
+	--action: #7ac70c;
+	--action-hover: #98d641;
+	--on-action: #004225;
+	--secondary: #c3e88a;
+	--secondary-hover: #e6f4ce;
+	--on-secondary: #0b1510;
+	--link: #98d641;
+	--focus: #98d641;
+	--success: #98d641;
+	--success-bg: #1c3a25;
+	--warning: #f2c46b;
+	--warning-bg: #3a2c10;
+	--danger: #ff9a88;
+	--danger-hover: #ffb4a6;
+	--danger-bg: #3e1a14;
+	--on-danger: #2a0c06;
+	--overlay: rgb(0 0 0 / 0.6);
+	--shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);
+	--shadow-md: 0 8px 24px rgb(0 0 0 / 0.45);
+	--shadow-lg: 0 18px 48px rgb(0 0 0 / 0.55);
+	--shadow-offset: 6px 6px 0 #004225;
+	color-scheme: dark;
+}
+
+@media (prefers-color-scheme: dark) {
+	[data-theme="system"] {
+		--bg: #0b1510;
+		--surface: #13221a;
+		--surface-sunken: #0f1c15;
+		--surface-inverse: #c3e88a;
+		--text: #e7eee2;
+		--text-strong: #f4f8f1;
+		--text-muted: #a3b09b;
+		--text-inverse: #0b1510;
+		--line: #26392d;
+		--line-strong: #5e7a66;
+		--action: #7ac70c;
+		--action-hover: #98d641;
+		--on-action: #004225;
+		--secondary: #c3e88a;
+		--secondary-hover: #e6f4ce;
+		--on-secondary: #0b1510;
+		--link: #98d641;
+		--focus: #98d641;
+		--success: #98d641;
+		--success-bg: #1c3a25;
+		--warning: #f2c46b;
+		--warning-bg: #3a2c10;
+		--danger: #ff9a88;
+		--danger-hover: #ffb4a6;
+		--danger-bg: #3e1a14;
+		--on-danger: #2a0c06;
+		--overlay: rgb(0 0 0 / 0.6);
+		--shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);
+		--shadow-md: 0 8px 24px rgb(0 0 0 / 0.45);
+		--shadow-lg: 0 18px 48px rgb(0 0 0 / 0.55);
+		--shadow-offset: 6px 6px 0 #004225;
+		color-scheme: dark;
+	}
+}
+
+[data-density="comfortable"] {
+	--control-h: 48px;
+	--control-px: 20px;
+	--text-body: 16px;
+	--text-label: 14px;
+	--gap-stack: 16px;
+	--pad-card: 20px;
+}
+
+[data-density="touch"] {
+	--control-h: 56px;
+	--control-px: 24px;
+	--text-body: 18px;
+	--text-label: 16px;
+	--gap-stack: 16px;
+	--pad-card: 20px;
+}
+
+[data-density="compact"] {
+	--control-h: 36px;
+	--control-px: 14px;
+	--text-body: 14px;
+	--text-label: 12px;
+	--gap-stack: 12px;
+	--pad-card: 16px;
+}
+
+[data-density="far"] {
+	--control-h: 64px;
+	--control-px: 28px;
+	--text-body: 22px;
+	--text-label: 18px;
+	--gap-stack: 20px;
+	--pad-card: 24px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	:root {
+		--dur-fast: 1ms;
+		--dur-base: 1ms;
+		--dur-slow: 1ms;
+	}
+}

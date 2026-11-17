@@ -11,6 +11,7 @@ Legacy app: `NasserAlbusaidi/pos-system` (Laravel). It stays in production until
 - `packages/core` pure TS, zero runtime deps: money, pricing, VAT, order state machine. Runs on the server AND offline on the tablet.
 - `packages/db` Drizzle schema, migrations, RLS policies. Read `docs/data-model.md` before touching it.
 - `packages/contracts` Zod schemas shared by API and clients (not yet scaffolded)
+- `packages/ui` design system: tokens, fonts, React components, RTL-first. Read `packages/ui/README.md` before styling any app. Apps style with semantic tokens only.
 
 ## Non-negotiable rules
 

@@ -1,0 +1,10 @@
+/*
+ * Everything an app needs, imported once at its root:
+ *   import "@bite/ui/styles.css";
+ * Layers keep app CSS winning over ui defaults without !important.
+ */
+@layer bite.base, bite.components;
+@import "./fonts.css";
+@import "./tokens.css";
+@import "./base.css";
+@import "./components.css";
