@@ -259,7 +259,7 @@ label.check input {
 	grid-template-columns: repeat(3, 88px);
 	gap: 10px;
 }
-.keys button {
+.pinpad .keys button {
 	min-block-size: 72px;
 	font-size: 26px;
 }
@@ -361,7 +361,7 @@ label.check input {
 	align-items: center;
 	gap: 6px;
 }
-.qty button {
+.cart-line .qty button {
 	min-inline-size: 40px;
 	padding-inline: 0;
 }

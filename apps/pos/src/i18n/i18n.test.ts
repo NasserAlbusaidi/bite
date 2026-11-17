@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { ar } from "./ar.js";
-import { en } from "./en.js";
+import { messages } from "./messages.js";
+
+const { en, ar } = messages;
+
 import { DIR, translate } from "./i18n.js";
 
 describe("i18n", () => {

@@ -6,8 +6,8 @@ import {
 	useMemo,
 	useState,
 } from "react";
-import type { MessageKey } from "./en.js";
 import { DIR, type Lang, translate } from "./i18n.js";
+import type { MessageKey } from "./messages.js";
 
 type I18n = {
 	lang: Lang;
