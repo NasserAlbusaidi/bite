@@ -1,0 +1,21 @@
+# Local development Postgres. `pnpm db:up`, then `pnpm dev:setup`.
+# The superuser here is the schema owner; dev:setup creates the bite_app /
+# bite_system login roles the apps actually connect as.
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: bite
+    ports: ["127.0.0.1:5432:5432"]
+    volumes:
+      - bite-pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+
+volumes:
+  bite-pg:
