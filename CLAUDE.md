@@ -9,7 +9,7 @@ Legacy app: `NasserAlbusaidi/pos-system` (Laravel). It stays in production until
 - `apps/menu` SSR guest menu (not yet scaffolded)
 - `apps/admin` back office (not yet scaffolded)
 - `packages/core` pure TS, zero runtime deps: money, pricing, VAT, order state machine. Runs on the server AND offline on the tablet.
-- `packages/db` Drizzle schema, migrations, RLS policies (not yet scaffolded)
+- `packages/db` Drizzle schema, migrations, RLS policies. Read `docs/data-model.md` before touching it.
 - `packages/contracts` Zod schemas shared by API and clients (not yet scaffolded)
 
 ## Non-negotiable rules

@@ -3,7 +3,7 @@
 	"tasks": {
 		"build": { "dependsOn": ["^build"], "outputs": ["dist/**"] },
 		"typecheck": { "dependsOn": ["^typecheck"] },
-		"test": { "outputs": ["coverage/**"] },
+		"test": { "outputs": ["coverage/**"], "env": ["TEST_DATABASE_URL", "CI"] },
 		"dev": { "cache": false, "persistent": true }
 	}
 }
