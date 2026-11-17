@@ -6,6 +6,7 @@ import type { AppEnv } from "../env.js";
 import { adminAuth, adminTx } from "../middleware/admin-auth.js";
 import { adminMenuRoutes } from "./admin-menu.js";
 import { adminOrgRoutes } from "./admin-org.js";
+import { adminReportRoutes } from "./admin-reports.js";
 
 const { orgs } = schema;
 
@@ -30,4 +31,5 @@ export const adminRoutes = new Hono<AppEnv>()
 		return c.json(body);
 	})
 	.route("/", adminMenuRoutes)
-	.route("/", adminOrgRoutes);
+	.route("/", adminOrgRoutes)
+	.route("/", adminReportRoutes);

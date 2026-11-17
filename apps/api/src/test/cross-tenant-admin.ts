@@ -91,7 +91,13 @@ const name = { en: "Hijacked" };
 
 const pin = { pin: "9999" };
 
+const range = (h: Harness) =>
+	`locationId=${h.A.loc}&from=2026-01-01&to=2026-12-31`;
+
 export const adminCases: Record<string, Case> = {
+	"GET /v1/admin/reports/sales": read((h) => `/reports/sales?${range(h)}`, 404),
+	"GET /v1/admin/orders": read((h) => `/orders?${range(h)}`, 404),
+	"GET /v1/admin/orders.csv": read((h) => `/orders.csv?${range(h)}`, 404),
 	"GET /v1/admin/staff": async (h) => {
 		const res = await send(h, "GET", "/staff");
 		const text = await res.text();
