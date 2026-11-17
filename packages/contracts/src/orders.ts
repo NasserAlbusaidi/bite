@@ -12,6 +12,7 @@ import {
 	PaymentStatus,
 	Version,
 } from "./common.js";
+import { Payment } from "./payments.js";
 
 /** Client input for one line. Prices are never accepted from guests. */
 export const OrderLineInput = z.object({
@@ -131,6 +132,11 @@ export const Order = z.object({
 	version: Version,
 	updatedAt: Instant,
 	lines: z.array(OrderLine),
+	/**
+	 * The full ledger, refunds included (negative rows with reversesPaymentId),
+	 * oldest first. Any payment or refund bumps `version`, so pull re-sends it.
+	 */
+	payments: z.array(Payment),
 });
 export type Order = z.infer<typeof Order>;
 

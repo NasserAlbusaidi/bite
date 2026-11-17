@@ -2,13 +2,18 @@ import type { Order } from "@bite/contracts";
 import { schema, type Tx } from "@bite/db";
 import { asc, eq, inArray } from "@bite/db/orm";
 
-const { orders, orderLines } = schema;
+const { orders, orderLines, payments } = schema;
 type OrderRow = typeof orders.$inferSelect;
 type LineRow = typeof orderLines.$inferSelect;
+type PaymentRow = typeof payments.$inferSelect;
 
 const iso = (d: Date | null) => (d ? d.toISOString() : null);
 
-export function toOrderDto(o: OrderRow, lines: LineRow[]): Order {
+export function toOrderDto(
+	o: OrderRow,
+	lines: LineRow[],
+	pays: PaymentRow[],
+): Order {
 	return {
 		id: o.id,
 		locationId: o.locationId,
@@ -51,7 +56,31 @@ export function toOrderDto(o: OrderRow, lines: LineRow[]): Order {
 			voidedAt: iso(l.voidedAt),
 			voidReason: l.voidReason,
 		})),
+		payments: pays.map((p) => ({
+			id: p.id,
+			orderId: p.orderId,
+			amount: p.amount,
+			tendered: p.tendered,
+			tip: p.tip,
+			method: p.method,
+			state: p.state,
+			reversesPaymentId: p.reversesPaymentId,
+			reason: p.reason,
+			businessDate: p.businessDate,
+			createdAt: p.createdAt.toISOString(),
+		})),
 	};
+}
+
+function groupBy<T>(rows: T[], key: (r: T) => string) {
+	const m = new Map<string, T[]>();
+	for (const r of rows) {
+		const k = key(r);
+		const list = m.get(k);
+		if (list) list.push(r);
+		else m.set(k, [r]);
+	}
+	return m;
 }
 
 /** Load orders with their lines, preserving the input order. */
@@ -60,23 +89,25 @@ export async function loadOrderDtos(
 	rows: OrderRow[],
 ): Promise<Order[]> {
 	if (rows.length === 0) return [];
-	const lines = await tx
-		.select()
-		.from(orderLines)
-		.where(
-			inArray(
-				orderLines.orderId,
-				rows.map((r) => r.id),
-			),
-		)
-		.orderBy(asc(orderLines.sortOrder), asc(orderLines.id));
-	const byOrder = new Map<string, LineRow[]>();
-	for (const l of lines) {
-		const list = byOrder.get(l.orderId) ?? [];
-		list.push(l);
-		byOrder.set(l.orderId, list);
-	}
-	return rows.map((o) => toOrderDto(o, byOrder.get(o.id) ?? []));
+	const ids = rows.map((r) => r.id);
+	const [lines, pays] = await Promise.all([
+		tx
+			.select()
+			.from(orderLines)
+			.where(inArray(orderLines.orderId, ids))
+			.orderBy(asc(orderLines.sortOrder), asc(orderLines.id)),
+		tx
+			.select()
+			.from(payments)
+			.where(inArray(payments.orderId, ids))
+			// uuidv7 ids sort by creation time; id breaks createdAt ties.
+			.orderBy(asc(payments.createdAt), asc(payments.id)),
+	]);
+	const linesBy = groupBy(lines, (l) => l.orderId);
+	const paysBy = groupBy(pays, (p) => p.orderId);
+	return rows.map((o) =>
+		toOrderDto(o, linesBy.get(o.id) ?? [], paysBy.get(o.id) ?? []),
+	);
 }
 
 export async function loadOrderDto(tx: Tx, id: string): Promise<Order | null> {
