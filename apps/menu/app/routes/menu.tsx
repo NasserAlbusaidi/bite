@@ -8,7 +8,6 @@ import { indexMenu, itemCount } from "../lib/cart";
 import { useCart } from "../lib/cart-store";
 import type { MenuProduct } from "../lib/contracts";
 import type { GroupActionResult } from "../lib/group.server";
-import { saveGroupIdentity } from "../lib/group-identity";
 import { loadMenu, MENU_CACHE } from "../lib/guest.server";
 import { type Lang, type T, translator } from "../lib/i18n";
 import { menuPricing, quoteCart, usePricingClock } from "../lib/pricing";
@@ -116,12 +115,8 @@ function OrderTogether({ lang, slug, t }: { lang: Lang; slug: string; t: T }) {
 
 	useEffect(() => {
 		const d = fetcher.data;
-		if (d?.ok && d.cart && d.participantId && d.secret) {
-			saveGroupIdentity(d.cart.token, {
-				participantId: d.participantId,
-				secret: d.secret,
-			});
-			// Full load: a fresh SSR of the group page with the identity in place.
+		if (d?.ok && d.cart) {
+			// Full load: a fresh SSR of the group page, which reads the seat cookie.
 			window.location.assign(`/${lang}/${slug}/group/${d.cart.token}`);
 		}
 	}, [fetcher.data, lang, slug]);

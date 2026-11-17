@@ -8,5 +8,9 @@ export async function action({ request, params }: Route.ActionArgs) {
 	if (!isLang(params.lang)) throw data(null, { status: 404 });
 	const form = await request.formData();
 	const name = form.get("displayName");
-	return createGroup(params.slug, typeof name === "string" ? name : "");
+	return createGroup(
+		request,
+		params.slug,
+		typeof name === "string" ? name : "",
+	);
 }

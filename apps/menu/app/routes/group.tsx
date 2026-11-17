@@ -16,20 +16,22 @@ import type {
 } from "../lib/contracts";
 import { errorMessageKey } from "../lib/errors";
 import { type GroupActionResult, groupAction } from "../lib/group.server";
-import { useGroupIdentity } from "../lib/group-identity";
+import { readSeat } from "../lib/group-seat.server";
 import { loadMenu } from "../lib/guest.server";
 import { translator } from "../lib/i18n";
 import { menuPricing, quoteCart, usePricingClock } from "../lib/pricing";
 import { uuidv7 } from "../lib/uuid";
 import type { Route } from "./+types/group";
 
-export async function loader({ params }: Route.LoaderArgs) {
-	const [base, cart] = await Promise.all([
+export async function loader({ request, params }: Route.LoaderArgs) {
+	const [base, cart, seat] = await Promise.all([
 		loadMenu(params),
 		guestApi().getGroupCart(params.token),
+		readSeat(request, params.token),
 	]);
 	if (!cart) throw data(null, { status: 404 });
-	return { ...base, cart };
+	// Only the participant id reaches the page; the secret stays in the httpOnly cookie.
+	return { ...base, cart, meId: seat?.participantId ?? null };
 }
 
 export function headers() {
@@ -44,7 +46,7 @@ export function meta({ loaderData: d }: Route.MetaArgs) {
 }
 
 export async function action({ request, params }: Route.ActionArgs) {
-	return groupAction(await request.formData(), params);
+	return groupAction(request, params);
 }
 
 const POLL_MS = 3000;
@@ -71,7 +73,6 @@ export default function GroupOrder({ loaderData }: Route.ComponentProps) {
 		code: menu.location.currencyCode,
 		decimals: menu.location.currencyDecimals,
 	};
-	const [identity, saveIdentity] = useGroupIdentity(loaderData.cart.token);
 	const [params, setParams] = useSearchParams();
 	const view = params.get("view") === "cart" ? "cart" : "menu";
 	const [open, setOpen] = useState<MenuProduct | null>(null);
@@ -99,16 +100,10 @@ export default function GroupOrder({ loaderData }: Route.ComponentProps) {
 		return () => clearInterval(id);
 	}, [cart.status, poll, statePath]);
 
-	// Store the one-time secret as soon as the join answer arrives.
-	useEffect(() => {
-		const d = joiner.data;
-		if (d?.ok && d.participantId && d.secret)
-			saveIdentity({ participantId: d.participantId, secret: d.secret });
-	}, [joiner.data, saveIdentity]);
-
-	const me = identity
-		? cart.participants.find((p) => p.id === identity.participantId)
-		: undefined;
+	const meId =
+		(joiner.data?.ok ? joiner.data.participantId : undefined) ??
+		loaderData.meId;
+	const me = meId ? cart.participants.find((p) => p.id === meId) : undefined;
 	const host = cart.participants.find((p) => p.isHost);
 	const editable = cart.status === "open" && !!me;
 	const quote = useMemo(
@@ -118,11 +113,10 @@ export default function GroupOrder({ loaderData }: Route.ComponentProps) {
 	const myItems = me ? cart.items.filter((i) => i.participantId === me.id) : [];
 
 	const send = (intent: string, fields: Record<string, string> = {}) => {
-		if (!identity) return;
+		if (!me) return;
 		writer.submit(
 			{
 				intent,
-				secret: identity.secret,
 				version: String(cart.version),
 				...fields,
 			},

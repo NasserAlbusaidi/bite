@@ -10,6 +10,7 @@ import type {
 	GroupCartView,
 	GuestOrderRejectReason,
 } from "./contracts";
+import { readSeat, seatCookie } from "./group-seat.server";
 
 export type GroupActionResult =
 	| {
@@ -17,7 +18,6 @@ export type GroupActionResult =
 			intent: string;
 			cart?: GroupCartView;
 			participantId?: string;
-			secret?: string;
 	  }
 	| {
 			ok: false;
@@ -60,9 +60,10 @@ const bad = (intent: string) =>
  * current version: writes are keyed, so a retry can't double-apply.
  */
 export async function groupAction(
-	form: FormData,
+	request: Request,
 	params: { lang: string; slug: string; token: string },
 ) {
+	const form = await request.formData();
 	const api = guestApi();
 	const intent = str(form, "intent");
 	const token = params.token;
@@ -72,17 +73,23 @@ export async function groupAction(
 		if (!name) return bad(intent);
 		try {
 			const r = await api.joinGroupCart(token, name);
-			return data<GroupActionResult>({ ok: true, intent, ...r });
+			return seated(request, token, intent, r);
 		} catch (e) {
 			return fail(intent, e);
 		}
 	}
 
+	const seat = await readSeat(request, token);
+	if (!seat)
+		return data<GroupActionResult>(
+			{ ok: false, intent, code: "unauthenticated", lineIds: [] },
+			{ status: 401 },
+		);
 	const auth: ParticipantAuth = {
-		secret: str(form, "secret"),
+		secret: seat.secret,
 		version: Number(str(form, "version")),
 	};
-	if (!auth.secret || !Number.isInteger(auth.version)) return bad(intent);
+	if (!Number.isInteger(auth.version)) return bad(intent);
 
 	try {
 		switch (intent) {
@@ -144,12 +151,14 @@ export async function groupAction(
 			}
 			case "submit": {
 				const key = str(form, "idempotencyKey");
-				let fields: Record<string, unknown>;
+				let parsed: unknown;
 				try {
-					fields = JSON.parse(str(form, "fields"));
+					parsed = JSON.parse(str(form, "fields"));
 				} catch {
 					return bad(intent);
 				}
+				if (typeof parsed !== "object" || parsed === null) return bad(intent);
+				const fields = parsed as Record<string, unknown>;
 				const type = fields.type === "takeaway" ? "takeaway" : "dine_in";
 				const s = (k: string, max: number) =>
 					typeof fields[k] === "string" && fields[k]
@@ -170,7 +179,7 @@ export async function groupAction(
 					),
 				);
 				return redirect(
-					`/${params.lang}/${params.slug}/orders/${order.trackingToken}`,
+					`/${encodeURIComponent(params.lang)}/${encodeURIComponent(params.slug)}/orders/${encodeURIComponent(order.trackingToken)}`,
 				);
 			}
 			default:
@@ -181,13 +190,34 @@ export async function groupAction(
 	}
 }
 
+/** Remember the seat in the httpOnly cookie; the secret never goes to the page. */
+async function seated(
+	request: Request,
+	token: string,
+	intent: string,
+	r: { cart: GroupCartView; participantId: string; secret: string },
+) {
+	const cookie = await seatCookie(request, token, {
+		participantId: r.participantId,
+		secret: r.secret,
+	});
+	return data<GroupActionResult>(
+		{ ok: true, intent, cart: r.cart, participantId: r.participantId },
+		{ headers: { "set-cookie": cookie } },
+	);
+}
+
 /** Create a cart; the caller becomes host. */
-export async function createGroup(slug: string, displayName: string) {
+export async function createGroup(
+	request: Request,
+	slug: string,
+	displayName: string,
+) {
 	const name = displayName.trim().slice(0, 40);
 	if (!name) return bad("create");
 	try {
 		const r = await guestApi().createGroupCart(slug, name);
-		return data<GroupActionResult>({ ok: true, intent: "create", ...r });
+		return seated(request, r.cart.token, "create", r);
 	} catch (e) {
 		return fail("create", e);
 	}
