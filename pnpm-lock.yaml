@@ -185,6 +185,9 @@ importers:
       '@bite/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@bite/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
       '@capacitor-community/sqlite':
         specifier: ^8.1.1
         version: 8.1.1(@capacitor/core@8.6.2)
