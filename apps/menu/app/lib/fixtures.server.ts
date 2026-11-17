@@ -1,25 +1,17 @@
 /**
  * In-memory stand-in for the guest API, used when BITE_API_URL is unset
- * (local dev, tests, previews). Pricing here is a DEV STUB, not parity:
- * list price + modifier deltas, tax per line. The real API prices with core.
+ * (local dev, tests, previews). Prices with @bite/core like the real API,
+ * but skips everything else the API checks (tenancy, rate limits, shifts).
  */
-import {
-	applyRate,
-	bps,
-	minor,
-	sum,
-	taxFromInclusive,
-	times,
-	ZERO,
-} from "@bite/core";
+import { bps, priceCart } from "@bite/core";
 import type { GuestApi } from "./api.server";
 import { GuestApiError } from "./api.server";
-import { estimateUnit, indexMenu, validateSelection } from "./cart";
 import {
 	CreateGuestOrderRequest,
 	type GuestOrderView,
 	type PublicMenuResponse,
 } from "./contracts";
+import { clockFor, menuPricing } from "./pricing";
 import { uuidv7 } from "./uuid";
 
 const id = (n: number) =>
@@ -194,7 +186,22 @@ export function demoMenu(): PublicMenuResponse {
 					],
 				},
 			],
-			promotions: [],
+			promotions: [
+				{
+					id: id(500),
+					name: "Pastry hour",
+					kind: "percent",
+					value: 2000,
+					productId: null,
+					categoryId: pastries,
+					startsAt: null,
+					endsAt: null,
+					dailyStart: null,
+					dailyEnd: null,
+					daysOfWeek: null,
+					priority: 0,
+				},
+			],
 		},
 	};
 }
@@ -229,74 +236,76 @@ export function fixtureApi(
 					reason: "not_accepting_orders",
 				});
 			}
-			const idx = indexMenu(m.menu);
-			const unavailable = req.lines.filter(
-				(l) => !idx.products.get(l.productId)?.isAvailable,
+			const pricing = menuPricing(m.menu);
+			const priced = priceCart(
+				req.lines.map((l) => ({ ...l, note: l.note ?? null })),
+				pricing.catalog,
+				{
+					settings: {
+						pricesIncludeTax: m.menu.location.pricesIncludeTax,
+						taxBps: bps(m.menu.location.taxBps),
+						locationId: m.menu.location.locationId,
+					},
+					promotions: pricing.promotions,
+					at: clockFor(pricing, Date.now()),
+				},
 			);
-			if (unavailable.length) {
-				throw new GuestApiError("unprocessable", {
-					reason: "items_unavailable",
-					lineIds: unavailable.map((l) => l.id),
-				});
+			if (!priced.ok) {
+				const lineIds = (codes: string[]) =>
+					priced.errors.flatMap((e) =>
+						codes.includes(e.code) && e.lineIndex !== undefined
+							? [req.lines[e.lineIndex]?.id ?? ""]
+							: [],
+					);
+				const unavailable = lineIds(["unknown_product", "product_unavailable"]);
+				if (unavailable.length) {
+					throw new GuestApiError("unprocessable", {
+						reason: "items_unavailable",
+						lineIds: unavailable,
+					});
+				}
+				const mods = lineIds([
+					"invalid_modifier",
+					"duplicate_modifier",
+					"modifier_unavailable",
+					"modifier_below_min",
+					"modifier_above_max",
+				]);
+				if (mods.length) {
+					throw new GuestApiError("unprocessable", {
+						reason: "invalid_modifiers",
+						lineIds: mods,
+					});
+				}
+				throw new GuestApiError("unprocessable", { reason: "total_too_high" });
 			}
-			const badMods = req.lines.filter((l) => {
-				const p = idx.products.get(l.productId);
-				return !p || validateSelection(p, idx, l.modifierOptionIds) !== null;
-			});
-			if (badMods.length) {
-				throw new GuestApiError("unprocessable", {
-					reason: "invalid_modifiers",
-					lineIds: badMods.map((l) => l.id),
-				});
-			}
-			const loc = m.menu.location;
-			const lines = req.lines.map((l) => {
-				const p = idx.products.get(l.productId);
-				if (!p) throw new Error("unreachable");
-				const unit = estimateUnit(p, idx, l.modifierOptionIds);
-				const lineTotal = times(unit, l.quantity);
-				const rate = bps(p.taxBps ?? loc.taxBps);
-				const lineTax = loc.pricesIncludeTax
-					? taxFromInclusive(lineTotal, rate)
-					: applyRate(lineTotal, rate);
-				return {
-					id: l.id,
-					productId: p.id,
-					name: p.name,
-					quantity: l.quantity,
-					unitPrice: unit,
-					listUnitPrice: p.price,
-					promotionId: null,
-					modifiers: l.modifierOptionIds.map((oid) => {
-						const gid = idx.optionGroup.get(oid) ?? "";
-						const opt = idx.groups.get(gid)?.options.find((o) => o.id === oid);
-						return {
-							groupId: gid,
-							optionId: oid,
-							name: opt?.name ?? { en: "?" },
-							priceDelta: opt?.priceDelta ?? 0,
-						};
-					}),
-					taxBps: rate,
-					lineTotal,
-					lineDiscount: ZERO,
-					lineTax,
-					note: l.note ?? null,
-					voidedAt: null,
-					voidReason: null,
-				};
-			});
-			const gross = sum(lines.map((l) => minor(l.lineTotal)));
-			const taxTotal = sum(lines.map((l) => minor(l.lineTax)));
+			const p = priced.value;
+			const lines = p.lines.map((l, i) => ({
+				id: req.lines[i]?.id ?? uuidv7(),
+				productId: l.productId,
+				name: l.name,
+				quantity: l.quantity,
+				unitPrice: l.unitPrice,
+				listUnitPrice: l.listUnitPrice,
+				promotionId: l.promotionId,
+				modifiers: [...l.modifiers],
+				taxBps: l.taxBps,
+				lineTotal: l.lineTotal,
+				lineDiscount: l.lineDiscount,
+				lineTax: l.lineTax,
+				note: l.note,
+				voidedAt: null,
+				voidReason: null,
+			}));
 			const order: GuestOrderView = {
 				ticketNumber: `Q-${String(orders.size + 1).padStart(3, "0")}`,
 				type: req.type,
 				paymentStatus: "unpaid",
 				fulfillmentStatus: "pending",
-				subtotal: loc.pricesIncludeTax ? gross - taxTotal : gross,
-				discountTotal: 0,
-				taxTotal,
-				total: loc.pricesIncludeTax ? gross : gross + taxTotal,
+				subtotal: p.subtotal,
+				discountTotal: p.discountTotal,
+				taxTotal: p.taxTotal,
+				total: p.total,
 				placedAt: new Date().toISOString(),
 				readyAt: null,
 				lines,

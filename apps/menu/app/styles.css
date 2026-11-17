@@ -491,3 +491,19 @@ h2 {
 	margin: 0;
 	text-align: end;
 }
+.chip--sale {
+	color: var(--accent);
+	border-color: currentColor;
+	margin-inline-start: 8px;
+	font-size: 0.75rem;
+	padding: 0 8px;
+}
+.item__price s {
+	margin-inline-start: 8px;
+}
+.summary--tight {
+	font-size: 0.95rem;
+}
+.sale {
+	color: var(--ok);
+}
