@@ -1,0 +1,144 @@
+import { useEffect } from "react";
+import { data, Link, useRevalidator, useSearchParams } from "react-router";
+import { Price } from "../components/Price";
+import { guestApi } from "../lib/api.server";
+import { useCart } from "../lib/cart-store";
+import { isLang, loc, type MessageKey, translator } from "../lib/i18n";
+import type { Route } from "./+types/order";
+
+export async function loader({ params }: Route.LoaderArgs) {
+	if (!isLang(params.lang)) throw data(null, { status: 404 });
+	const api = guestApi();
+	const [order, menu] = await Promise.all([
+		api.getOrder(params.token),
+		api.getMenu(params.slug),
+	]);
+	if (!order || !menu) throw data(null, { status: 404 });
+	return {
+		lang: params.lang,
+		order,
+		location: menu.location,
+		currency: {
+			code: menu.menu.location.currencyCode,
+			decimals: menu.menu.location.currencyDecimals,
+		},
+	};
+}
+
+export function headers() {
+	return { "cache-control": "private, no-store" };
+}
+
+export function meta({ loaderData: data }: Route.MetaArgs) {
+	return [
+		{
+			title: data
+				? `${data.order.ticketNumber} · ${data.location.name}`
+				: "Bite",
+		},
+		{ name: "robots", content: "noindex" },
+	];
+}
+
+const POLL_MS = 10_000;
+
+function statusKey(o: Route.ComponentProps["loaderData"]["order"]): MessageKey {
+	if (o.fulfillmentStatus === "cancelled") return "status_cancelled";
+	if (o.fulfillmentStatus === "completed") return "status_completed";
+	if (o.fulfillmentStatus === "ready") return "status_ready";
+	if (o.fulfillmentStatus === "preparing") return "status_preparing";
+	return o.paymentStatus === "unpaid" ? "status_unpaid" : "status_paid";
+}
+
+export default function OrderPage({ loaderData }: Route.ComponentProps) {
+	const { lang, order, location, currency } = loaderData;
+	const t = translator(lang);
+	const [params, setParams] = useSearchParams();
+	const [, dispatch] = useCart(location.slug);
+	const { revalidate, state } = useRevalidator();
+	const done =
+		order.fulfillmentStatus === "completed" ||
+		order.fulfillmentStatus === "cancelled";
+
+	// Just placed: the cart has become this order.
+	useEffect(() => {
+		if (params.get("placed") === "1") {
+			dispatch({ type: "clear" });
+			setParams({}, { replace: true });
+		}
+	}, [params, setParams, dispatch]);
+
+	// TODO: switch to the realtime hint (SSE) once the API exposes it for guests.
+	useEffect(() => {
+		if (done) return;
+		const id = setInterval(() => {
+			if (document.visibilityState === "visible" && state === "idle")
+				revalidate();
+		}, POLL_MS);
+		return () => clearInterval(id);
+	}, [done, revalidate, state]);
+
+	return (
+		<main className="page">
+			<section className="ticket" aria-live="polite">
+				<p className="muted">{t("track_show_counter")}</p>
+				<p className="ticket__no">
+					<bdi dir="ltr">{order.ticketNumber}</bdi>
+				</p>
+				<p className="ticket__status">{t(statusKey(order))}</p>
+			</section>
+
+			<ul className="lines">
+				{order.lines
+					.filter((l) => !l.voidedAt)
+					.map((l) => (
+						<li key={l.id} className="line">
+							<div className="line__info">
+								<strong>
+									{l.quantity} × {loc(l.name, lang)}
+								</strong>
+								{l.modifiers.length > 0 && (
+									<span className="muted small">
+										{l.modifiers.map((m) => loc(m.name, lang)).join(", ")}
+									</span>
+								)}
+							</div>
+							<Price
+								className="line__price"
+								amount={l.lineTotal}
+								currency={currency}
+								lang={lang}
+							/>
+						</li>
+					))}
+			</ul>
+
+			<dl className="summary">
+				{order.discountTotal > 0 && (
+					<>
+						<dt>{t("discount")}</dt>
+						<dd>
+							<Price
+								amount={-order.discountTotal}
+								currency={currency}
+								lang={lang}
+							/>
+						</dd>
+					</>
+				)}
+				<dt>{t("tax")}</dt>
+				<dd>
+					<Price amount={order.taxTotal} currency={currency} lang={lang} />
+				</dd>
+				<dt className="strong">{t("total")}</dt>
+				<dd className="strong">
+					<Price amount={order.total} currency={currency} lang={lang} />
+				</dd>
+			</dl>
+
+			<Link className="btn" to={`/${lang}/${location.slug}`}>
+				{t("back_to_menu")}
+			</Link>
+		</main>
+	);
+}
