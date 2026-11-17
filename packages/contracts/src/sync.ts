@@ -1,0 +1,121 @@
+import { z } from "zod";
+import { CashMovement, CloseCashSession, OpenCashSession } from "./cash.js";
+import { Cursor, Id, Instant, Version } from "./common.js";
+import { ErrorBody } from "./errors.js";
+import { MenuSnapshot } from "./menu.js";
+import { CreatePosOrder, Order, SetFulfillment, VoidLine } from "./orders.js";
+import { AddPayment, RefundPayment } from "./payments.js";
+
+/**
+ * Offline outbox replay. The tablet queues mutations locally and pushes them
+ * in order. `id` is a client UUIDv7 and doubles as the idempotency key:
+ * pushing the same id again returns the ORIGINAL result (status "duplicate"),
+ * never an error, so a lost response is always safe to retry.
+ *
+ * Auth: device bearer token. Staff attribution: X-Staff-Token at push time
+ * is NOT used for offline work (the staff session may have expired since);
+ * each mutation carries the memberId that was logged in when it was queued.
+ */
+const base = {
+	id: Id,
+	/** Row the mutation creates or changes (order id, cash session id, ...). */
+	entityId: Id,
+	/** Version the tablet last saw. Omit for creates. Mismatch => "conflict". */
+	baseVersion: Version.optional(),
+	/** Staff member who did it on the tablet. Must belong to the device's location. */
+	memberId: Id,
+	/** When it happened on the tablet (for audit, not ordering). */
+	createdAt: Instant,
+};
+
+export const SyncMutation = z.discriminatedUnion("kind", [
+	z.object({
+		...base,
+		kind: z.literal("order.create"),
+		payload: CreatePosOrder,
+	}),
+	z.object({
+		...base,
+		kind: z.literal("order.addPayment"),
+		payload: AddPayment,
+	}),
+	z.object({
+		...base,
+		kind: z.literal("order.refund"),
+		payload: RefundPayment,
+	}),
+	z.object({
+		...base,
+		kind: z.literal("order.setFulfillment"),
+		payload: SetFulfillment,
+	}),
+	z.object({ ...base, kind: z.literal("order.voidLine"), payload: VoidLine }),
+	z.object({ ...base, kind: z.literal("cash.open"), payload: OpenCashSession }),
+	z.object({
+		...base,
+		kind: z.literal("cash.movement"),
+		payload: CashMovement,
+	}),
+	z.object({
+		...base,
+		kind: z.literal("cash.close"),
+		payload: CloseCashSession,
+	}),
+	z.object({
+		...base,
+		kind: z.literal("menu.setAvailability"),
+		payload: z.object({ productId: Id, isAvailable: z.boolean() }),
+	}),
+]);
+export type SyncMutation = z.infer<typeof SyncMutation>;
+export type SyncMutationKind = SyncMutation["kind"];
+
+export const SyncPushRequest = z.object({
+	/** Must match the device token's device. Redundant on purpose: catches mixed-up tablets. */
+	deviceId: Id,
+	mutations: z.array(SyncMutation).min(1).max(100),
+});
+
+export const SyncMutationStatus = z.enum([
+	"applied", // done now
+	"duplicate", // done before; this is the original result
+	"conflict", // baseVersion stale; pull, rebase, re-queue with a NEW id
+	"rejected", // invalid (validation, domain rule); do not retry as-is
+]);
+
+export const SyncMutationResult = z.object({
+	id: Id,
+	status: SyncMutationStatus,
+	entityId: Id,
+	/** Version after applying (or current version on conflict). */
+	entityVersion: Version.optional(),
+	error: ErrorBody.shape.error.optional(),
+});
+export type SyncMutationResult = z.infer<typeof SyncMutationResult>;
+
+/**
+ * Results come back in request order. Processing stops at nothing: a rejected
+ * mutation does not block later ones, because mutations on different entities
+ * are independent and same-entity ones will conflict or reject on their own.
+ */
+export const SyncPushResponse = z.object({
+	results: z.array(SyncMutationResult),
+});
+
+export const SyncPullQuery = z.object({
+	/** Absent on first sync. */
+	cursor: Cursor.optional(),
+	/** The menuVersion the tablet has; the snapshot is only sent when it differs. */
+	menuVersion: z.string().optional(),
+});
+
+export const SyncPullResponse = z.object({
+	cursor: Cursor,
+	/** True = call again immediately with the new cursor. */
+	hasMore: z.boolean(),
+	menuVersion: z.string(),
+	/** Present only when menuVersion differs from the one sent. */
+	menu: MenuSnapshot.optional(),
+	/** Orders at this location changed since the cursor (any device, QR included). */
+	orders: z.array(Order),
+});
