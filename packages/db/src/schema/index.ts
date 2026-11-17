@@ -4,5 +4,6 @@ export * from "./group-carts.js";
 export * from "./menu.js";
 export * from "./orders.js";
 export * from "./payments.js";
+export * from "./sync.js";
 export * from "./system.js";
 export * from "./tenancy.js";

@@ -9,6 +9,7 @@ import {
 	PIN,
 	setupHarness,
 	staffLogin,
+	uuidv7,
 } from "./harness.js";
 
 /**
@@ -66,6 +67,91 @@ const cases: Record<string, Case> = {
 		for (const id of [h.A.prod, h.A.cat, h.A.loc])
 			expect(text).not.toContain(id);
 	},
+	"POST /v1/sync/push": async (h) => {
+		// B's tablet tries to pay for, bump and void A's order.
+		const orderId = await aOrder(h);
+		const m = (kind: string, payload: unknown) => ({
+			id: uuidv7(),
+			kind,
+			entityId: orderId,
+			memberId: h.B.manager,
+			createdAt: new Date().toISOString(),
+			payload,
+		});
+		const res = await h.app.request(
+			"/v1/sync/push",
+			json(
+				{
+					deviceId: h.B.device,
+					mutations: [
+						m("order.addPayment", {
+							id: uuidv7(),
+							orderId,
+							amount: 100,
+							method: "card",
+							businessDate: "2026-11-17",
+						}),
+						m("order.setFulfillment", {
+							orderId,
+							to: "cancelled",
+							reason: "x",
+						}),
+					],
+				},
+				bearer(h.B),
+			),
+		);
+		const { results } = (await res.json()) as {
+			results: { status: string; error?: { code: string } }[];
+		};
+		expect(results[0]).toMatchObject({
+			status: "rejected",
+			error: { code: "not_found" },
+		});
+		expect(results[1]?.status).toBe("blocked");
+		// And a B mutation naming A's staff member is refused.
+		const res2 = await h.app.request(
+			"/v1/sync/push",
+			json(
+				{
+					deviceId: h.B.device,
+					mutations: [
+						{
+							...m("menu.setAvailability", {
+								productId: h.B.prod,
+								isAvailable: false,
+							}),
+							entityId: h.B.prod,
+							memberId: h.A.manager,
+						},
+					],
+				},
+				bearer(h.B),
+			),
+		);
+		const r2 = (await res2.json()) as { results: { status: string }[] };
+		expect(r2.results[0]?.status).toBe("rejected");
+		const [a] =
+			await h.owner`select payment_status, fulfillment_status from orders where id = ${orderId}`;
+		expect(a).toMatchObject({
+			payment_status: "unpaid",
+			fulfillment_status: "pending",
+		});
+	},
+	"GET /v1/sync/pull": async (h) => {
+		const orderId = await aOrder(h);
+		const res = await h.app.request("/v1/sync/pull", { headers: bearer(h.B) });
+		const text = await res.text();
+		for (const id of [orderId, h.A.prod, h.A.loc])
+			expect(text).not.toContain(id);
+	},
+	"GET /v1/orders/:orderId": async (h) => {
+		const orderId = await aOrder(h);
+		const res = await h.app.request(`/v1/orders/${orderId}`, {
+			headers: bearer(h.B),
+		});
+		expect(res.status).toBe(404);
+	},
 	"GET /v1/device/session": async (h) => {
 		// A's staff token presented with B's device token.
 		const a = await staffLogin(h, h.A, h.A.cashier);
@@ -83,6 +169,63 @@ const cases: Record<string, Case> = {
 		expect(res.status).toBe(401);
 	},
 };
+
+/** One order owned by tenant A, created through A's own tablet. */
+let aOrderId: string | undefined;
+async function aOrder(h: Harness): Promise<string> {
+	if (aOrderId) return aOrderId;
+	const id = uuidv7();
+	const res = await h.app.request(
+		"/v1/sync/push",
+		json(
+			{
+				deviceId: h.A.device,
+				mutations: [
+					{
+						id: uuidv7(),
+						kind: "order.create",
+						entityId: id,
+						memberId: h.A.cashier,
+						createdAt: new Date().toISOString(),
+						payload: {
+							id,
+							ticketNumber: "A-900",
+							businessDate: "2026-11-17",
+							source: "counter",
+							type: "takeaway",
+							placedAt: new Date().toISOString(),
+							pricesIncludeTax: true,
+							lines: [
+								{
+									id: uuidv7(),
+									productId: h.A.prod,
+									quantity: 1,
+									modifierOptionIds: [],
+									name: { en: "Latte" },
+									listUnitPrice: 1500,
+									promotionId: null,
+									modifiers: [],
+									taxBps: 0,
+								},
+							],
+							expectedTotals: {
+								subtotal: 1500,
+								discountTotal: 0,
+								taxTotal: 0,
+								total: 1500,
+							},
+						},
+					},
+				],
+			},
+			bearer(h.A),
+		),
+	);
+	const { results } = (await res.json()) as { results: { status: string }[] };
+	expect(results[0]?.status).toBe("applied");
+	aOrderId = id;
+	return id;
+}
 
 describe("cross-tenant coverage", () => {
 	it("has a cross-tenant case for every route", () => {

@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import {
 	boolean,
 	check,
+	customType,
 	date,
 	foreignKey,
 	index,
@@ -52,6 +53,17 @@ export const fulfillmentStatus = pgEnum("fulfillment_status", [
 	"completed",
 	"cancelled",
 ]);
+
+/**
+ * Postgres xid8: the id of the transaction that last wrote the row. Set by a
+ * trigger (migration 0006). Sync pull uses it as a gap-free change cursor:
+ * unlike a sequence or timestamp, a transaction that commits late still has
+ * an xid >= the snapshot xmin the puller saved, so it can't be skipped.
+ * Read as a decimal string (it can exceed 2^53).
+ */
+const xid8 = customType<{ data: string; driverData: string }>({
+	dataType: () => "xid8",
+});
 
 /**
  * One order, many payments (splits are payments, not child orders).
@@ -107,6 +119,7 @@ export const orders = pgTable(
 		cancelReason: text("cancel_reason"),
 		/** Bumped on every write; the sync protocol uses it for conflict checks. */
 		version: integer("version").notNull().default(1),
+		changeXid: xid8("change_xid").notNull().default(sql`pg_current_xact_id()`),
 		legacyId: integer("legacy_id"),
 		createdAt: createdAt(),
 		updatedAt: updatedAt(),
@@ -139,6 +152,7 @@ export const orders = pgTable(
 			.on(t.expiresAt)
 			.where(sql`${t.paymentStatus} = 'unpaid' and ${t.expiresAt} is not null`),
 		index("orders_customer_idx").on(t.orgId, t.customerId),
+		index("orders_location_change_idx").on(t.locationId, t.changeXid, t.id),
 		check(
 			"orders_totals_nonneg",
 			sql`${t.subtotal} >= 0 and ${t.discountTotal} >= 0 and ${t.taxTotal} >= 0 and ${t.total} >= 0`,
