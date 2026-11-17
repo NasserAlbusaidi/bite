@@ -4,10 +4,11 @@
 	"private": true,
 	"type": "module",
 	"scripts": {
-		"dev": "tsx watch src/server.ts",
+		"dev": "tsx watch --env-file-if-exists=.env src/server.ts",
 		"test": "vitest run",
 		"typecheck": "tsc --noEmit",
-		"worker": "tsx src/worker.ts"
+		"worker": "tsx --env-file-if-exists=.env src/worker.ts",
+		"dev:setup": "tsx --env-file-if-exists=.env src/dev/setup.ts"
 	},
 	"dependencies": {
 		"@bite/contracts": "workspace:*",
