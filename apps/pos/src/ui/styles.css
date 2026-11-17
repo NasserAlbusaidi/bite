@@ -1,0 +1,102 @@
+/* Logical properties only (inline-start/end), so RTL mirrors with no extra CSS. */
+:root {
+	--bg: #f6f5f2;
+	--fg: #1c1b19;
+	--muted: #6b6860;
+	--card: #fff;
+	--line: #e3e0d8;
+	--ok: #1f7a4a;
+	--warn: #a86400;
+	--bad: #b42318;
+	font-family: "Noto Sans", "Noto Sans Arabic", system-ui, sans-serif;
+	color: var(--fg);
+	background: var(--bg);
+	-webkit-tap-highlight-color: transparent;
+}
+* {
+	box-sizing: border-box;
+}
+body {
+	margin: 0;
+	background: var(--bg);
+	user-select: none;
+}
+button {
+	font: inherit;
+	min-block-size: 44px; /* touch target */
+	padding-inline: 16px;
+	border: 1px solid var(--line);
+	border-radius: 10px;
+	background: var(--card);
+	color: var(--fg);
+}
+.app {
+	display: flex;
+	flex-direction: column;
+	min-block-size: 100dvh;
+}
+.topbar {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	padding-block: 8px;
+	padding-inline: 16px;
+	padding-block-start: max(8px, env(safe-area-inset-top));
+	border-block-end: 1px solid var(--line);
+	background: var(--card);
+}
+.spacer {
+	flex: 1;
+}
+main {
+	flex: 1;
+	padding: 24px;
+}
+.empty {
+	color: var(--muted);
+	text-align: center;
+	margin-block-start: 20vh;
+}
+.badge {
+	padding-block: 4px;
+	padding-inline: 10px;
+	border-radius: 999px;
+	font-size: 14px;
+	color: #fff;
+}
+.badge-ok {
+	background: var(--ok);
+}
+.badge-warn {
+	background: var(--warn);
+}
+.badge-bad {
+	background: var(--bad);
+}
+.mode-picker {
+	max-inline-size: 720px;
+	margin-inline: auto;
+	margin-block-start: 10vh;
+	text-align: center;
+}
+.mode-options {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 16px;
+	margin-block-start: 24px;
+}
+.mode-card {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	padding: 32px;
+	min-block-size: 160px;
+	justify-content: center;
+}
+.mode-title {
+	font-size: 22px;
+	font-weight: 700;
+}
+.mode-hint {
+	color: var(--muted);
+}

@@ -1,0 +1,32 @@
+/** Source dictionary. Arabic must cover every key (enforced by the type in ar.ts). */
+export const en = {
+	"app.title": "Bite POS",
+	"mode.pick": "What is this tablet for?",
+	"mode.pos": "Till (POS)",
+	"mode.pos.hint": "Take orders and payments",
+	"mode.kds": "Kitchen display",
+	"mode.kds.hint": "Show and bump orders",
+	"mode.switch": "Switch mode",
+	"lang.toggle": "العربية",
+	"sync.online": "Synced",
+	"sync.pending": "{count} waiting to sync",
+	"sync.offline": "Offline, {count} saved on this tablet",
+	"sync.attention": "{count} need attention",
+	"pos.empty": "Menu not loaded yet. Pair this tablet to a location to start.",
+	"kds.empty": "No orders in the kitchen.",
+	"order.dineIn": "Dine in",
+	"order.takeaway": "Takeaway",
+	"order.note": "Note",
+	"order.orderNote": "Order note",
+	"money.subtotal": "Subtotal",
+	"money.discount": "Discount",
+	"money.tax": "VAT",
+	"money.total": "Total",
+	"money.paid": "Paid",
+	"money.change": "Change",
+	"money.vatNumber": "VAT no.",
+	"money.currency": "OMR",
+	"receipt.thanks": "Thank you!",
+} as const;
+
+export type MessageKey = keyof typeof en;

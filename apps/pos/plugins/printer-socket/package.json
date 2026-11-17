@@ -1,0 +1,27 @@
+{
+	"name": "@bite/capacitor-printer-socket",
+	"version": "0.0.0",
+	"private": true,
+	"description": "Raw TCP (port 9100) for ESC/POS printers on Android and iOS. Local to apps/pos.",
+	"main": "index.js",
+	"types": "index.d.ts",
+	"files": [
+		"index.js",
+		"index.d.ts",
+		"android/src/main/",
+		"android/build.gradle",
+		"ios/Sources/",
+		"Package.swift"
+	],
+	"capacitor": {
+		"ios": {
+			"src": "ios"
+		},
+		"android": {
+			"src": "android"
+		}
+	},
+	"peerDependencies": {
+		"@capacitor/core": "^8.0.0"
+	}
+}

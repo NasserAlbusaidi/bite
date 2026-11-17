@@ -57,6 +57,11 @@ orgs ─┬─ locations ─── devices (tablets, revocable token, ticket pre
 - **cash_sessions**: one open session per device (partial unique index). It opens with a float and closes with a count; `expected_cash`, `counted_cash` and the denomination breakdown are stored at close.
 - **cash_movements**: pay-in, pay-out and drop, always positive, with a mandatory reason.
 
+## Sync
+
+- **sync_mutations** is the idempotency ledger for offline outbox replay, keyed `(org_id, id)` where `id` is the client mutation id. A row is written in the same transaction as the mutation's effect, and only for final outcomes (applied or rejected), so replay returns the original result. Conflicts and "blocked" are not recorded. They're retryable. `fingerprint` (sha256 of the canonical mutation) catches an id reused for a different body. The ledger is append-only for the app.
+- **orders.change_xid** (`xid8`) is set to the writing transaction's id by a trigger on every update. Sync pull hands out the snapshot `xmin` as its cursor and returns rows with `change_xid >= cursor`. A transaction that was still in flight during a pull has an xid at or above that xmin, so its rows come back on the next pull. Rows can repeat, and clients upsert by `version`. Payments and voids always update their order row, so they move the cursor too.
+
 ## Group carts
 
 The legacy JSON blob is replaced by real rows:
@@ -96,5 +101,4 @@ Roles are created once per cluster by `packages/db/sql/bootstrap-roles.sql`. `wi
 
 - Better Auth tables (generated when auth lands)
 - KDS stations/routing, printers
-- Sync outbox/cursor tables (with the offline POS work)
 - Fawtara/e-invoice fields (phase 5)
