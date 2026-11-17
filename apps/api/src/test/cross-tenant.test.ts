@@ -224,6 +224,108 @@ const cases: Record<string, Case> = {
 		expect(b.events.filter((e) => e.event !== "ready")).toEqual([]);
 		await b.close();
 	},
+	"POST /v1/public/locations/:slug/group-carts": async (h) => {
+		const res = await h.app.request(
+			"/v1/public/locations/b-main/group-carts",
+			json({ displayName: "x" }),
+		);
+		expect(res.status).toBe(201);
+		const [row] =
+			await h.owner`select org_id from group_carts where token = ${((await res.json()) as { cart: { token: string } }).cart.token}`;
+		expect(row?.org_id).toBe(h.B.org);
+	},
+	"POST /v1/public/group-carts/:token/participants": async (h) => {
+		const { aToken } = await aCart(h);
+		const res = await h.app.request(
+			`/v1/public/group-carts/${aToken}/participants`,
+			json({ displayName: "x" }),
+		);
+		expect(await res.text()).not.toContain(h.B.org);
+	},
+	"GET /v1/public/group-carts/:token": async (h) => {
+		const { aToken } = await aCart(h);
+		const text = await (
+			await h.app.request(`/v1/public/group-carts/${aToken}`)
+		).text();
+		for (const id of [h.B.prod, h.A.org, h.A.loc])
+			expect(text).not.toContain(id);
+	},
+	"PUT /v1/public/group-carts/:token/items/:itemId": async (h) => {
+		const { aToken, bSecret } = await aCart(h);
+		// B's participant secret on A's cart: not a participant.
+		const res = await h.app.request(
+			`/v1/public/group-carts/${aToken}/items/${uuidv7()}`,
+			{
+				method: "PUT",
+				headers: {
+					"content-type": "application/json",
+					"x-participant-secret": bSecret,
+					"if-match": "2",
+				},
+				body: JSON.stringify({ productId: h.A.prod, quantity: 1 }),
+			},
+		);
+		expect(res.status).toBe(401);
+	},
+	"DELETE /v1/public/group-carts/:token/items/:itemId": async (h) => {
+		const { aToken, bSecret } = await aCart(h);
+		const res = await h.app.request(
+			`/v1/public/group-carts/${aToken}/items/${uuidv7()}`,
+			{
+				method: "DELETE",
+				headers: { "x-participant-secret": bSecret, "if-match": "2" },
+			},
+		);
+		expect(res.status).toBe(401);
+	},
+	"POST /v1/public/group-carts/:token/lock": async (h) => {
+		const { aToken, bSecret } = await aCart(h);
+		const res = await h.app.request(`/v1/public/group-carts/${aToken}/lock`, {
+			method: "POST",
+			headers: { "x-participant-secret": bSecret, "if-match": "2" },
+		});
+		expect(res.status).toBe(401);
+	},
+	"POST /v1/public/group-carts/:token/unlock": async (h) => {
+		const { aToken, bSecret } = await aCart(h);
+		const res = await h.app.request(`/v1/public/group-carts/${aToken}/unlock`, {
+			method: "POST",
+			headers: { "x-participant-secret": bSecret, "if-match": "2" },
+		});
+		expect(res.status).toBe(401);
+	},
+	"POST /v1/public/group-carts/:token/submit": async (h) => {
+		const { aToken, bSecret } = await aCart(h);
+		const res = await h.app.request(
+			`/v1/public/group-carts/${aToken}/submit`,
+			json(
+				{ type: "dine_in" },
+				{ "x-participant-secret": bSecret, "idempotency-key": uuidv7() },
+			),
+		);
+		expect(res.status).toBe(401);
+	},
+	"GET /v1/public/group-carts/:token/events": async (h) => {
+		const { aToken } = await aCart(h);
+		const [b] =
+			await h.owner`select token from group_carts where org_id = ${h.B.org} limit 1`;
+		const ac = new AbortController();
+		const res = await h.app.request(
+			`/v1/public/group-carts/${b?.token ?? aToken}/events`,
+			{ signal: ac.signal },
+		);
+		expect(res.status).toBe(200);
+		const reader = (res.body as ReadableStream<Uint8Array>).getReader();
+		await reader.read(); // ready
+		await h.owner`update group_carts set version = version + 1 where token = ${aToken}`;
+		const next = await Promise.race([
+			reader.read().then((r) => new TextDecoder().decode(r.value)),
+			new Promise<string>((r) => setTimeout(() => r("silence"), 200)),
+		]);
+		expect(next).toBe("silence");
+		ac.abort();
+		await reader.cancel().catch(() => {});
+	},
 	"GET /v1/device/session": async (h) => {
 		// A's staff token presented with B's device token.
 		const a = await staffLogin(h, h.A, h.A.cashier);
@@ -297,6 +399,25 @@ async function aOrder(h: Harness): Promise<string> {
 	expect(results[0]?.status).toBe("applied");
 	aOrderId = id;
 	return id;
+}
+
+/** A cart in tenant A, and a participant secret from a cart in tenant B. */
+let carts: { aToken: string; bSecret: string } | undefined;
+async function aCart(h: Harness) {
+	if (carts) return carts;
+	const a = await h.app.request(
+		"/v1/public/locations/a-main/group-carts",
+		json({ displayName: "A" }),
+	);
+	const b = await h.app.request(
+		"/v1/public/locations/b-main/group-carts",
+		json({ displayName: "B" }),
+	);
+	carts = {
+		aToken: ((await a.json()) as { cart: { token: string } }).cart.token,
+		bSecret: ((await b.json()) as { secret: string }).secret,
+	};
+	return carts;
 }
 
 describe("cross-tenant coverage", () => {
