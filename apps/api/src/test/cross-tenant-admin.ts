@@ -19,6 +19,14 @@ async function aMenu(h: Harness) {
 	return f;
 }
 
+const ORG_TABLES = [
+	"members",
+	"member_locations",
+	"member_invites",
+	"locations",
+	"devices",
+];
+
 const MENU_TABLES = [
 	"categories",
 	"products",
@@ -29,10 +37,10 @@ const MENU_TABLES = [
 	"promotions",
 ];
 
-/** Fingerprint of everything A owns in the menu. */
+/** Fingerprint of everything A owns in the menu, staff, locations and devices. */
 async function aDigest(h: Harness) {
 	const parts: string[] = [];
-	for (const t of MENU_TABLES) {
+	for (const t of [...MENU_TABLES, ...ORG_TABLES]) {
 		const [r] = await h.owner.unsafe<{ d: string | null }[]>(
 			`select md5(string_agg(to_jsonb(x)::text, ',' order by to_jsonb(x)::text)) as d
 			 from ${t} x where org_id = $1`,
@@ -81,7 +89,80 @@ const read =
 
 const name = { en: "Hijacked" };
 
+const pin = { pin: "9999" };
+
 export const adminCases: Record<string, Case> = {
+	"GET /v1/admin/staff": async (h) => {
+		const res = await send(h, "GET", "/staff");
+		const text = await res.text();
+		for (const id of [h.A.cashier, h.A.manager, h.A.otherLocStaff, h.A.loc]) {
+			expect(text).not.toContain(id);
+		}
+	},
+	"POST /v1/admin/staff/invite": write(
+		"POST",
+		() => "/staff/invite",
+		(h) => ({
+			email: "x@test.bite",
+			displayName: "x",
+			orgRole: "staff",
+			locations: [{ locationId: h.A.loc, role: "cashier" }],
+		}),
+	),
+	"POST /v1/admin/staff": write(
+		"POST",
+		() => "/staff",
+		(h) => ({
+			displayName: "x",
+			pin: "1234",
+			locations: [{ locationId: h.A.loc, role: "cashier" }],
+		}),
+	),
+	"PATCH /v1/admin/staff/:id": write(
+		"PATCH",
+		(h) => `/staff/${h.A.cashier}`,
+		(h) => ({
+			displayName: "Hijacked",
+			locations: [{ locationId: h.B.loc, role: "manager" }],
+		}),
+	),
+	"POST /v1/admin/staff/:id/reset-pin": write(
+		"POST",
+		(h) => `/staff/${h.A.cashier}/reset-pin`,
+		() => pin,
+	),
+	"POST /v1/admin/staff/:id/deactivate": write(
+		"POST",
+		(h) => `/staff/${h.A.cashier}/deactivate`,
+		() => undefined,
+	),
+	"POST /v1/admin/staff/:id/invite": write(
+		"POST",
+		(h) => `/staff/${h.A.cashier}/invite`,
+		() => undefined,
+	),
+	"GET /v1/admin/locations": read(() => "/locations"),
+	"PATCH /v1/admin/locations/:id": write(
+		"PATCH",
+		(h) => `/locations/${h.A.loc}`,
+		() => ({ ordersPausedUntil: "2030-01-01T00:00:00Z" }),
+	),
+	"GET /v1/admin/locations/:id/devices": async (h) => {
+		const res = await send(h, "GET", `/locations/${h.A.loc}/devices`);
+		expect(res.status).toBe(404);
+		expect(await res.text()).not.toContain(h.A.device);
+	},
+	"POST /v1/admin/devices": write(
+		"POST",
+		() => "/devices",
+		(h) => ({ locationId: h.A.loc, name: "x", kind: "pos", ticketPrefix: "Z" }),
+	),
+	"POST /v1/admin/devices/:id/revoke": write(
+		"POST",
+		(h) => `/devices/${h.A.device}/revoke`,
+		() => undefined,
+	),
+
 	"GET /v1/admin/categories": read(() => "/categories"),
 	"POST /v1/admin/categories": write(
 		"POST",

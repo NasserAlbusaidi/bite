@@ -255,6 +255,16 @@ export const InviteStaff = z.object({
 	locations: z.array(StaffLocationRole).default([]),
 });
 
+/**
+ * POST /staff/invite response. No email provider yet: the back office shows
+ * or shares the link itself. The token is returned exactly once.
+ */
+export const InviteStaffResponse = z.object({
+	staff: AdminStaff,
+	inviteToken: z.string(),
+	expiresAt: Instant,
+});
+
 /** POST /staff: PIN-only floor staff, no login. */
 export const CreatePinStaff = z.object({
 	displayName: z.string().min(1).max(80),
@@ -403,6 +413,7 @@ export type CreatePromotion = z.infer<typeof CreatePromotion>;
 export type UpdatePromotion = z.infer<typeof UpdatePromotion>;
 export type AdminStaff = z.infer<typeof AdminStaff>;
 export type InviteStaff = z.infer<typeof InviteStaff>;
+export type InviteStaffResponse = z.infer<typeof InviteStaffResponse>;
 export type CreatePinStaff = z.infer<typeof CreatePinStaff>;
 export type UpdateStaff = z.infer<typeof UpdateStaff>;
 export type ResetPin = z.infer<typeof ResetPin>;

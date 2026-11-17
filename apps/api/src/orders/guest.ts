@@ -18,7 +18,7 @@ import {
 import { schema, type Tx } from "@bite/db";
 import { and, eq, sql } from "@bite/db/orm";
 import { ApiError } from "../lib/errors.js";
-import { isOpenAt } from "../menu/hours.js";
+import { acceptsOrders } from "../menu/hours.js";
 import { loadMenuSnapshot } from "../menu/snapshot.js";
 import { isUniqueViolation } from "../sync/orders.js";
 import { loadOrderDto } from "./dto.js";
@@ -147,8 +147,7 @@ export async function placeGuestOrder(
 		.where(eq(locations.id, ids.locationId));
 	const menu = await loadMenuSnapshot(tx, ids.locationId, opts.now);
 	if (!loc || !menu) throw new ApiError("not_found", "no such location");
-	if (!isOpenAt(loc.businessHours, loc.timezone, opts.now))
-		throw rejectGuest("not_accepting_orders");
+	if (!acceptsOrders(loc, opts.now)) throw rejectGuest("not_accepting_orders");
 
 	const catalog = buildCatalog(
 		menu.products.map((p) => ({

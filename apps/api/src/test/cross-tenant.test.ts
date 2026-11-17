@@ -53,6 +53,34 @@ const cases: Record<string, Case> = {
 		const body = (await res.json()) as { items: { id: string }[] };
 		expect(body.items.map((o) => o.id)).toEqual([h.B.org]);
 	},
+	"POST /v1/account/invites/accept": async (h) => {
+		// A invites someone; B's owner holds the link but isn't the invitee.
+		const inv = await h.app.request(
+			"/v1/admin/staff/invite",
+			json(
+				{
+					email: "a-invitee@test.bite",
+					displayName: "Invitee",
+					orgRole: "staff",
+					locations: [],
+				},
+				h.logins.A.owner,
+			),
+		);
+		expect(inv.status).toBe(201);
+		const { inviteToken, staff } = (await inv.json()) as {
+			inviteToken: string;
+			staff: { id: string };
+		};
+		const res = await h.app.request(
+			"/v1/account/invites/accept",
+			json({ token: inviteToken }, h.logins.B.owner),
+		);
+		expect(res.status).toBe(403);
+		const [m] = await h.owner<{ user_id: string | null }[]>`
+			select user_id from members where id = ${staff.id}`;
+		expect(m?.user_id).toBeNull();
+	},
 	"POST /v1/account/orgs": async (h) => {
 		// Onboarding can't take over A: ids are server-minted, A's slugs collide.
 		const res = await h.app.request(
