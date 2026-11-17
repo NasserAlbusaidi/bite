@@ -9,6 +9,7 @@ export function QuantityStepper({
 	min = 1,
 	max = 99,
 	onRemove,
+	size = "sm",
 	className,
 }: {
 	value: number;
@@ -16,6 +17,8 @@ export function QuantityStepper({
 	min?: number;
 	max?: number;
 	onRemove?: () => void;
+	/** "sm" for phone carts; "md" or "lg" for a till touchscreen. */
+	size?: "sm" | "md" | "lg";
 	className?: string;
 }) {
 	const { t } = useUi();
@@ -28,7 +31,7 @@ export function QuantityStepper({
 			<IconButton
 				icon={atMin && onRemove ? "trash" : "minus"}
 				label={t("decrease")}
-				size="sm"
+				size={size}
 				variant="secondary"
 				disabled={atMin && !onRemove}
 				onClick={() => (atMin ? onRemove?.() : onChange(value - 1))}
@@ -39,7 +42,7 @@ export function QuantityStepper({
 			<IconButton
 				icon="plus"
 				label={t("increase")}
-				size="sm"
+				size={size}
 				variant="secondary"
 				disabled={value >= max}
 				onClick={() => onChange(value + 1)}

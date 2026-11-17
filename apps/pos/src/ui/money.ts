@@ -1,9 +1,20 @@
-import { formatDecimal, type Minor } from "@bite/core";
+import { type Currency, formatMoney } from "@bite/ui";
 import type { Lang } from "../i18n/i18n.js";
 
-export function fmt(amount: number, lang: Lang, decimals = 3): string {
-	const n = formatDecimal(amount as Minor, decimals);
-	return lang === "ar" ? `${n} ر.ع.` : `${n} OMR`;
+/** The till's currency. Every location is in Oman today. */
+export const OMR: Currency = { code: "OMR", decimals: 3 };
+
+/**
+ * Plain-text amount for strings and labels ("1.250 OMR", "−0.500 ر.ع.").
+ * In JSX prefer `<Money amount={x} currency={OMR} />`, which isolates the
+ * digits so a minus never jumps to the wrong side in Arabic.
+ */
+export function fmt(
+	amount: number,
+	lang: Lang,
+	opts: { signed?: boolean } = {},
+): string {
+	return formatMoney(amount, OMR, lang, opts);
 }
 
 /** "1.5" / "1.500" → baisa. Returns null if not a valid amount. */

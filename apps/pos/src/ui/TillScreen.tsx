@@ -1,5 +1,6 @@
 import type { MenuProduct } from "@bite/contracts";
 import type { PricedOrder } from "@bite/core";
+import { Money, QuantityStepper } from "@bite/ui";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
 	type CashSession,
@@ -22,7 +23,7 @@ import {
 import { useI18n } from "../i18n/I18nProvider.js";
 import { DrawerSheet } from "./DrawerSheet.js";
 import { ModifierSheet } from "./ModifierSheet.js";
-import { fmt } from "./money.js";
+import { fmt, OMR } from "./money.js";
 import { OrdersSheet } from "./OrdersSheet.js";
 import { PaySheet } from "./PaySheet.js";
 import { kitchenFor, loc, receiptFor } from "./receipts.js";
@@ -179,10 +180,12 @@ export function TillScreen() {
 							>
 								<span className="tile-title">{loc(p.name, lang)}</span>
 								<span className="tile-price">
+									<Money amount={price.unitPrice} currency={OMR} />
 									{price.promotionId && (
-										<s className="muted">{fmt(price.listUnitPrice, lang)}</s>
-									)}{" "}
-									{fmt(price.unitPrice, lang)}
+										<s className="muted small">
+											<Money amount={price.listUnitPrice} currency={OMR} />
+										</s>
+									)}
 								</span>
 								{!p.isAvailable && (
 									<span className="tag">{t("till.soldOut")}</span>
@@ -237,17 +240,16 @@ export function TillScreen() {
 										</div>
 									))}
 								</div>
-								<div className="qty">
-									<button type="button" onClick={() => bump(l.lineId, -1)}>
-										−
-									</button>
-									<span>{l.quantity}</span>
-									<button type="button" onClick={() => bump(l.lineId, 1)}>
-										+
-									</button>
-								</div>
+								<QuantityStepper
+									size="md"
+									value={l.quantity}
+									onChange={(next) =>
+										bump(l.lineId, next > l.quantity ? 1 : -1)
+									}
+									onRemove={() => bump(l.lineId, -1)}
+								/>
 								<div className="amount">
-									{priced ? fmt(priced.lineGross, lang) : ""}
+									{priced && <Money amount={priced.lineGross} currency={OMR} />}
 								</div>
 							</div>
 						);
@@ -266,13 +268,13 @@ export function TillScreen() {
 							<div className="row">
 								<span>{t("money.discount")}</span>
 								<span className="spacer" />
-								<span>-{fmt(q.priced.discountTotal, lang)}</span>
+								<Money amount={-q.priced.discountTotal} currency={OMR} />
 							</div>
 						)}
 						<div className="row muted">
 							<span>{t("money.tax")}</span>
 							<span className="spacer" />
-							<span>{fmt(q.priced.taxTotal, lang)}</span>
+							<Money amount={q.priced.taxTotal} currency={OMR} />
 						</div>
 					</div>
 				)}
