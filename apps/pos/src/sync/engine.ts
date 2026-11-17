@@ -2,6 +2,7 @@ import { SyncPullResponse } from "@bite/contracts";
 import type { ApiClient } from "../api/client.js";
 import type { SqlDriver } from "../db/driver.js";
 import { kvGet, kvSet } from "../db/kv.js";
+import { adoptCashSession } from "../domain/cash.js";
 import { saveMenu } from "../domain/menu.js";
 import { upsertOrders } from "../domain/sale.js";
 import { type FlushSummary, Replayer } from "./replayer.js";
@@ -26,6 +27,7 @@ export class SyncEngine {
 	private readonly listeners = new Set<(s: SyncState) => void>();
 	private readonly menuListeners = new Set<() => void>();
 	private readonly orderListeners = new Set<() => void>();
+	private readonly drawerListeners = new Set<() => void>();
 	state: SyncState = {
 		online: true,
 		lastPushAt: null,
@@ -69,6 +71,12 @@ export class SyncEngine {
 	onMenuChanged(fn: () => void) {
 		this.menuListeners.add(fn);
 		return () => this.menuListeners.delete(fn);
+	}
+
+	/** The open drawer changed under the till: adopted from the server. */
+	onDrawerChanged(fn: () => void) {
+		this.drawerListeners.add(fn);
+		return () => this.drawerListeners.delete(fn);
 	}
 
 	onOrdersChanged(fn: () => void) {
@@ -148,7 +156,11 @@ export class SyncEngine {
 					menuChanged = true;
 				}
 				await kvSet(this.db, "sync.cursor", res.cursor);
-				if (!res.hasMore) return;
+				if (!res.hasMore) {
+					if (await adoptCashSession(this.db, res.cashSession, Date.now()))
+						for (const fn of this.drawerListeners) fn();
+					return;
+				}
 			}
 		} finally {
 			if (menuChanged) for (const fn of this.menuListeners) fn();

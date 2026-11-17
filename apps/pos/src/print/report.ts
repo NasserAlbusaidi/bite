@@ -7,6 +7,7 @@ export type ReportLabels = {
 	opened: string;
 	closed: string;
 	float: string;
+	carried: string;
 	sales: string;
 	refunds: string;
 	tips: string;
@@ -74,6 +75,8 @@ export function sessionReportTicket(
 		{ kind: "rule" },
 		{ kind: "pair", left: l.float, right: money(r.session.openingFloat) },
 	);
+	if (r.carried)
+		blocks.push({ kind: "pair", left: l.carried, right: money(r.carried) });
 	if (r.payIns)
 		blocks.push({ kind: "pair", left: l.payIns, right: money(r.payIns) });
 	if (r.payOuts)

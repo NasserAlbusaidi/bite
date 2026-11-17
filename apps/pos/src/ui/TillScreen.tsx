@@ -60,8 +60,12 @@ export function TillScreen() {
 		void reloadMenu();
 		void openSession(db).then(setDrawer);
 		const off = sync.onMenuChanged(() => void reloadMenu());
+		const offDrawer = sync.onDrawerChanged(
+			() => void openSession(db).then(setDrawer),
+		);
 		return () => {
 			off();
+			offDrawer();
 		};
 	}, [db, sync, reloadMenu]);
 

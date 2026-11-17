@@ -3,6 +3,7 @@ import type {
 	CashMovementKind,
 	CloseCashSession,
 	OpenCashSession,
+	OpenDrawer,
 	PaymentMethod,
 } from "@bite/contracts";
 import { businessDate } from "@bite/core";
@@ -38,6 +39,58 @@ export async function openSession(db: SqlDriver): Promise<CashSession | null> {
 				openedAt: r.opened_at,
 			}
 		: null;
+}
+
+/**
+ * The server still has a drawer open for this device that this tablet doesn't
+ * know about (re-paired, reset, or the app's storage was wiped). Take it over
+ * instead of opening a second one, which the server would refuse, and which
+ * would then make every cash sale bounce after the customer paid.
+ *
+ * A local drawer whose cash.open the server rejected (opened before the first
+ * pull landed) is set aside for the server's one. A local drawer the server
+ * accepted is never touched. Nothing is queued: the session already exists.
+ * Returns true when the tablet's open drawer changed.
+ */
+export async function adoptCashSession(
+	db: SqlDriver,
+	server: OpenDrawer | null | undefined,
+	at: number,
+): Promise<boolean> {
+	if (!server) return false;
+	return db.transaction(async (tx) => {
+		const [known] = await tx.all<{ id: string }>(
+			"SELECT id FROM cash_sessions WHERE id = ?",
+			[server.id],
+		);
+		// Ours already, open or closed with the close still on its way.
+		if (known) return false;
+		const local = await tx.all<{ id: string; refused: number }>(
+			`SELECT s.id, EXISTS (
+			   SELECT 1 FROM outbox o WHERE o.kind = 'cash.open'
+			   AND o.entity_id = s.id AND o.status = 'rejected') AS refused
+			 FROM cash_sessions s WHERE s.closed_at IS NULL`,
+		);
+		if (local.some((s) => !s.refused)) return false;
+		for (const s of local)
+			await tx.run(
+				"UPDATE cash_sessions SET closed_at = ?, expected_cash = 0, counted_cash = 0 WHERE id = ?",
+				[new Date(at).toISOString(), s.id],
+			);
+		await tx.run(
+			`INSERT INTO cash_sessions (id, business_date, opening_float, opened_by, opened_at, carried_cash)
+			 VALUES (?, ?, ?, ?, ?, ?)`,
+			[
+				server.id,
+				server.businessDate,
+				server.openingFloat,
+				server.openedBy,
+				server.openedAt,
+				server.cashSoFar,
+			],
+		);
+		return true;
+	});
 }
 
 /** Open the drawer with a float. One open session per device (the server enforces it too). */
@@ -161,6 +214,8 @@ export type SessionReport = {
 	payIns: number;
 	payOuts: number;
 	drops: number;
+	/** Cash already in an adopted drawer before this tablet took it over. */
+	carried: number;
 	expectedCash: number;
 	/** counted - expected, once counted. */
 	variance: number | null;
@@ -181,6 +236,7 @@ export async function sessionReport(
 		closed_at: string | null;
 		closed_by: string | null;
 		counted_cash: number | null;
+		carried_cash: number;
 	}>("SELECT * FROM cash_sessions WHERE id = ?", [sessionId]);
 	if (!s) return null;
 	const payments = await sessionPayments(db, sessionId);
@@ -211,7 +267,12 @@ export async function sessionReport(
 	const mv = (k: CashMovementKind) =>
 		moves.find((m) => m.kind === k)?.total ?? 0;
 	const expectedCash =
-		s.opening_float + cashIn + mv("pay_in") - mv("pay_out") - mv("drop");
+		s.opening_float +
+		s.carried_cash +
+		cashIn +
+		mv("pay_in") -
+		mv("pay_out") -
+		mv("drop");
 	const [u] = await db.all<{ n: number }>(
 		`SELECT COUNT(*) AS n FROM outbox WHERE status != 'applied' AND (
 		   entity_id = ? OR id IN (SELECT outbox_id FROM payments WHERE session_id = ?))`,
@@ -234,6 +295,7 @@ export async function sessionReport(
 		payIns: mv("pay_in"),
 		payOuts: mv("pay_out"),
 		drops: mv("drop"),
+		carried: s.carried_cash,
 		expectedCash,
 		variance: s.counted_cash === null ? null : s.counted_cash - expectedCash,
 		unsynced: u?.n ?? 0,

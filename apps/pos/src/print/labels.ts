@@ -29,6 +29,7 @@ export function reportLabels(lang: Lang, closed: boolean): ReportLabels {
 		opened: t("report.opened"),
 		closed: t("report.closed"),
 		float: t("drawer.float"),
+		carried: t("drawer.carried"),
 		sales: t("report.sales"),
 		refunds: t("report.refunds"),
 		tips: t("report.tips"),

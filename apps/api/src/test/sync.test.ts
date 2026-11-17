@@ -126,6 +126,12 @@ describe.runIf(ownerUrl)("sync push/pull", () => {
 			hasMore: boolean;
 			menuVersion: string;
 			menu?: unknown;
+			cashSession?: {
+				id: string;
+				openingFloat: number;
+				openedBy: string;
+				cashSoFar: number;
+			} | null;
 			orders: {
 				id: string;
 				version: number;
@@ -472,6 +478,50 @@ describe.runIf(ownerUrl)("sync push/pull", () => {
 		});
 		const [reopen] = await push(h.A, [
 			mut(h.A, "cash.open", s, { id: s, businessDate: DAY, openingFloat: 0 }),
+		]);
+		expect(reopen?.status).toBe("applied");
+	});
+
+	it("hands a re-paired tablet the drawer the server still has open", async () => {
+		const [open] =
+			await h.owner`select id from cash_sessions where device_id = ${h.A.device} and status = 'open'`;
+		const id = String(open?.id);
+		const [m] = await push(h.A, [
+			mut(h.A, "cash.movement", id, {
+				id: uuidv7(),
+				cashSessionId: id,
+				kind: "pay_in",
+				amount: 5_000,
+				reason: "change",
+			}),
+		]);
+		expect(m?.status).toBe("applied");
+		// A fresh tablet has no cursor; an incremental pull carries it too.
+		const fresh = await pull(h.A);
+		expect(fresh.cashSession).toMatchObject({
+			id,
+			openingFloat: 0,
+			openedBy: h.A.cashier,
+			cashSoFar: 5_000,
+		});
+		expect((await pull(h.A, `?cursor=${fresh.cursor}`)).cashSession?.id).toBe(
+			id,
+		);
+		// Another tenant's device never sees it.
+		expect((await pull(h.B)).cashSession?.id).not.toBe(id);
+		// Once closed there is nothing to adopt.
+		const [c] = await push(h.A, [
+			mut(h.A, "cash.close", id, { cashSessionId: id, countedCash: 5_000 }),
+		]);
+		expect(c?.status).toBe("applied");
+		expect((await pull(h.A)).cashSession).toBeNull();
+		const next = uuidv7();
+		const [reopen] = await push(h.A, [
+			mut(h.A, "cash.open", next, {
+				id: next,
+				businessDate: DAY,
+				openingFloat: 0,
+			}),
 		]);
 		expect(reopen?.status).toBe("applied");
 	});

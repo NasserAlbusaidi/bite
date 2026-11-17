@@ -129,6 +129,15 @@ ALTER TABLE cash_sessions ADD COLUMN expected_cash INTEGER;
 ALTER TABLE outbox ADD COLUMN dismissed_at TEXT;
 `,
 	},
+	{
+		version: 4,
+		sql: `
+-- A drawer adopted from the server (the tablet was re-paired or reset while
+-- it was open) arrives with cash this tablet never saw: sales, tips and
+-- movements rung before. It counts toward expected cash like the float.
+ALTER TABLE cash_sessions ADD COLUMN carried_cash INTEGER NOT NULL DEFAULT 0;
+`,
+	},
 ];
 
 export async function migrate(db: SqlDriver): Promise<number> {

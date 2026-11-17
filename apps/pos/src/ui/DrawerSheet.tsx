@@ -287,6 +287,7 @@ function ReportView({ r }: { r: SessionReport }) {
 			)}
 			<hr />
 			{line(t("drawer.float"), r.session.openingFloat)}
+			{r.carried !== 0 && line(t("drawer.carried"), r.carried)}
 			{r.payIns > 0 && line(t("drawer.pay_in"), r.payIns)}
 			{r.payOuts > 0 && line(t("drawer.pay_out"), -r.payOuts)}
 			{r.drops > 0 && line(t("drawer.drop"), -r.drops)}

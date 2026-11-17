@@ -81,6 +81,35 @@ export async function addCashMovement(
 	return {};
 }
 
+type Tx = MutationCtx["tx"];
+
+/**
+ * Cash into the drawer so far, float excluded: succeeded cash payments and
+ * tips (refunds are negative rows, so they subtract) + pay-ins - pay-outs -
+ * drops. Also sent on pull so a re-paired tablet can adopt the session.
+ */
+export async function cashSoFar(tx: Tx, sessionId: string): Promise<number> {
+	const [pay] = await tx
+		.select({
+			total: sql<string>`coalesce(sum(${payments.amount} + ${payments.tip}), 0)`,
+		})
+		.from(payments)
+		.where(
+			and(
+				eq(payments.cashSessionId, sessionId),
+				eq(payments.method, "cash"),
+				eq(payments.state, "succeeded"),
+			),
+		);
+	const [mov] = await tx
+		.select({
+			net: sql<string>`coalesce(sum(case when ${cashMovements.kind} = 'pay_in' then ${cashMovements.amount} else -${cashMovements.amount} end), 0)`,
+		})
+		.from(cashMovements)
+		.where(eq(cashMovements.cashSessionId, sessionId));
+	return Number(pay?.total ?? 0) + Number(mov?.net ?? 0);
+}
+
 /**
  * Expected = float + succeeded cash payments (refunds are negative rows, so
  * they subtract) + pay-ins - pay-outs - drops. Tips are in the drawer too.
@@ -90,26 +119,7 @@ export async function closeCashSession(
 	p: CloseCashSession,
 ): Promise<MutationOutcome> {
 	const s = await lockOpenSession(ctx, p.cashSessionId);
-	const [pay] = await ctx.tx
-		.select({
-			total: sql<string>`coalesce(sum(${payments.amount} + ${payments.tip}), 0)`,
-		})
-		.from(payments)
-		.where(
-			and(
-				eq(payments.cashSessionId, s.id),
-				eq(payments.method, "cash"),
-				eq(payments.state, "succeeded"),
-			),
-		);
-	const [mov] = await ctx.tx
-		.select({
-			net: sql<string>`coalesce(sum(case when ${cashMovements.kind} = 'pay_in' then ${cashMovements.amount} else -${cashMovements.amount} end), 0)`,
-		})
-		.from(cashMovements)
-		.where(eq(cashMovements.cashSessionId, s.id));
-	const expectedCash =
-		s.openingFloat + Number(pay?.total ?? 0) + Number(mov?.net ?? 0);
+	const expectedCash = s.openingFloat + (await cashSoFar(ctx.tx, s.id));
 	await ctx.tx
 		.update(cashSessions)
 		.set({
