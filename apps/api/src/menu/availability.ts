@@ -1,5 +1,5 @@
 import { schema, type Tx } from "@bite/db";
-import { eq } from "drizzle-orm";
+import { eq } from "@bite/db/orm";
 import { ApiError } from "../lib/errors.js";
 
 const { products, productLocationSettings } = schema;

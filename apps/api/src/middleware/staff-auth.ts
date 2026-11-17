@@ -1,6 +1,6 @@
 import { STAFF_TOKEN_HEADER } from "@bite/contracts";
 import { schema } from "@bite/db";
-import { and, eq } from "drizzle-orm";
+import { and, eq } from "@bite/db/orm";
 import { createMiddleware } from "hono/factory";
 import type { AppEnv, StaffCtx } from "../env.js";
 import { ApiError } from "../lib/errors.js";

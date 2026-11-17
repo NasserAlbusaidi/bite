@@ -1,6 +1,6 @@
 import type { Order } from "@bite/contracts";
 import { schema, type Tx } from "@bite/db";
-import { asc, eq, inArray } from "drizzle-orm";
+import { asc, eq, inArray } from "@bite/db/orm";
 
 const { orders, orderLines } = schema;
 type OrderRow = typeof orders.$inferSelect;

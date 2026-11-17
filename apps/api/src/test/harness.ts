@@ -1,7 +1,6 @@
 import { createDb, type Db, schema as s } from "@bite/db";
 import { runMigrations } from "@bite/db/migrate";
 import { hash } from "@node-rs/argon2";
-import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { v7 as uuidv7 } from "uuid";
 import { createApp } from "../app.js";
@@ -26,10 +25,7 @@ export const PIN = "4321";
 
 export type Tenant = Awaited<ReturnType<typeof seedTenant>>;
 
-async function seedTenant(
-	ownerDb: ReturnType<typeof drizzle<typeof s>>,
-	slug: string,
-) {
+async function seedTenant(ownerDb: Db, slug: string) {
 	const t = {
 		org: uuidv7(),
 		loc: uuidv7(),
@@ -123,8 +119,9 @@ async function apiDatabaseUrl(): Promise<string> {
 
 export async function setupHarness() {
 	const url = await apiDatabaseUrl();
-	const owner = postgres(url, { max: 1, onnotice: () => {} });
-	const ownerDb = drizzle(owner, { schema: s });
+	const ownerConn = createDb(url, { max: 1, onnotice: () => {} });
+	const owner = ownerConn.client;
+	const ownerDb = ownerConn.db;
 	await owner.unsafe(
 		"drop schema if exists public cascade; drop schema if exists drizzle cascade; create schema public;",
 	);
@@ -139,6 +136,17 @@ export async function setupHarness() {
 				create role bite_api_test login password 'api_test' in role bite_app;
 			end if;
 		end $$;`);
+	await owner.unsafe(`
+		do $$ begin
+			if not exists (select 1 from pg_roles where rolname = 'bite_system_test') then
+				create role bite_system_test login bypassrls password 'system_test' in role bite_system;
+			end if;
+			alter role bite_system_test bypassrls;
+		end $$;`);
+	const sysUrl = new URL(url);
+	sysUrl.username = "bite_system_test";
+	sysUrl.password = "system_test";
+	const sys = createDb(sysUrl.toString(), { max: 2, onnotice: () => {} });
 	const u = new URL(url);
 	u.username = "bite_api_test";
 	u.password = "api_test";
@@ -163,11 +171,15 @@ export async function setupHarness() {
 		deps,
 		owner,
 		ownerDb,
+		/** bite_system login (cross-tenant), for jobs. */
+		systemDb: sys.db,
+		systemUrl: sysUrl.toString(),
 		A,
 		B,
 		async close() {
 			await realtime.close();
 			await conn.client.end();
+			await sys.client.end();
 			await owner.end();
 		},
 	};

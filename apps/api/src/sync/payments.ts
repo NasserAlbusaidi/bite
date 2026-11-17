@@ -7,7 +7,7 @@ import {
 	summarizePayments,
 } from "@bite/core";
 import { schema, type Tx } from "@bite/db";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "@bite/db/orm";
 import { ApiError } from "../lib/errors.js";
 import type { MutationCtx, MutationOutcome } from "./context.js";
 import { isUniqueViolation, lockOrder, reject } from "./orders.js";
