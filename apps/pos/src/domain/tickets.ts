@@ -10,9 +10,9 @@ export async function nextTicketNumber(
 	prefix: string,
 	businessDate: string,
 ): Promise<string> {
-	if (!/^[A-Z]{1,3}$/.test(prefix)) {
+	if (!/^[A-Z]{1,2}$/.test(prefix)) {
 		throw new RangeError(
-			`Ticket prefix must be 1-3 uppercase letters, got "${prefix}"`,
+			`Ticket prefix must be 1-2 uppercase letters, got "${prefix}"`,
 		);
 	}
 	if (!/^\d{4}-\d{2}-\d{2}$/.test(businessDate)) {

@@ -1,43 +1,41 @@
 import { useEffect, useState } from "react";
 import type { SqlDriver } from "../db/driver.js";
 import { useI18n } from "../i18n/I18nProvider.js";
+import type { SyncEngine, SyncState } from "../sync/engine.js";
 import { type SyncCounts, syncCounts } from "../sync/status.js";
 
-export function SyncBadge({ db }: { db: SqlDriver }) {
+export function SyncBadge({ db, sync }: { db: SqlDriver; sync: SyncEngine }) {
 	const { t } = useI18n();
 	const [counts, setCounts] = useState<SyncCounts>({
 		pending: 0,
 		attention: 0,
 	});
-	const [online, setOnline] = useState(navigator.onLine);
+	const [state, setState] = useState<SyncState>(sync.state);
 
 	useEffect(() => {
 		let alive = true;
 		const tick = () => syncCounts(db).then((c) => alive && setCounts(c));
 		tick();
-		const id = setInterval(tick, 3_000);
-		const on = () => setOnline(true);
-		const off = () => setOnline(false);
-		window.addEventListener("online", on);
-		window.addEventListener("offline", off);
+		const id = setInterval(tick, 2_000);
+		const unsub = sync.subscribe(setState);
 		return () => {
 			alive = false;
 			clearInterval(id);
-			window.removeEventListener("online", on);
-			window.removeEventListener("offline", off);
+			unsub();
 		};
-	}, [db]);
+	}, [db, sync]);
 
+	const title = state.lastError ?? undefined;
 	if (counts.attention > 0) {
 		return (
-			<span className="badge badge-bad">
+			<span className="badge badge-bad" title={title}>
 				{t("sync.attention", { count: counts.attention })}
 			</span>
 		);
 	}
-	if (!online) {
+	if (!state.online) {
 		return (
-			<span className="badge badge-warn">
+			<span className="badge badge-warn" title={title}>
 				{t("sync.offline", { count: counts.pending })}
 			</span>
 		);
