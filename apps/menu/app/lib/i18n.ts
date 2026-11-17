@@ -201,7 +201,7 @@ const ar: Record<MessageKey, string> = {
 	you_save: "وفّرت",
 };
 
-const messages: Record<Lang, Record<MessageKey, string>> = { en, ar };
+export const messages: Record<Lang, Record<MessageKey, string>> = { en, ar };
 
 export type T = (
 	key: MessageKey,
