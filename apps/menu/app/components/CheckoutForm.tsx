@@ -16,6 +16,8 @@ type Props = {
 	/** Already translated. */
 	error: string | null;
 	submitLabel: string;
+	/** Prefill, e.g. the name the host already gave when starting a group. */
+	defaultName?: string;
 	onSubmit: (f: CheckoutFields) => void;
 };
 
@@ -26,9 +28,10 @@ export function CheckoutForm({
 	disabled,
 	error,
 	submitLabel,
+	defaultName = "",
 	onSubmit,
 }: Props) {
-	const [name, setName] = useState("");
+	const [name, setName] = useState(defaultName);
 	const [phone, setPhone] = useState("");
 	const [note, setNote] = useState("");
 	const [type, setType] = useState<CheckoutFields["type"]>("dine_in");

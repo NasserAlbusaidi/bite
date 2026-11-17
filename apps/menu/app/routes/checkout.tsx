@@ -1,6 +1,12 @@
 import { Icon } from "@bite/ui";
 import { useMemo, useRef } from "react";
-import { data, Link, redirect, useFetcher } from "react-router";
+import {
+	data,
+	Link,
+	redirect,
+	type ShouldRevalidateFunctionArgs,
+	useFetcher,
+} from "react-router";
 import { CartLines } from "../components/CartLines";
 import { type CheckoutFields, CheckoutForm } from "../components/CheckoutForm";
 import { Totals } from "../components/Totals";
@@ -15,6 +21,7 @@ import {
 import { errorMessageKey } from "../lib/errors";
 import { loadMenu, MENU_CACHE } from "../lib/guest.server";
 import { isLang, translator } from "../lib/i18n";
+import { isNetworkError, isOffline, OFFLINE } from "../lib/offline";
 import { menuPricing, quoteCart, usePricingClock } from "../lib/pricing";
 import { uuidv7 } from "../lib/uuid";
 import type { Route } from "./+types/checkout";
@@ -76,6 +83,26 @@ export async function action({ request, params }: Route.ActionArgs) {
 			{ status: 422 },
 		);
 	}
+}
+
+/**
+ * No connection: say so in place and keep the form, the cart and the
+ * idempotency key, so tapping again sends the same order once.
+ */
+export async function clientAction({ serverAction }: Route.ClientActionArgs) {
+	try {
+		return await serverAction();
+	} catch (e) {
+		if (isNetworkError(e)) return OFFLINE;
+		throw e;
+	}
+}
+
+export function shouldRevalidate({
+	actionResult,
+	defaultShouldRevalidate,
+}: ShouldRevalidateFunctionArgs) {
+	return isOffline(actionResult) ? false : defaultShouldRevalidate;
 }
 
 export default function Checkout({ loaderData }: Route.ComponentProps) {
@@ -189,7 +216,13 @@ export default function Checkout({ loaderData }: Route.ComponentProps) {
 				t={t}
 				busy={busy}
 				disabled={!location.isAcceptingOrders || failedKeys.size > 0}
-				error={result ? t(errorMessageKey(result.code, result.reason)) : null}
+				error={
+					!result
+						? null
+						: isOffline(result)
+							? t("offline_retry")
+							: t(errorMessageKey(result.code, result.reason))
+				}
 				submitLabel={t("place_order")}
 				onSubmit={submit}
 			/>

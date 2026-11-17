@@ -679,6 +679,10 @@ input[type="search"].input {
 	padding: var(--space-7) var(--space-4);
 	box-shadow: var(--shadow-offset);
 }
+.ticket .muted {
+	color: inherit;
+	opacity: 0.8;
+}
 .ticket__no {
 	font-size: var(--fs-3xl);
 	font-weight: 700;
@@ -686,6 +690,15 @@ input[type="search"].input {
 	letter-spacing: 0.04em;
 	font-variant-numeric: tabular-nums;
 	color: var(--brand-lime-200);
+}
+/* Dark themes flip the ticket to a lime surface: lime digits would vanish. */
+[data-theme="dark"] .ticket__no {
+	color: var(--text-inverse);
+}
+@media (prefers-color-scheme: dark) {
+	[data-theme="system"] .ticket__no {
+		color: var(--text-inverse);
+	}
 }
 .ticket__status {
 	font-weight: 700;
@@ -743,4 +756,18 @@ input[type="search"].input {
 	border-radius: var(--radius-lg);
 	padding: var(--space-4);
 	margin-block-start: var(--space-3);
+}
+
+/* ── Connection lost ── */
+.offline-banner {
+	position: sticky;
+	inset-block-start: 0;
+	z-index: 50;
+	margin: 0;
+	padding: var(--space-2) var(--space-4);
+	background: var(--surface-inverse);
+	color: var(--text-inverse);
+	text-align: center;
+	font-size: var(--fs-sm);
+	font-weight: 600;
 }

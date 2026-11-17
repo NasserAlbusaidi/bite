@@ -1,6 +1,12 @@
 import { Icon } from "@bite/ui";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { data, Link, useFetcher, useSearchParams } from "react-router";
+import {
+	data,
+	Link,
+	type ShouldRevalidateFunctionArgs,
+	useFetcher,
+	useSearchParams,
+} from "react-router";
 import { CartLines } from "../components/CartLines";
 import { type CheckoutFields, CheckoutForm } from "../components/CheckoutForm";
 import { MenuHeader } from "../components/MenuHeader";
@@ -20,6 +26,7 @@ import { type GroupActionResult, groupAction } from "../lib/group.server";
 import { readSeat } from "../lib/group-seat.server";
 import { loadMenu } from "../lib/guest.server";
 import { translator } from "../lib/i18n";
+import { isNetworkError, isOffline } from "../lib/offline";
 import { menuPricing, quoteCart, usePricingClock } from "../lib/pricing";
 import { uuidv7 } from "../lib/uuid";
 import type { Route } from "./+types/group";
@@ -48,6 +55,35 @@ export function meta({ loaderData: d }: Route.MetaArgs) {
 
 export async function action({ request, params }: Route.ActionArgs) {
 	return groupAction(request, params);
+}
+
+type GroupOffline = {
+	ok: false;
+	intent: string;
+	offline: true;
+	lineIds: string[];
+};
+type GroupWrite = GroupActionResult | GroupOffline;
+
+/** No connection: report it in place instead of replacing the page. */
+export async function clientAction({
+	serverAction,
+	request,
+}: Route.ClientActionArgs) {
+	try {
+		return await serverAction();
+	} catch (e) {
+		if (!isNetworkError(e)) throw e;
+		const intent = String((await request.formData()).get("intent") ?? "");
+		return { ok: false, intent, offline: true, lineIds: [] } as GroupOffline;
+	}
+}
+
+export function shouldRevalidate({
+	actionResult,
+	defaultShouldRevalidate,
+}: ShouldRevalidateFunctionArgs) {
+	return isOffline(actionResult) ? false : defaultShouldRevalidate;
 }
 
 const POLL_MS = 3000;
@@ -80,12 +116,14 @@ export default function GroupOrder({ loaderData }: Route.ComponentProps) {
 	const [copied, setCopied] = useState(false);
 
 	// Latest cart: from the last write, the last poll, or the loader, whichever is newest.
-	const poll = useFetcher<{ cart: GroupCartView }>();
-	const writer = useFetcher<GroupActionResult>();
-	const joiner = useFetcher<GroupActionResult>();
+	// Polled with a plain fetch of the JSON resource route, not a fetcher: a
+	// failed fetcher load (wifi blip) replaces the whole page with an error.
+	const [polled, setPolled] = useState<GroupCartView>();
+	const writer = useFetcher<GroupWrite>();
+	const joiner = useFetcher<GroupWrite>();
 	const candidates = [
 		loaderData.cart,
-		poll.data?.cart,
+		polled,
 		writer.data?.ok ? writer.data.cart : undefined,
 		joiner.data?.ok ? joiner.data.cart : undefined,
 	].filter((c): c is GroupCartView => !!c);
@@ -94,12 +132,22 @@ export default function GroupOrder({ loaderData }: Route.ComponentProps) {
 
 	useEffect(() => {
 		if (!LIVE.has(cart.status)) return;
-		const id = setInterval(() => {
-			if (document.visibilityState === "visible" && poll.state === "idle")
-				poll.load(statePath);
+		let busy = false;
+		const id = setInterval(async () => {
+			if (busy || document.visibilityState !== "visible") return;
+			busy = true;
+			try {
+				const res = await fetch(statePath, { cache: "no-store" });
+				if (res.ok)
+					setPolled(((await res.json()) as { cart: GroupCartView }).cart);
+			} catch {
+				// Offline for a moment: keep what's on screen, try again next tick.
+			} finally {
+				busy = false;
+			}
 		}, POLL_MS);
 		return () => clearInterval(id);
-	}, [cart.status, poll, statePath]);
+	}, [cart.status, statePath]);
 
 	const meId =
 		(joiner.data?.ok ? joiner.data.participantId : undefined) ??
@@ -196,10 +244,13 @@ export default function GroupOrder({ loaderData }: Route.ComponentProps) {
 		}
 	};
 
-	const writeError =
-		writer.data && !writer.data.ok
-			? t(errorMessageKey(writer.data.code, writer.data.reason))
-			: null;
+	const errorText = (d: GroupWrite | undefined) =>
+		!d || d.ok
+			? null
+			: isOffline(d)
+				? t("offline_retry")
+				: t(errorMessageKey(d.code, d.reason));
+	const writeError = errorText(writer.data);
 	const failedIds = new Set(
 		writer.data && !writer.data.ok ? writer.data.lineIds : [],
 	);
@@ -257,10 +308,7 @@ export default function GroupOrder({ loaderData }: Route.ComponentProps) {
 
 	// Not in the group yet.
 	if (!me) {
-		const joinError =
-			joiner.data && !joiner.data.ok
-				? t(errorMessageKey(joiner.data.code, joiner.data.reason))
-				: null;
+		const joinError = errorText(joiner.data);
 		return (
 			<>
 				{header}
@@ -387,6 +435,7 @@ export default function GroupOrder({ loaderData }: Route.ComponentProps) {
 								disabled={!location.isAcceptingOrders || failedIds.size > 0}
 								error={null}
 								submitLabel={t("place_group_order")}
+								defaultName={me?.displayName}
 								onSubmit={submit}
 							/>
 							<button

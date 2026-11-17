@@ -13,6 +13,7 @@ import {
 	useRouteError,
 } from "react-router";
 import { dir, isLang, type Lang, translator } from "./lib/i18n";
+import { useOnline } from "./lib/offline";
 import "./styles.css";
 
 function useLang(): Lang {
@@ -57,8 +58,24 @@ export function Layout({ children }: { children: ReactNode }) {
 	);
 }
 
+function OfflineBanner() {
+	const online = useOnline();
+	const t = translator(useLang());
+	if (online) return null;
+	return (
+		<p className="offline-banner" role="status">
+			{t("offline_banner")}
+		</p>
+	);
+}
+
 export default function App() {
-	return <Outlet />;
+	return (
+		<>
+			<OfflineBanner />
+			<Outlet />
+		</>
+	);
 }
 
 export function ErrorBoundary() {
@@ -68,7 +85,17 @@ export function ErrorBoundary() {
 	return (
 		<main className="page page--center">
 			<h1>{notFound ? t("not_found_title") : t("generic_error")}</h1>
-			{notFound && <p className="muted">{t("not_found_body")}</p>}
+			{notFound ? (
+				<p className="muted">{t("not_found_body")}</p>
+			) : (
+				<button
+					type="button"
+					className="btn btn--primary"
+					onClick={() => window.location.reload()}
+				>
+					{t("try_again")}
+				</button>
+			)}
 		</main>
 	);
 }

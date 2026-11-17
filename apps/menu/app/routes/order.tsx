@@ -1,10 +1,17 @@
 import { useEffect } from "react";
-import { data, Link, useRevalidator, useSearchParams } from "react-router";
+import {
+	data,
+	Link,
+	useParams,
+	useRevalidator,
+	useSearchParams,
+} from "react-router";
 import { Price } from "../components/Price";
 import { Totals } from "../components/Totals";
 import { guestApi } from "../lib/api.server";
 import { useCart } from "../lib/cart-store";
 import { isLang, loc, type MessageKey, translator } from "../lib/i18n";
+import { isNetworkError } from "../lib/offline";
 import type { Route } from "./+types/order";
 
 export async function loader({ params }: Route.LoaderArgs) {
@@ -24,6 +31,25 @@ export async function loader({ params }: Route.LoaderArgs) {
 			decimals: menu.menu.location.currencyDecimals,
 		},
 	};
+}
+
+type OrderData = Awaited<ReturnType<typeof loader>>;
+/** Last good copy per order, so a poll during a wifi blip keeps the ticket on screen. */
+const lastSeen = new Map<string, OrderData>();
+
+export async function clientLoader({
+	serverLoader,
+	params,
+}: Route.ClientLoaderArgs) {
+	try {
+		const fresh = await serverLoader();
+		lastSeen.set(params.token, fresh);
+		return fresh;
+	} catch (e) {
+		const prev = lastSeen.get(params.token);
+		if (prev && isNetworkError(e)) return prev;
+		throw e;
+	}
 }
 
 export function headers() {
@@ -57,6 +83,8 @@ export default function OrderPage({ loaderData }: Route.ComponentProps) {
 	const [params, setParams] = useSearchParams();
 	const [, dispatch] = useCart(location.slug);
 	const { revalidate, state } = useRevalidator();
+	const { token } = useParams();
+	if (token) lastSeen.set(token, loaderData);
 	const done =
 		order.fulfillmentStatus === "completed" ||
 		order.fulfillmentStatus === "cancelled";
