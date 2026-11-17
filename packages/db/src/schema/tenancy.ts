@@ -94,6 +94,8 @@ export const locations = pgTable(
 			.notNull()
 			.default({}),
 		receiptHeader: text("receipt_header"),
+		/** Guest/QR ordering paused until this instant (staff "busy" switch). */
+		ordersPausedUntil: timestamp("orders_paused_until", { withTimezone: true }),
 		isActive: boolean("is_active").notNull().default(true),
 		legacyId: integer("legacy_id"),
 		createdAt: createdAt(),
@@ -190,6 +192,37 @@ export const devices = pgTable(
 			columns: [t.orgId, t.locationId],
 			foreignColumns: [locations.orgId, locations.id],
 		}).onDelete("restrict"),
+		tenantPolicy(),
+	],
+);
+
+/**
+ * A pending back-office login for a member. The token (sha256 stored) goes
+ * to the invitee; accepting it with a signed-in session whose email matches
+ * links members.user_id. One open invite per member.
+ */
+export const memberInvites = pgTable(
+	"member_invites",
+	{
+		id: id(),
+		orgId: orgId(),
+		memberId: uuid("member_id").notNull(),
+		email: text("email").notNull(),
+		tokenHash: text("token_hash").notNull().unique(),
+		expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+		acceptedAt: timestamp("accepted_at", { withTimezone: true }),
+		createdBy: uuid("created_by"),
+		createdAt: createdAt(),
+	},
+	(t) => [
+		unique().on(t.orgId, t.id),
+		uniqueIndex("member_invites_open_uq")
+			.on(t.memberId)
+			.where(sql`${t.acceptedAt} is null`),
+		foreignKey({
+			columns: [t.orgId, t.memberId],
+			foreignColumns: [members.orgId, members.id],
+		}).onDelete("cascade"),
 		tenantPolicy(),
 	],
 );

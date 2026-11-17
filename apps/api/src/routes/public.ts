@@ -12,7 +12,7 @@ import type { AppEnv } from "../env.js";
 import { ApiError } from "../lib/errors.js";
 import { slugTx } from "../lib/public-tenant.js";
 import { validate } from "../lib/validate.js";
-import { isOpenAt } from "../menu/hours.js";
+import { acceptsOrders } from "../menu/hours.js";
 import { loadMenuSnapshot } from "../menu/snapshot.js";
 import { loadOrderDto } from "../orders/dto.js";
 import {
@@ -98,11 +98,7 @@ export const publicRoutes = new Hono<AppEnv>()
 					slug: row.loc.slug,
 					name: row.loc.name,
 					orgName: row.orgName,
-					isAcceptingOrders: isOpenAt(
-						row.loc.businessHours,
-						row.loc.timezone,
-						now,
-					),
+					isAcceptingOrders: acceptsOrders(row.loc, now),
 					theme: {
 						...(accent ? { accent } : {}),
 						...(logoUrl ? { logoUrl } : {}),

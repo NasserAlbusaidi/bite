@@ -89,7 +89,7 @@ The legacy JSON blob is replaced by real rows:
 
 ### Pre-tenant lookups
 
-Some requests must find their tenant before one is set: a device token, a guest menu slug, a guest tracking link, a group cart share link. `bite_app` can't see those rows without a tenant, so `SECURITY DEFINER` functions do exact-match lookups and return only ids: `auth_device(token_hash)`, `resolve_location_slug(slug)`, `resolve_tracking_token(uuid)`, `resolve_group_cart_token(uuid)` (migration 0004), and `user_memberships(user_id)` (0011, back-office login to its active memberships). Revoked devices, inactive locations and suspended orgs resolve to nothing. They are `EXECUTE`-only to `bite_app`, and the caller then opens `withTenant()` with the returned org. Don't add a definer function that returns rows or takes a pattern.
+Some requests must find their tenant before one is set: a device token, a guest menu slug, a guest tracking link, a group cart share link. `bite_app` can't see those rows without a tenant, so `SECURITY DEFINER` functions do exact-match lookups and return only ids: `auth_device(token_hash)`, `resolve_location_slug(slug)`, `resolve_tracking_token(uuid)`, `resolve_group_cart_token(uuid)` (migration 0004), and `user_memberships(user_id)` (0011, back-office login to its active memberships), `resolve_invite(token_hash)` (0013, open staff invite). Revoked devices, inactive locations and suspended orgs resolve to nothing. They are `EXECUTE`-only to `bite_app`, and the caller then opens `withTenant()` with the returned org. Don't add a definer function that returns rows or takes a pattern.
 
 ### Back-office logins (Better Auth)
 

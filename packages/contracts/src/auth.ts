@@ -18,7 +18,10 @@ export const RegisterDeviceRequest = z.object({
 	kind: DeviceKind,
 	ticketPrefix: z
 		.string()
-		.regex(/^[A-PR-Z]{1,2}$/, "1-2 letters, Q is reserved for QR orders"),
+		.regex(
+			/^(?:[A-FH-PR-Z]|[A-Z]{2})$/,
+			"1-2 letters; Q and G alone are reserved for QR and group orders",
+		),
 });
 export const RegisterDeviceResponse = z.object({
 	deviceId: Id,

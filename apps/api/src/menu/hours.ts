@@ -49,3 +49,16 @@ export function isOpenAt(
 	}
 	return false;
 }
+
+/** Guest/QR ordering: open by the hours, and not paused by staff. */
+export function acceptsOrders(
+	loc: {
+		businessHours: BusinessHours | null;
+		timezone: string;
+		ordersPausedUntil: Date | null;
+	},
+	at: Date,
+): boolean {
+	if (loc.ordersPausedUntil && loc.ordersPausedUntil > at) return false;
+	return isOpenAt(loc.businessHours, loc.timezone, at);
+}
