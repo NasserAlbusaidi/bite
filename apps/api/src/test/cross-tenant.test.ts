@@ -11,6 +11,7 @@ import {
 	staffLogin,
 	uuidv7,
 } from "./harness.js";
+import { adminCases } from "./cross-tenant-admin.js";
 import { openStream } from "./sse.js";
 
 /**
@@ -28,6 +29,7 @@ const PUBLIC_ROUTES = new Set([
 ]);
 
 const cases: Record<string, Case> = {
+	...adminCases,
 	"GET /v1/admin/me": async (h) => {
 		// B's owner aims at A's org: refused, and nothing of A comes back.
 		const res = await h.app.request("/v1/admin/me", {
