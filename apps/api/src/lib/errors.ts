@@ -46,10 +46,35 @@ export function onError(err: Error, c: Context) {
 			400,
 		);
 	}
+	const pg = pgError(err);
+	// Composite (org_id, x_id) FKs: an id from another tenant, or one that
+	// doesn't exist, lands here. Same answer for both, so nothing leaks.
+	if (pg?.code === "23503" || pg?.code === "23514") {
+		const msg =
+			pg.code === "23503"
+				? "references something that doesn't exist"
+				: "violates a data rule";
+		return c.json(
+			errorBody(
+				new ApiError("unprocessable", msg, { constraint: pg.constraint_name }),
+			),
+			422,
+		);
+	}
 	console.error(err);
 	return c.json(errorBody(new ApiError("internal", "internal error")), 500);
 }
 
 export function notFound(c: Context) {
 	return c.json(errorBody(new ApiError("not_found", "no such route")), 404);
+}
+
+type PgError = { code?: string; constraint_name?: string };
+
+/** The postgres.js error, whether thrown directly or wrapped by drizzle. */
+export function pgError(err: unknown): PgError | undefined {
+	const e = err as PgError & { cause?: unknown };
+	if (e?.code) return e;
+	const cause = e?.cause as PgError | undefined;
+	return cause?.code ? cause : undefined;
 }

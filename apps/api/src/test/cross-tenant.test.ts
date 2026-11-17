@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createApp } from "../app.js";
 import { PinLimiter } from "../lib/pin-limiter.js";
+import { adminCases } from "./cross-tenant-admin.js";
 import {
 	bearer,
 	type Harness,
@@ -28,6 +29,7 @@ const PUBLIC_ROUTES = new Set([
 ]);
 
 const cases: Record<string, Case> = {
+	...adminCases,
 	"GET /v1/admin/me": async (h) => {
 		// B's owner aims at A's org: refused, and nothing of A comes back.
 		const res = await h.app.request("/v1/admin/me", {

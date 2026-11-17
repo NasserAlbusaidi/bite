@@ -4,6 +4,7 @@ import { eq } from "@bite/db/orm";
 import { Hono } from "hono";
 import type { AppEnv } from "../env.js";
 import { adminAuth, adminTx } from "../middleware/admin-auth.js";
+import { adminMenuRoutes } from "./admin-menu.js";
 
 const { orgs } = schema;
 
@@ -26,4 +27,5 @@ export const adminRoutes = new Hono<AppEnv>()
 			locations: a.locations,
 		};
 		return c.json(body);
-	});
+	})
+	.route("/", adminMenuRoutes);
