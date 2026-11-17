@@ -1,3 +1,10 @@
 packages:
   - "apps/*"
   - "packages/*"
+
+auditConfig:
+  ignoreGhsas:
+    # picomatch <=4.0.7 ReDoS. Reached only through vitest/vite (dev and build
+    # tooling, never shipped), and no patched version exists yet. Approved by
+    # Nasser 2026-11-17. Remove once picomatch publishes a fix.
+    - GHSA-fc5q-39xc-vjpf

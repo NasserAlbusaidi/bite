@@ -29,6 +29,9 @@ importers:
       '@bite/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@bite/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
       isbot:
         specifier: ^5
         version: 5.2.3
