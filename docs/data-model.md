@@ -82,6 +82,10 @@ The legacy JSON blob is replaced by real rows:
 | `bite_app`         | API, per-tenant workers                   | enforced; tenant set per transaction by `withTenant()` |
 | `bite_system`      | provisioning, webhooks, cross-tenant jobs | BYPASSRLS, keep its use tiny                           |
 
+### Pre-tenant lookups
+
+Some requests must find their tenant before one is set: a device token, a guest menu slug, a guest tracking link, a group cart share link. `bite_app` can't see those rows without a tenant, so four `SECURITY DEFINER` functions (migration 0004) do exact-match lookups and return only ids: `auth_device(token_hash)`, `resolve_location_slug(slug)`, `resolve_tracking_token(uuid)`, `resolve_group_cart_token(uuid)`. Revoked devices, inactive locations and suspended orgs resolve to nothing. They are `EXECUTE`-only to `bite_app`, and the caller then opens `withTenant()` with the returned org. Don't add a definer function that returns rows or takes a pattern.
+
 Roles are created once per cluster by `packages/db/sql/bootstrap-roles.sql`. `withTenant()` uses `set_config(..., true)` (transaction-local), so it is safe behind a transaction-mode pooler.
 
 ## Dropped from legacy
