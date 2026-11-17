@@ -1,8 +1,8 @@
 /**
  * Server-side client for the public guest API. With BITE_API_URL unset it
- * serves in-memory fixtures so the menu can be built before the API exists.
- * Responses are parsed with the contract schemas: the API is trusted for
- * prices, not for shape.
+ * serves in-memory fixtures so the menu can be built and demoed without the
+ * API. Responses are parsed with the contract schemas: the API is trusted
+ * for prices, not for shape.
  */
 import type { z } from "zod";
 import {
@@ -10,10 +10,15 @@ import {
 	CreateGuestOrderResponse,
 	ErrorBody,
 	type ErrorCode,
+	GroupCartView,
 	GuestOrderRejectDetails,
 	GuestOrderView,
 	IDEMPOTENCY_KEY_HEADER,
+	JoinGroupCartResponse,
+	PARTICIPANT_SECRET_HEADER,
 	PublicMenuResponse,
+	type SubmitGroupCartRequest,
+	type UpsertGroupCartItem,
 } from "./contracts";
 import { fixtureApi } from "./fixtures.server";
 
@@ -21,10 +26,15 @@ export class GuestApiError extends Error {
 	constructor(
 		readonly code: ErrorCode,
 		readonly rejection: GuestOrderRejectDetails | null = null,
+		/** On a 409 conflict: the cart as it is now. */
+		readonly currentCart: GroupCartView | null = null,
 	) {
 		super(rejection ? `${code}: ${rejection.reason}` : code);
 	}
 }
+
+/** Who is acting on a group cart, and the cart version they last saw. */
+export type ParticipantAuth = { secret: string; version: number };
 
 export interface GuestApi {
 	getMenu(slug: string): Promise<PublicMenuResponse | null>;
@@ -33,7 +43,38 @@ export interface GuestApi {
 		idempotencyKey: string,
 	): Promise<GuestOrderView>;
 	getOrder(trackingToken: string): Promise<GuestOrderView | null>;
+
+	createGroupCart(
+		slug: string,
+		displayName: string,
+	): Promise<JoinGroupCartResponse>;
+	joinGroupCart(
+		token: string,
+		displayName: string,
+	): Promise<JoinGroupCartResponse>;
+	getGroupCart(token: string): Promise<GroupCartView | null>;
+	upsertGroupItem(
+		token: string,
+		itemId: string,
+		item: UpsertGroupCartItem,
+		auth: ParticipantAuth,
+	): Promise<GroupCartView>;
+	removeGroupItem(
+		token: string,
+		itemId: string,
+		auth: ParticipantAuth,
+	): Promise<GroupCartView>;
+	lockGroupCart(token: string, auth: ParticipantAuth): Promise<GroupCartView>;
+	unlockGroupCart(token: string, auth: ParticipantAuth): Promise<GroupCartView>;
+	submitGroupCart(
+		token: string,
+		req: SubmitGroupCartRequest,
+		auth: ParticipantAuth,
+		idempotencyKey: string,
+	): Promise<GuestOrderView>;
 }
+
+const enc = encodeURIComponent;
 
 export function httpApi(
 	baseUrl: string,
@@ -54,39 +95,132 @@ export function httpApi(
 			const err = ErrorBody.safeParse(body);
 			if (!err.success)
 				throw new Error(`Guest API ${path}: HTTP ${res.status}`);
-			const rejection = GuestOrderRejectDetails.safeParse(
-				err.data.error.details,
+			const details = err.data.error.details;
+			const rejection = GuestOrderRejectDetails.safeParse(details);
+			// 409s carry the current cart as details.cart.
+			const cart = GroupCartView.safeParse(
+				(details as { cart?: unknown } | undefined)?.cart,
 			);
 			throw new GuestApiError(
 				err.data.error.code,
 				rejection.success ? rejection.data : null,
+				cart.success ? cart.data : null,
 			);
 		}
 		return schema.parse(body);
 	}
 
+	async function must<S extends z.ZodType>(
+		schema: S,
+		path: string,
+		init: RequestInit,
+	) {
+		const res = await call(schema, path, init);
+		if (res === null) throw new GuestApiError("not_found");
+		return res;
+	}
+
+	const json = (
+		body: unknown,
+		headers: Record<string, string> = {},
+		method = "POST",
+	) => ({
+		method,
+		headers: { "content-type": "application/json", ...headers },
+		body: JSON.stringify(body),
+	});
+	const asParticipant = (a: ParticipantAuth) => ({
+		[PARTICIPANT_SECRET_HEADER]: a.secret,
+		"if-match": String(a.version),
+	});
+	const cartPath = (token: string) => `/v1/public/group-carts/${enc(token)}`;
+
 	return {
 		getMenu: (slug) =>
-			call(
-				PublicMenuResponse,
-				`/v1/public/locations/${encodeURIComponent(slug)}/menu`,
-			),
+			call(PublicMenuResponse, `/v1/public/locations/${enc(slug)}/menu`),
 		getOrder: (token) =>
-			call(GuestOrderView, `/v1/public/orders/${encodeURIComponent(token)}`),
+			call(GuestOrderView, `/v1/public/orders/${enc(token)}`),
 		placeOrder: async (req, key) => {
-			const path = `/v1/public/locations/${encodeURIComponent(req.locationSlug)}/orders`;
-			const res = await call(CreateGuestOrderResponse, path, {
+			const path = `/v1/public/locations/${enc(req.locationSlug)}/orders`;
+			const res = await must(
+				CreateGuestOrderResponse,
+				path,
+				json(req, { [IDEMPOTENCY_KEY_HEADER]: key }),
+			);
+			return res.order;
+		},
+
+		createGroupCart: (slug, displayName) =>
+			must(
+				JoinGroupCartResponse,
+				`/v1/public/locations/${enc(slug)}/group-carts`,
+				json({ displayName }),
+			),
+		joinGroupCart: (token, displayName) =>
+			must(
+				JoinGroupCartResponse,
+				`${cartPath(token)}/participants`,
+				json({ displayName }),
+			),
+		getGroupCart: (token) => call(GroupCartView, cartPath(token)),
+		upsertGroupItem: (token, itemId, item, auth) =>
+			must(
+				GroupCartView,
+				`${cartPath(token)}/items/${enc(itemId)}`,
+				json(item, asParticipant(auth), "PUT"),
+			),
+		removeGroupItem: (token, itemId, auth) =>
+			must(GroupCartView, `${cartPath(token)}/items/${enc(itemId)}`, {
+				method: "DELETE",
+				headers: asParticipant(auth),
+			}),
+		lockGroupCart: (token, auth) =>
+			must(GroupCartView, `${cartPath(token)}/lock`, {
 				method: "POST",
-				headers: {
-					"content-type": "application/json",
-					[IDEMPOTENCY_KEY_HEADER]: key,
-				},
-				body: JSON.stringify(req),
-			});
-			if (!res) throw new GuestApiError("not_found");
+				headers: asParticipant(auth),
+			}),
+		unlockGroupCart: (token, auth) =>
+			must(GroupCartView, `${cartPath(token)}/unlock`, {
+				method: "POST",
+				headers: asParticipant(auth),
+			}),
+		submitGroupCart: async (token, req, auth, key) => {
+			const res = await must(
+				CreateGuestOrderResponse,
+				`${cartPath(token)}/submit`,
+				json(req, { ...asParticipant(auth), [IDEMPOTENCY_KEY_HEADER]: key }),
+			);
 			return res.order;
 		},
 	};
+}
+
+/**
+ * Run a group cart write; on a version conflict, retry against the version
+ * the server reports. Safe because every write is keyed (item id, lock) and
+ * participants only touch their own items.
+ */
+export async function withFreshVersion<T>(
+	auth: ParticipantAuth,
+	write: (auth: ParticipantAuth) => Promise<T>,
+	attempts = 3,
+): Promise<T> {
+	let current = auth;
+	for (let i = 1; ; i++) {
+		try {
+			return await write(current);
+		} catch (e) {
+			if (
+				!(e instanceof GuestApiError) ||
+				e.code !== "conflict" ||
+				!e.currentCart ||
+				i >= attempts
+			) {
+				throw e;
+			}
+			current = { ...current, version: e.currentCart.version };
+		}
+	}
 }
 
 let instance: GuestApi | undefined;

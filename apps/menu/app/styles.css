@@ -507,3 +507,54 @@ h2 {
 .sale {
 	color: var(--ok);
 }
+.groupbar {
+	display: flex;
+	gap: 8px;
+	flex-wrap: wrap;
+	max-inline-size: 640px;
+	margin: 10px auto 0;
+}
+.groupbar button.chip {
+	cursor: pointer;
+	font: inherit;
+	font-size: 0.85rem;
+}
+.banner {
+	margin: 0;
+	padding: 10px 16px;
+	background: color-mix(in srgb, var(--accent) 12%, var(--bg));
+	text-align: center;
+	font-weight: 600;
+}
+.person {
+	display: grid;
+	gap: 8px;
+}
+.person h2 {
+	display: flex;
+	gap: 8px;
+	align-items: center;
+}
+.toast {
+	position: fixed;
+	inset-inline: 16px;
+	inset-block-end: 88px;
+	z-index: 4;
+	background: var(--surface);
+	border: 1px solid var(--bad);
+	border-radius: var(--radius);
+	padding: 10px 14px;
+	margin: 0;
+}
+.together {
+	display: grid;
+	gap: 10px;
+	background: var(--surface);
+	border: 1px dashed var(--line);
+	border-radius: var(--radius);
+	padding: 14px;
+}
+.hero .together {
+	max-inline-size: 640px;
+	margin: 12px auto 0;
+}

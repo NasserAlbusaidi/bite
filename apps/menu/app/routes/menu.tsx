@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { Link } from "react-router";
+import { useEffect, useMemo, useState } from "react";
+import { Link, useFetcher } from "react-router";
 import { MenuHeader } from "../components/MenuHeader";
 import { MenuList } from "../components/MenuList";
 import { Price } from "../components/Price";
@@ -7,8 +7,10 @@ import { ProductSheet } from "../components/ProductSheet";
 import { indexMenu, itemCount } from "../lib/cart";
 import { useCart } from "../lib/cart-store";
 import type { MenuProduct } from "../lib/contracts";
+import type { GroupActionResult } from "../lib/group.server";
+import { saveGroupIdentity } from "../lib/group-identity";
 import { loadMenu, MENU_CACHE } from "../lib/guest.server";
-import { translator } from "../lib/i18n";
+import { type Lang, type T, translator } from "../lib/i18n";
 import { menuPricing, quoteCart, usePricingClock } from "../lib/pricing";
 import type { Route } from "./+types/menu";
 
@@ -52,7 +54,9 @@ export default function Menu({ loaderData }: Route.ComponentProps) {
 				t={t}
 				pricesIncludeTax={menu.location.pricesIncludeTax}
 				switchTo={`/${location.slug}`}
-			/>
+			>
+				{canOrder && <OrderTogether lang={lang} slug={location.slug} t={t} />}
+			</MenuHeader>
 
 			<MenuList
 				menu={menu}
@@ -102,5 +106,71 @@ export default function Menu({ loaderData }: Route.ComponentProps) {
 				}}
 			/>
 		</>
+	);
+}
+
+/** Start a group cart: ask the host's name, then go to the shared page. */
+function OrderTogether({ lang, slug, t }: { lang: Lang; slug: string; t: T }) {
+	const [open, setOpen] = useState(false);
+	const fetcher = useFetcher<GroupActionResult>();
+
+	useEffect(() => {
+		const d = fetcher.data;
+		if (d?.ok && d.cart && d.participantId && d.secret) {
+			saveGroupIdentity(d.cart.token, {
+				participantId: d.participantId,
+				secret: d.secret,
+			});
+			// Full load: a fresh SSR of the group page with the identity in place.
+			window.location.assign(`/${lang}/${slug}/group/${d.cart.token}`);
+		}
+	}, [fetcher.data, lang, slug]);
+
+	if (!open) {
+		return (
+			<div className="groupbar">
+				<button
+					type="button"
+					className="chip chip--link"
+					onClick={() => setOpen(true)}
+				>
+					{t("order_together")}
+				</button>
+			</div>
+		);
+	}
+	return (
+		<fetcher.Form
+			method="post"
+			action={`/${lang}/${slug}/group`}
+			className="together"
+		>
+			<strong>{t("order_together")}</strong>
+			<span className="muted small">{t("order_together_hint")}</span>
+			<label className="field-label" htmlFor="host-name">
+				{t("your_name")}
+			</label>
+			<input
+				id="host-name"
+				name="displayName"
+				className="input"
+				required
+				maxLength={40}
+				autoComplete="given-name"
+				placeholder={t("name_placeholder")}
+			/>
+			{fetcher.data && !fetcher.data.ok && (
+				<p className="error" role="alert">
+					{t("generic_error")}
+				</p>
+			)}
+			<button
+				type="submit"
+				className="btn btn--primary"
+				disabled={fetcher.state !== "idle"}
+			>
+				{t("start")}
+			</button>
+		</fetcher.Form>
 	);
 }
