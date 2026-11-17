@@ -1,0 +1,96 @@
+/* Element defaults on the tokens. Logical properties only, so RTL needs no overrides. */
+@layer bite.base {
+	*,
+	*::before,
+	*::after {
+		box-sizing: border-box;
+	}
+
+	html {
+		-webkit-text-size-adjust: 100%;
+		text-size-adjust: 100%;
+	}
+
+	body {
+		margin: 0;
+		background: var(--bg);
+		color: var(--text);
+		font-family: var(--font-sans);
+		font-size: var(--text-body);
+		line-height: var(--leading-normal);
+		-webkit-font-smoothing: antialiased;
+		-webkit-tap-highlight-color: transparent;
+	}
+
+	/* A themed subtree (e.g. a dark KDS panel) repaints its own ground. */
+	[data-theme] {
+		background: var(--bg);
+		color: var(--text);
+	}
+
+	h1,
+	h2,
+	h3,
+	h4 {
+		margin: 0;
+		color: var(--text-strong);
+		line-height: var(--leading-tight);
+		font-weight: 700;
+		text-wrap: balance;
+	}
+	h1 {
+		font-size: var(--fs-xl);
+	}
+	h2 {
+		font-size: var(--fs-lg);
+	}
+	h3 {
+		font-size: var(--fs-md);
+		font-weight: 600;
+	}
+
+	p {
+		margin: 0;
+	}
+
+	a {
+		color: var(--link);
+		text-underline-offset: 0.2em;
+	}
+
+	button,
+	input,
+	select,
+	textarea {
+		font: inherit;
+		color: inherit;
+	}
+
+	:focus-visible {
+		outline: 3px solid var(--focus);
+		outline-offset: 2px;
+	}
+
+	::selection {
+		background: var(--brand-lime);
+		color: var(--brand-forest);
+	}
+
+	img,
+	svg {
+		max-inline-size: 100%;
+	}
+
+	.bite-sr-only {
+		position: absolute;
+		inline-size: 1px;
+		block-size: 1px;
+		overflow: hidden;
+		clip-path: inset(50%);
+		white-space: nowrap;
+	}
+
+	.bite-num {
+		font-variant-numeric: tabular-nums;
+	}
+}

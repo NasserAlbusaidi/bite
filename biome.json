@@ -7,7 +7,11 @@
 	},
 	"files": {
 		"ignoreUnknown": false,
-		"includes": ["**", "!**/parity/legacy-cases.json"]
+		"includes": [
+			"**",
+			"!**/parity/legacy-cases.json",
+			"!packages/ui/src/tokens.css"
+		]
 	},
 	"formatter": {
 		"enabled": true,

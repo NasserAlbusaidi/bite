@@ -1,0 +1,98 @@
+.g {
+	max-inline-size: 1200px;
+	margin-inline: auto;
+	padding: var(--space-6) var(--space-4) var(--space-10);
+}
+.g-bar {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--space-3);
+	margin-block-end: var(--space-6);
+}
+.g-spacer {
+	flex: 1;
+}
+.g-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 1fr));
+	gap: var(--space-6);
+	align-items: start;
+}
+.g-sec {
+	display: flex;
+	flex-direction: column;
+	gap: var(--gap-stack);
+	padding: var(--pad-card);
+	border-radius: var(--radius-lg);
+	background: var(--surface);
+	border: 1px solid var(--line);
+	min-inline-size: 0;
+}
+.g-row {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-2);
+	align-items: center;
+}
+.g-between {
+	justify-content: space-between;
+}
+.g-muted {
+	color: var(--text-muted);
+	font-size: var(--text-label);
+}
+.g-product {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-2);
+}
+.g-line {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: var(--space-3);
+}
+.g-money {
+	display: grid;
+	grid-template-columns: 1fr auto;
+	gap: var(--space-2) var(--space-4);
+	margin: 0;
+}
+.g-money dd {
+	margin: 0;
+	text-align: end;
+}
+.g-cash {
+	font-size: var(--fs-2xl);
+	font-weight: 700;
+	font-variant-numeric: tabular-nums;
+	color: var(--text-strong);
+	text-align: end;
+	direction: ltr;
+}
+.g-tenant {
+	display: inline-flex;
+	flex-direction: column;
+	align-items: center;
+	gap: var(--space-1);
+	font-size: var(--fs-xs);
+}
+.g-ticket {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-2);
+}
+.g-ticket-no {
+	font-size: var(--fs-2xl);
+	color: var(--brand-lime-200);
+}
+.g-icons span {
+	display: grid;
+	place-items: center;
+	inline-size: 44px;
+	block-size: 44px;
+	border-radius: var(--radius-sm);
+	background: var(--surface-sunken);
+	color: var(--text-strong);
+}
