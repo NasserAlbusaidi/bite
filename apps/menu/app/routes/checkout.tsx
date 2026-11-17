@@ -1,3 +1,4 @@
+import { Icon } from "@bite/ui";
 import { useMemo, useRef } from "react";
 import { data, Link, redirect, useFetcher } from "react-router";
 import { CartLines } from "../components/CartLines";
@@ -144,7 +145,7 @@ export default function Checkout({ loaderData }: Route.ComponentProps) {
 					className="icon-btn"
 					aria-label={t("back_to_menu")}
 				>
-					<span className="flip">←</span>
+					<Icon name="arrow-back" />
 				</Link>
 				<h1>{t("your_order")}</h1>
 			</header>

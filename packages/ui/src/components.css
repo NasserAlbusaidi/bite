@@ -226,6 +226,10 @@
 		font-variant-numeric: tabular-nums;
 		white-space: nowrap;
 	}
+	/* inline-flex blocks text-decoration propagation from <s>/<del>. */
+	:is(s, del) .bite-money {
+		text-decoration: line-through;
+	}
 	.bite-money--negative {
 		color: var(--danger);
 	}
