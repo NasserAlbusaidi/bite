@@ -35,6 +35,37 @@ const cases: Record<string, Case> = {
 			expect(text).not.toContain(id);
 		}
 	},
+	"GET /v1/device/menu": async (h) => {
+		const res = await h.app.request("/v1/device/menu", {
+			headers: bearer(h.B),
+		});
+		const text = await res.text();
+		expect(text).toContain(h.B.prod);
+		for (const id of [h.A.prod, h.A.cat, h.A.loc])
+			expect(text).not.toContain(id);
+	},
+	"PUT /v1/device/products/:productId/availability": async (h) => {
+		const staff = await staffLogin(h, h.B, h.B.cashier);
+		const res = await h.app.request(
+			`/v1/device/products/${h.A.prod}/availability`,
+			{
+				method: "PUT",
+				headers: { ...staff, "content-type": "application/json" },
+				body: JSON.stringify({ isAvailable: false }),
+			},
+		);
+		expect(res.status).toBe(404);
+		const rows =
+			await h.owner`select 1 from product_location_settings where product_id = ${h.A.prod} and org_id = ${h.B.org}`;
+		expect(rows.length).toBe(0);
+	},
+	"GET /v1/public/locations/:slug/menu": async (h) => {
+		const res = await h.app.request("/v1/public/locations/b-main/menu");
+		const text = await res.text();
+		expect(text).toContain(h.B.prod);
+		for (const id of [h.A.prod, h.A.cat, h.A.loc])
+			expect(text).not.toContain(id);
+	},
 	"GET /v1/device/session": async (h) => {
 		// A's staff token presented with B's device token.
 		const a = await staffLogin(h, h.A, h.A.cashier);
