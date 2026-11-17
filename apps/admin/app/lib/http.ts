@@ -11,6 +11,7 @@ import {
 	AdminProduct,
 	AdminPromotion,
 	AdminStaff,
+	InviteStaffResponse,
 	LocationProduct,
 	Page,
 	RegisterDeviceResponse,
@@ -118,7 +119,10 @@ export function httpAdminApi(
 		updatePromotion: (id, p) =>
 			call(AdminPromotion, `/promotions/${enc(id)}`, send("PATCH", p)),
 		staff: () => all(AdminStaff, "/staff"),
-		inviteStaff: (s) => call(AdminStaff, "/staff/invite", send("POST", s)),
+		inviteStaff: (s) =>
+			call(InviteStaffResponse, "/staff/invite", send("POST", s)),
+		reissueInvite: (id) =>
+			call(InviteStaffResponse, `/staff/${enc(id)}/invite`, { method: "POST" }),
 		createPinStaff: (s) => call(AdminStaff, "/staff", send("POST", s)),
 		updateStaff: (id, s) =>
 			call(AdminStaff, `/staff/${enc(id)}`, send("PATCH", s)),

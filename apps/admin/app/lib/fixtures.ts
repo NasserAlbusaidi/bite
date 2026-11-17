@@ -18,6 +18,7 @@ import {
 	CreateProduct,
 	CreatePromotion,
 	InviteStaff,
+	type InviteStaffResponse,
 	type LocationProduct,
 	RegisterDeviceRequest,
 	ResetPin,
@@ -42,6 +43,8 @@ type DemoState = {
 	staff: AdminStaff[];
 	locations: AdminLocationSettings[];
 	devices: AdminDevice[];
+	/** memberId -> invited email, until accepted. Missing in older saves. */
+	pendingInvites?: Record<string, string>;
 };
 
 const azaiba = {
@@ -365,6 +368,20 @@ export function fixtureAdminApi(
 		if (!s) throw new AdminApiError("not_found", 404);
 		return s;
 	};
+	/** Same shape the API returns: a fresh one-time token, valid 7 days. */
+	const issueInvite = (sid: string, email: string): InviteStaffResponse => {
+		const bytes = crypto.getRandomValues(new Uint8Array(32));
+		const inviteToken = btoa(String.fromCharCode(...bytes))
+			.replaceAll("+", "-")
+			.replaceAll("/", "_")
+			.replace(/=+$/, "");
+		state.pendingInvites = { ...state.pendingInvites, [sid]: email };
+		return {
+			staff: clone(member(sid)),
+			inviteToken,
+			expiresAt: new Date(Date.now() + 7 * 86_400_000).toISOString(),
+		};
+	};
 	const checkStaffLocations = (ls: { locationId: string }[]) => {
 		const ids = ls.map((l) => l.locationId);
 		if (
@@ -619,8 +636,17 @@ export function fixtureAdminApi(
 				locations: v.locations,
 			};
 			state.staff.push(created);
+			const res = issueInvite(created.id, v.email);
 			persist();
-			return clone(created);
+			return res;
+		},
+		async reissueInvite(sid) {
+			const s = member(sid);
+			const email = state.pendingInvites?.[sid];
+			if (!email) throw new AdminApiError("conflict", 409);
+			const res = issueInvite(s.id, email);
+			persist();
+			return res;
 		},
 		async createPinStaff(input) {
 			const v = valid(CreatePinStaff, input);

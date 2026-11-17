@@ -102,3 +102,10 @@ export function rolesSummary(
 		.map((l) => at(roleLabel(l.role), names.get(l.locationId) ?? "—"))
 		.join(sep);
 }
+
+/**
+ * The sign-up link the inviter shares (no email provider yet). The token is
+ * the only secret; it lives in the query so the accept page can read it.
+ */
+export const inviteLink = (token: string, origin: string) =>
+	`${new URL("/accept-invite", origin).href}?token=${encodeURIComponent(token)}`;

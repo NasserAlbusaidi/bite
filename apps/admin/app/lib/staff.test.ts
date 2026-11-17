@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { AdminApiError } from "./api-types";
 import { DEMO_ME, demoState, fixtureAdminApi } from "./fixtures";
-import { mergeRoles, parseNewStaff, parseRoles } from "./staff-form";
+import {
+	inviteLink,
+	mergeRoles,
+	parseNewStaff,
+	parseRoles,
+} from "./staff-form";
 
 const A = DEMO_ME.locations[0]?.location.id ?? "a";
 const B = DEMO_ME.locations[1]?.location.id ?? "b";
@@ -76,7 +81,9 @@ describe("demo staff api", () => {
 			orgRole: "staff",
 			locations: [{ locationId: A, role: "manager" }],
 		});
-		expect(invited).toMatchObject({ hasPin: false, isActive: true });
+		expect(invited.staff).toMatchObject({ hasPin: false, isActive: true });
+		expect(invited.inviteToken.length).toBeGreaterThanOrEqual(40);
+		expect(Date.parse(invited.expiresAt)).toBeGreaterThan(Date.now());
 		await expect(
 			a.inviteStaff({
 				email: "NEW@example.com",
@@ -118,6 +125,31 @@ describe("demo staff api", () => {
 		await a.deactivateStaff(someone.id);
 		expect((await a.staff()).find((s) => s.id === someone.id)?.isActive).toBe(
 			false,
+		);
+	});
+});
+
+describe("invite links", () => {
+	it("re-issues a pending invite with a new token, never for others", async () => {
+		const a = fixtureAdminApi(demoState(), null);
+		const first = await a.inviteStaff({
+			email: "late@example.com",
+			displayName: "Late",
+			orgRole: "staff",
+			locations: [{ locationId: A, role: "cashier" }],
+		});
+		const again = await a.reissueInvite(first.staff.id);
+		expect(again.staff.id).toBe(first.staff.id);
+		expect(again.inviteToken).not.toBe(first.inviteToken);
+		const owner = (await a.staff()).find((x) => x.orgRole === "owner");
+		await expect(a.reissueInvite(owner?.id ?? "")).rejects.toMatchObject({
+			status: 409,
+		});
+	});
+
+	it("puts the token in the query, URL-encoded, on the admin origin", () => {
+		expect(inviteLink("ab+c/d=", "https://admin.bite.om")).toBe(
+			"https://admin.bite.om/accept-invite?token=ab%2Bc%2Fd%3D",
 		);
 	});
 });

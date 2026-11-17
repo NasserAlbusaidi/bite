@@ -15,6 +15,7 @@ export {
 	CreateProduct,
 	CreatePromotion,
 	InviteStaff,
+	InviteStaffResponse,
 	LocationProduct,
 	Page,
 	RegisterDeviceRequest,

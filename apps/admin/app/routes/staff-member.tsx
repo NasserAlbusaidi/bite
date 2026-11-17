@@ -10,11 +10,12 @@ import {
 } from "react-router";
 import { adminApi } from "../lib/api";
 import { AdminApiError } from "../lib/api-types";
-import type { AdminStaff } from "../lib/contracts";
+import type { AdminStaff, InviteStaffResponse } from "../lib/contracts";
 import type { MessageKey } from "../lib/i18n";
 import { staffPowers } from "../lib/permissions";
 import { loadPlaces } from "../lib/places";
 import {
+	inviteLink,
 	LOCATION_ROLES,
 	mergeRoles,
 	PIN,
@@ -38,6 +39,14 @@ export async function clientLoader({ params }: Route.ClientLoaderArgs) {
 	return { member };
 }
 
+const invited = (r: InviteStaffResponse) => ({
+	invite: {
+		name: r.staff.displayName,
+		link: inviteLink(r.inviteToken, window.location.origin),
+		expiresAt: r.expiresAt,
+	},
+});
+
 export async function clientAction({
 	request,
 	params,
@@ -51,14 +60,24 @@ export async function clientAction({
 			const parsed = parseNewStaff(form, visible);
 			if (!parsed.ok) return { errors: parsed.errors as Errors };
 			const { kind, ...body } = parsed.value;
-			if (kind === "invite" && "email" in body) await api.inviteStaff(body);
-			else if ("pin" in body) await api.createPinStaff(body);
+			if (kind === "invite" && "email" in body)
+				return invited(await api.inviteStaff(body));
+			if ("pin" in body) await api.createPinStaff(body);
 			return redirect("/staff");
 		}
 		const id = params.staffId;
 		if (intent === "deactivate") {
 			await api.deactivateStaff(id);
 			return redirect("/staff");
+		}
+		if (intent === "reissue") {
+			try {
+				return invited(await api.reissueInvite(id));
+			} catch (e) {
+				if (e instanceof AdminApiError && e.status === 409)
+					return { errors: { invite: { key: "invite_accepted" } } as Errors };
+				throw e;
+			}
 		}
 		if (intent === "resetPin") {
 			const pin = String(form.get("pin") ?? "").trim();
@@ -127,6 +146,23 @@ export default function StaffMember({
 		: kind === "invite"
 			? t("invite_manager")
 			: t("add_pin_staff");
+
+	const invite =
+		actionData && "invite" in actionData ? actionData.invite : undefined;
+	if (invite && !member)
+		return (
+			<>
+				<div className="page-head">
+					<h1>{t("invite_ready_title", { name: invite.name })}</h1>
+				</div>
+				<InviteCard invite={invite} />
+				<div className="form-actions">
+					<Link className="btn btn--primary" to="/staff">
+						{t("done")}
+					</Link>
+				</div>
+			</>
+		);
 
 	return (
 		<>
@@ -254,6 +290,7 @@ export default function StaffMember({
 					</div>
 				</Form>
 			)}
+			{editable && member?.isActive && member.email && <Reissue />}
 			{editable && member?.isActive && <ResetPin errors={errors} />}
 		</>
 	);
@@ -293,6 +330,79 @@ function RolePicker({
 				</label>
 			))}
 		</fieldset>
+	);
+}
+
+type Invite = { name: string; link: string; expiresAt: string };
+
+/** The link is shown once: copy it, or hand it to the phone's share sheet. */
+function InviteCard({ invite }: { invite: Invite }) {
+	const { t, lang } = useShell();
+	const [copied, setCopied] = useState(false);
+	const expires = new Date(invite.expiresAt).toLocaleDateString(
+		lang === "ar" ? "ar-OM" : "en-GB",
+		{ dateStyle: "medium", numberingSystem: "latn" },
+	);
+	const share = typeof navigator !== "undefined" && "share" in navigator;
+	return (
+		<div className="token" role="status">
+			<strong>{t("invite_link_title")}</strong>
+			<p className="small">{t("invite_link_hint", { date: expires })}</p>
+			<code dir="ltr">{invite.link}</code>
+			<div className="actions-row">
+				<button
+					type="button"
+					className="btn"
+					onClick={() => {
+						navigator.clipboard?.writeText(invite.link).then(
+							() => setCopied(true),
+							() => setCopied(false),
+						);
+					}}
+				>
+					{copied ? t("copied") : t("copy")}
+				</button>
+				{share && (
+					<button
+						type="button"
+						className="btn"
+						onClick={() => {
+							navigator
+								.share({ title: t("invite_share_title"), url: invite.link })
+								.catch(() => undefined);
+						}}
+					>
+						{t("share")}
+					</button>
+				)}
+			</div>
+		</div>
+	);
+}
+
+/** Lost or expired link: issue a new one. The old link stops working. */
+function Reissue() {
+	const { t } = useShell();
+	const fetcher = useFetcher<typeof clientAction>();
+	const d = fetcher.state === "idle" ? fetcher.data : undefined;
+	const invite =
+		d && typeof d === "object" && "invite" in d ? d.invite : undefined;
+	const error =
+		d && typeof d === "object" && "errors" in d ? d.errors?.invite : undefined;
+	if (invite) return <InviteCard invite={invite} />;
+	return (
+		<fetcher.Form method="post" className="card form inline-form">
+			<input type="hidden" name="intent" value="reissue" />
+			<span className="muted small">{t("reissue_hint")}</span>
+			<button type="submit" className="btn" disabled={fetcher.state !== "idle"}>
+				{t("reissue_invite")}
+			</button>
+			{error && (
+				<span className="error small" role="alert">
+					{t(error.key)}
+				</span>
+			)}
+		</fetcher.Form>
 	);
 }
 
