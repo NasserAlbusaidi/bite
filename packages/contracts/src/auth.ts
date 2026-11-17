@@ -57,3 +57,11 @@ export const PinLoginResponse = z.object({
 		role: LocationRole,
 	}),
 });
+
+export type RegisterDeviceRequest = z.infer<typeof RegisterDeviceRequest>;
+export type RegisterDeviceResponse = z.infer<typeof RegisterDeviceResponse>;
+export type DeviceMe = z.infer<typeof DeviceMe>;
+export type StaffListItem = z.infer<typeof StaffListItem>;
+export type StaffListResponse = z.infer<typeof StaffListResponse>;
+export type PinLoginRequest = z.infer<typeof PinLoginRequest>;
+export type PinLoginResponse = z.infer<typeof PinLoginResponse>;

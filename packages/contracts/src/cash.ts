@@ -31,3 +31,7 @@ export const CloseCashSession = z.object({
 	countDetail: z.record(z.string().regex(/^\d+$/), z.int().min(0)).optional(),
 	notes: z.string().max(500).optional(),
 });
+
+export type OpenCashSession = z.infer<typeof OpenCashSession>;
+export type CashMovement = z.infer<typeof CashMovement>;
+export type CloseCashSession = z.infer<typeof CloseCashSession>;

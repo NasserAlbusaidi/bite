@@ -174,3 +174,14 @@ export const ListOrdersQuery = z.object({
 	cursor: z.string().optional(),
 	limit: z.coerce.number().int().min(1).max(200).default(50),
 });
+
+export type OrderLineInput = z.infer<typeof OrderLineInput>;
+export type CreateGuestOrderRequest = z.infer<typeof CreateGuestOrderRequest>;
+export type PosLineInput = z.infer<typeof PosLineInput>;
+export type CreatePosOrder = z.infer<typeof CreatePosOrder>;
+export type OrderLine = z.infer<typeof OrderLine>;
+export type GuestOrderView = z.infer<typeof GuestOrderView>;
+export type CreateGuestOrderResponse = z.infer<typeof CreateGuestOrderResponse>;
+export type SetFulfillment = z.infer<typeof SetFulfillment>;
+export type VoidLine = z.infer<typeof VoidLine>;
+export type ListOrdersQuery = z.infer<typeof ListOrdersQuery>;

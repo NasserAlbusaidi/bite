@@ -128,3 +128,9 @@ export const SyncPullResponse = z.object({
 	/** Orders at this location changed since the cursor (any device, QR included). */
 	orders: z.array(Order),
 });
+
+export type SyncPushRequest = z.infer<typeof SyncPushRequest>;
+export type SyncMutationStatus = z.infer<typeof SyncMutationStatus>;
+export type SyncPushResponse = z.infer<typeof SyncPushResponse>;
+export type SyncPullQuery = z.infer<typeof SyncPullQuery>;
+export type SyncPullResponse = z.infer<typeof SyncPullResponse>;

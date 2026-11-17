@@ -47,3 +47,9 @@ export const GuestOrderRejectDetails = z.object({
 });
 
 export const GuestTrackingResponse = GuestOrderView;
+
+export type GuestLocation = z.infer<typeof GuestLocation>;
+export type PublicMenuResponse = z.infer<typeof PublicMenuResponse>;
+export type GuestOrderRejectReason = z.infer<typeof GuestOrderRejectReason>;
+export type GuestOrderRejectDetails = z.infer<typeof GuestOrderRejectDetails>;
+export type GuestTrackingResponse = z.infer<typeof GuestTrackingResponse>;

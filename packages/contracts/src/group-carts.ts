@@ -89,3 +89,13 @@ export const GroupCartEvent = z.object({
 	version: Version,
 	status: GroupCartStatus,
 });
+
+export type GroupCartStatus = z.infer<typeof GroupCartStatus>;
+export type CreateGroupCartRequest = z.infer<typeof CreateGroupCartRequest>;
+export type JoinGroupCartRequest = z.infer<typeof JoinGroupCartRequest>;
+export type GroupCartParticipant = z.infer<typeof GroupCartParticipant>;
+export type GroupCartItem = z.infer<typeof GroupCartItem>;
+export type JoinGroupCartResponse = z.infer<typeof JoinGroupCartResponse>;
+export type UpsertGroupCartItem = z.infer<typeof UpsertGroupCartItem>;
+export type SubmitGroupCartRequest = z.infer<typeof SubmitGroupCartRequest>;
+export type GroupCartEvent = z.infer<typeof GroupCartEvent>;

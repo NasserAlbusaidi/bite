@@ -61,3 +61,7 @@ export const Payment = z.object({
 	businessDate: BusinessDate,
 	createdAt: Instant,
 });
+
+export type AddPayment = z.infer<typeof AddPayment>;
+export type RefundPayment = z.infer<typeof RefundPayment>;
+export type Payment = z.infer<typeof Payment>;

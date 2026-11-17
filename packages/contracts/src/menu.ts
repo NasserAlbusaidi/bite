@@ -96,3 +96,10 @@ export type MenuSnapshot = z.infer<typeof MenuSnapshot>;
 
 /** 86 / un-86 a product at the caller's location. */
 export const SetAvailabilityRequest = z.object({ isAvailable: z.boolean() });
+
+export type MenuCategory = z.infer<typeof MenuCategory>;
+export type MenuModifierOption = z.infer<typeof MenuModifierOption>;
+export type MenuModifierGroup = z.infer<typeof MenuModifierGroup>;
+export type MenuProduct = z.infer<typeof MenuProduct>;
+export type MenuPromotion = z.infer<typeof MenuPromotion>;
+export type SetAvailabilityRequest = z.infer<typeof SetAvailabilityRequest>;
