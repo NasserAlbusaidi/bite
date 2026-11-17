@@ -22,6 +22,20 @@
 			"when": 1794922154892,
 			"tag": "0002_append_only_grants",
 			"breakpoints": true
+		},
+		{
+			"idx": 3,
+			"version": "7",
+			"when": 1794923775928,
+			"tag": "0003_device_token_unique",
+			"breakpoints": true
+		},
+		{
+			"idx": 4,
+			"version": "7",
+			"when": 1794923776890,
+			"tag": "0004_auth_lookup_fns",
+			"breakpoints": true
 		}
 	]
 }
