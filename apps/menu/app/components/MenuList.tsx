@@ -1,4 +1,5 @@
 import type { LocalClock } from "@bite/core";
+import { Icon, Logo } from "@bite/ui";
 import { useState } from "react";
 import type { MenuProduct, MenuSnapshot } from "../lib/contracts";
 import { type Lang, loc, type T } from "../lib/i18n";
@@ -48,6 +49,19 @@ export function MenuList({
 		}))
 		.filter((s) => s.products.length > 0);
 
+	// Products on promotion right now, shown as a rail above the menu. Hidden
+	// while searching so results stay in one list.
+	const offers = q
+		? []
+		: menu.products
+				.filter((p) => p.isAvailable)
+				.map((p) => ({ p, price: cardPrice(pricing, p, at) }))
+				.filter(
+					({ price }) =>
+						price.promotionId !== null && price.unitPrice < price.listUnitPrice,
+				)
+				.slice(0, 8);
+
 	return (
 		<>
 			<nav className="catnav" aria-label="categories">
@@ -67,6 +81,51 @@ export function MenuList({
 					onChange={(e) => setQuery(e.target.value)}
 					aria-label={t("search_menu")}
 				/>
+
+				{offers.length > 0 && canOrder && (
+					<section className="rail" aria-labelledby="offers-title">
+						<h2 id="offers-title">{t("offers_title")}</h2>
+						<ul className="rail__list">
+							{offers.map(({ p, price }) => (
+								<li key={p.id} className="rail__item">
+									<button
+										type="button"
+										className="rail__card"
+										onClick={() => onOpen(p)}
+									>
+										{p.imageUrl && (
+											<img
+												className="rail__img"
+												src={p.imageUrl}
+												alt=""
+												width={240}
+												height={180}
+												loading="lazy"
+												decoding="async"
+											/>
+										)}
+										<span className="item__name">{loc(p.name, lang)}</span>
+										<span>
+											<Price
+												amount={price.unitPrice}
+												currency={currency}
+												lang={lang}
+												className="strong"
+											/>{" "}
+											<s className="muted small">
+												<Price
+													amount={price.listUnitPrice}
+													currency={currency}
+													lang={lang}
+												/>
+											</s>
+										</span>
+									</button>
+								</li>
+							))}
+						</ul>
+					</section>
+				)}
 
 				{sections.length === 0 && (
 					<p className="empty">
@@ -150,7 +209,7 @@ export function MenuList({
 													name: loc(p.name, lang),
 												})}
 											>
-												+
+												<Icon name="plus" />
 											</button>
 										)}
 									</li>
@@ -159,7 +218,9 @@ export function MenuList({
 						</ul>
 					</section>
 				))}
-				<p className="powered muted small">{t("powered_by")}</p>
+				<p className="powered">
+					{t("powered_by")} <Logo height={18} />
+				</p>
 			</main>
 		</>
 	);

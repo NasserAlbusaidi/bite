@@ -1,11 +1,16 @@
+import { Money } from "@bite/ui";
 import type { Lang } from "../lib/i18n";
-import { type Currency, formatMoney } from "../lib/money";
+import type { Currency } from "../lib/money";
 
-/** Amounts stay LTR inside RTL text. */
+/**
+ * An amount in the menu. Thin wrapper over @bite/ui Money, which keeps the
+ * digits and sign left-to-right inside Arabic text. The language comes from
+ * the UiProvider in root.tsx; `lang` stays in the props so call sites read
+ * the same as before.
+ */
 export function Price({
 	amount,
 	currency,
-	lang,
 	className,
 	signed = false,
 }: {
@@ -17,9 +22,11 @@ export function Price({
 	className?: string;
 }) {
 	return (
-		<bdi dir="ltr" className={className}>
-			{signed && amount > 0 ? "+" : ""}
-			{formatMoney(amount, currency, lang)}
-		</bdi>
+		<Money
+			amount={amount}
+			currency={currency}
+			signed={signed}
+			{...(className ? { className } : {})}
+		/>
 	);
 }
