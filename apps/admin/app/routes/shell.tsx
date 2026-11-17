@@ -1,3 +1,4 @@
+import { Logo } from "@bite/ui";
 import { useEffect } from "react";
 import {
 	NavLink,
@@ -51,7 +52,10 @@ export default function Shell({ loaderData }: Route.ComponentProps) {
 	return (
 		<div className="app">
 			<header className="topbar">
-				<strong className="brand">{me.org.name}</strong>
+				<span className="brand">
+					<Logo height={20} className="brand__mark" />
+					<strong>{me.org.name}</strong>
+				</span>
 				{places.length > 0 && (
 					<label className="loc-switch">
 						<span className="sr-only">{t("location")}</span>

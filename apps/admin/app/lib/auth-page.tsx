@@ -1,3 +1,4 @@
+import { Logo } from "@bite/ui";
 import { type ReactNode, useEffect } from "react";
 import { type Lang, savedLang, saveLang, translator } from "./i18n";
 
@@ -17,7 +18,7 @@ export function AuthFrame({
 }) {
 	return (
 		<main className="auth">
-			<p className="brand">Bite</p>
+			<Logo height={36} className="brand" />
 			<div className="card form auth-card">
 				<h1>{title}</h1>
 				{children}
