@@ -5,7 +5,8 @@
 	"type": "module",
 	"exports": {
 		".": "./src/index.ts",
-		"./migrate": "./src/migrate.ts"
+		"./migrate": "./src/migrate.ts",
+		"./orm": "./src/orm.ts"
 	},
 	"scripts": {
 		"generate": "drizzle-kit generate",

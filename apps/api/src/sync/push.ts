@@ -5,7 +5,7 @@ import type {
 	SyncPushRequest,
 } from "@bite/contracts";
 import { schema, type Tx, withTenant } from "@bite/db";
-import { and, eq } from "drizzle-orm";
+import { and, eq } from "@bite/db/orm";
 import type { Deps, DeviceCtx, StaffCtx } from "../env.js";
 import { ApiError, errorBody } from "../lib/errors.js";
 import { setAvailability } from "../menu/availability.js";

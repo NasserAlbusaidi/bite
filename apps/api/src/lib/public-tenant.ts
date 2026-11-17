@@ -1,5 +1,5 @@
 import { type Tx, withTenant } from "@bite/db";
-import { sql } from "drizzle-orm";
+import { sql } from "@bite/db/orm";
 import type { Context } from "hono";
 import type { AppEnv } from "../env.js";
 import { ApiError } from "./errors.js";

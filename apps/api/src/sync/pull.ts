@@ -1,6 +1,6 @@
 import type { SyncPullQuery, SyncPullResponse } from "@bite/contracts";
 import { schema, withTenant } from "@bite/db";
-import { and, asc, eq, gte, inArray, or, sql } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, or, sql } from "@bite/db/orm";
 import type { Deps, DeviceCtx } from "../env.js";
 import { ApiError } from "../lib/errors.js";
 import { loadMenuSnapshot } from "../menu/snapshot.js";

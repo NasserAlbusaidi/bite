@@ -6,7 +6,8 @@
 	"scripts": {
 		"dev": "tsx watch src/server.ts",
 		"test": "vitest run",
-		"typecheck": "tsc --noEmit"
+		"typecheck": "tsc --noEmit",
+		"worker": "tsx src/worker.ts"
 	},
 	"dependencies": {
 		"@bite/contracts": "workspace:*",
@@ -15,8 +16,8 @@
 		"@hono/node-server": "^2.1.9",
 		"@hono/zod-validator": "^0.9.1",
 		"@node-rs/argon2": "^2.2.2",
-		"drizzle-orm": "^0.45.4",
 		"hono": "^4.13.19",
+		"pg-boss": "^12.38.2",
 		"postgres": "^4.1.1",
 		"uuid": "^14.0.3",
 		"zod": "^4.6.7"

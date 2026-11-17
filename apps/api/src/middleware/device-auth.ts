@@ -1,4 +1,4 @@
-import { sql } from "drizzle-orm";
+import { sql } from "@bite/db/orm";
 import { createMiddleware } from "hono/factory";
 import type { AppEnv, DeviceCtx } from "../env.js";
 import { ApiError } from "../lib/errors.js";
