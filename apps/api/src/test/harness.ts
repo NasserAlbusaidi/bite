@@ -36,6 +36,7 @@ async function seedTenant(
 		device: uuidv7(),
 		deviceToken: newSecret("dev_"),
 		cashier: uuidv7(),
+		manager: uuidv7(),
 		kitchen: uuidv7(),
 		otherLocStaff: uuidv7(),
 		inactive: uuidv7(),
@@ -60,6 +61,7 @@ async function seedTenant(
 	await ownerDb.insert(s.members).values([
 		{ id: t.cashier, orgId: t.org, displayName: `${slug} cashier`, pinHash },
 		{ id: t.kitchen, orgId: t.org, displayName: `${slug} kitchen`, pinHash },
+		{ id: t.manager, orgId: t.org, displayName: `${slug} manager`, pinHash },
 		{
 			id: t.otherLocStaff,
 			orgId: t.org,
@@ -77,6 +79,7 @@ async function seedTenant(
 	await ownerDb.insert(s.memberLocations).values([
 		{ orgId: t.org, memberId: t.cashier, locationId: t.loc, role: "cashier" },
 		{ orgId: t.org, memberId: t.kitchen, locationId: t.loc, role: "kitchen" },
+		{ orgId: t.org, memberId: t.manager, locationId: t.loc, role: "manager" },
 		{
 			orgId: t.org,
 			memberId: t.otherLocStaff,

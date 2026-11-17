@@ -49,7 +49,7 @@ describe.runIf(ownerUrl)("device + PIN auth", () => {
 		});
 		const { staff } = (await res.json()) as { staff: { memberId: string }[] };
 		expect(staff.map((s) => s.memberId).sort()).toEqual(
-			[h.A.cashier, h.A.kitchen].sort(),
+			[h.A.cashier, h.A.kitchen, h.A.manager].sort(),
 		);
 	});
 
