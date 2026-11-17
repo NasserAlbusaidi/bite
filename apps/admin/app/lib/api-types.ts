@@ -14,6 +14,7 @@ import type {
 	CreateProduct,
 	CreatePromotion,
 	InviteStaff,
+	InviteStaffResponse,
 	LocationProduct,
 	RegisterDeviceRequest,
 	RegisterDeviceResponse,
@@ -56,7 +57,10 @@ export interface AdminApi {
 	createPromotion(p: CreatePromotion): Promise<AdminPromotion>;
 	updatePromotion(id: string, p: UpdatePromotion): Promise<AdminPromotion>;
 	staff(): Promise<AdminStaff[]>;
-	inviteStaff(s: InviteStaff): Promise<AdminStaff>;
+	/** The token comes back once; the UI turns it into a share link. */
+	inviteStaff(s: InviteStaff): Promise<InviteStaffResponse>;
+	/** New link for a pending invite; the old one stops working. */
+	reissueInvite(id: string): Promise<InviteStaffResponse>;
 	createPinStaff(s: CreatePinStaff): Promise<AdminStaff>;
 	updateStaff(id: string, s: UpdateStaff): Promise<AdminStaff>;
 	resetPin(id: string, pin: string): Promise<void>;

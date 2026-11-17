@@ -122,7 +122,7 @@ const en = {
 	role_kitchen: "Kitchen",
 	role_at: "{role} at {place}",
 	invite_hint:
-		"They get an email link to set a password. Give location roles below, or make them an admin.",
+		"You get a sign-up link to send them. Give location roles below, or make them an admin.",
 	pin_staff_hint:
 		"No email or password. They sign in on the tablet with this PIN.",
 	email: "Email",
@@ -255,6 +255,17 @@ const en = {
 	total: "Total",
 	no_orders: "No orders match.",
 	load_more: "Load more",
+	invite_accepted: "They already signed up, so there's nothing to re-send.",
+	invite_ready_title: "Invite for {name} is ready",
+	invite_link_title: "Send them this sign-up link",
+	invite_link_hint:
+		"It works once and expires on {date}. Anyone with the link can claim the invite, so send it privately (WhatsApp or email). It is shown only now.",
+	invite_share_title: "Your Bite back-office invite",
+	share: "Share",
+	done: "Done",
+	reissue_invite: "New invite link",
+	reissue_hint:
+		"Lost or expired link? Make a new one. The old link stops working.",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -373,7 +384,7 @@ const ar: Record<MessageKey, string> = {
 	role_kitchen: "مطبخ",
 	role_at: "{role} في {place}",
 	invite_hint:
-		"سيصله رابط بالبريد لتعيين كلمة المرور. حدّد أدواره في الفروع أدناه، أو اجعله مسؤولاً.",
+		"ستحصل على رابط تسجيل لترسله له. حدّد أدواره في الفروع أدناه، أو اجعله مسؤولاً.",
 	pin_staff_hint:
 		"بدون بريد أو كلمة مرور. يسجّل الدخول على الجهاز اللوحي بهذا الرمز.",
 	email: "البريد الإلكتروني",
@@ -505,6 +516,17 @@ const ar: Record<MessageKey, string> = {
 	total: "الإجمالي",
 	no_orders: "لا توجد طلبات مطابقة.",
 	load_more: "تحميل المزيد",
+	invite_accepted: "سبق أن أنشأ حسابه، فلا حاجة لإعادة الإرسال.",
+	invite_ready_title: "دعوة {name} جاهزة",
+	invite_link_title: "أرسل له رابط التسجيل هذا",
+	invite_link_hint:
+		"يعمل مرة واحدة وينتهي في {date}. أي شخص يملك الرابط يستطيع استخدام الدعوة، لذا أرسله بشكل خاص (واتساب أو بريد). لن يظهر مرة أخرى.",
+	invite_share_title: "دعوتك إلى لوحة إدارة Bite",
+	share: "مشاركة",
+	done: "تم",
+	reissue_invite: "رابط دعوة جديد",
+	reissue_hint:
+		"ضاع الرابط أو انتهى؟ أنشئ رابطًا جديدًا. سيتوقف الرابط القديم عن العمل.",
 };
 
 export const messages: Record<Lang, Record<MessageKey, string>> = { en, ar };
