@@ -254,7 +254,7 @@ const ar: Record<MessageKey, string> = {
 	place_group_order: "إرسال الطلب الجماعي",
 };
 
-const messages: Record<Lang, Record<MessageKey, string>> = { en, ar };
+export const messages: Record<Lang, Record<MessageKey, string>> = { en, ar };
 
 export type T = (
 	key: MessageKey,

@@ -1,0 +1,25 @@
+// Decimal literals (1.5, 0.05) in money code mean float math on prices or
+// rates. Use baisa and basis points (5% = 500 bp). Same scope as
+// money-no-floats.grit; tests are exempt.
+language js
+
+`$n` as $lit where {
+	$n <: r"[0-9_]*\.[0-9_]+[eE0-9+-]*",
+	$filename <: or {
+		r".*packages/core/src/.*",
+		r".*packages/contracts/src/.*",
+		r".*packages/db/src/.*",
+		r".*apps/api/src/.*",
+		r".*/[^/]*money[^/]*",
+		r".*/[^/]*pric[^/]*",
+		r".*/[^/]*payment[^/]*",
+		r".*/[^/]*tender[^/]*",
+		r".*/[^/]*vat[^/]*",
+		r".*/[^/]*tax[^/]*",
+		r".*/[^/]*cart[^/]*",
+		r".*/[^/]*refund[^/]*",
+		r".*/[^/]*cash[^/]*"
+	},
+	not $filename <: r".*\.test\.tsx?",
+	register_diagnostic(span=$lit, message="Float literal in money code. Use integer baisa / basis points (5% = 500 bp).", severity="error")
+}

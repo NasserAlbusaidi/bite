@@ -1,11 +1,78 @@
 name: CI
+
+# Threads merge their own PRs on green CI, so this workflow is the only gate.
+# Branch protection on main requires the single "CI / required" check, which
+# fails unless every job below succeeded. Add new jobs to its `needs` list.
+#
+# Do not weaken a check to get a PR green. Fix the code, or raise a budget /
+# threshold in a PR that says why.
+
 on:
   push:
     branches: [main]
   pull_request:
+  merge_group:
+  schedule:
+    - cron: "17 2 * * *" # nightly: dependency audit against fresh advisories
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  CI: "true"
+  TURBO_TELEMETRY_DISABLED: "1"
+
 jobs:
-  check:
+  static:
+    name: Lint, types, i18n, migrations
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      # Biome + plugins in tools/biome (no float math in money code, no float
+      # columns in the schema). Warnings fail the build.
+      - name: Lint and format
+        run: pnpm exec biome ci --error-on-warnings .
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Arabic/English catalogs complete
+        run: node tools/ci/check-i18n.mts
+
+      # Schema changed without `pnpm --filter @bite/db generate`? This fails.
+      - name: Drizzle schema matches migrations
+        run: |
+          pnpm --filter @bite/db generate
+          if [ -n "$(git status --porcelain -- packages/db/migrations)" ]; then
+            echo "::error::Drizzle schema has changes with no migration. Run 'pnpm --filter @bite/db generate', review the SQL by hand, and commit it."
+            git status --porcelain -- packages/db/migrations
+            git diff -- packages/db/migrations
+            exit 1
+          fi
+
+      - name: Merged migrations are append-only
+        if: github.event_name == 'pull_request'
+        run: node tools/ci/check-migrations.mts "origin/${{ github.base_ref }}"
+
+  test:
+    name: Tests (Postgres, RLS, coverage)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
     services:
       postgres:
         image: postgres:16
@@ -16,15 +83,84 @@ jobs:
         options: >-
           --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
     env:
+      # Harnesses throw when this is missing in CI: DB suites never skip.
       TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/bite_test
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
       - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm lint
-      - run: pnpm typecheck
+      # Includes: cross-tenant test for every API route (fails on a new route
+      # without a case), RLS on every tenant table, core coverage thresholds,
+      # and requireAssertions (a test with no expect() fails).
       - run: pnpm test
+
+  build:
+    name: Build + bundle budget
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - name: Guest menu bundle budget
+        run: node tools/ci/check-bundle.mts
+
+  security:
+    name: Secrets + dependency audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
+      # No `cache: pnpm` here: this job never installs, so the cache post-step
+      # fails on a missing store path.
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - name: Secret scan (gitleaks)
+        env:
+          GITLEAKS_VERSION: 8.28.0
+        run: |
+          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" | tar -xz -C /usr/local/bin gitleaks
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            gitleaks git --redact --verbose --log-opts="origin/${{ github.base_ref }}..HEAD" .
+          else
+            gitleaks git --redact --verbose .
+          fi
+
+      # Advisories appear without any code change, so on PRs only audit when
+      # the lockfile changed; the nightly run and pushes to main audit always.
+      - name: Dependency audit (high and critical)
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ] && git diff --quiet "origin/${{ github.base_ref }}...HEAD" -- pnpm-lock.yaml; then
+            echo "Lockfile unchanged; audit runs nightly and on main."
+            exit 0
+          fi
+          pnpm audit --audit-level high
+
+  required:
+    name: required
+    if: always()
+    needs: [static, test, build, security]
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: All CI jobs passed
+        run: |
+          echo '${{ toJSON(needs) }}'
+          if [ "${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped') }}" = "true" ]; then
+            echo "::error::A required CI job did not pass."
+            exit 1
+          fi
