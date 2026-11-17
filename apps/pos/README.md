@@ -23,6 +23,22 @@ The mode is picked per tablet and stored locally.
 - Ticket numbers are `<device prefix>-<seq>` per business day, allocated in
   the order's transaction.
 
+## Flow
+
+Pair (server URL + device token from the back office, `GET /v1/device/me`)
+→ lock screen (staff list, PIN) → till or kitchen display by `device.kind`.
+
+- PIN login is online first. On success the tablet keeps a PBKDF2 verifier
+  so the same person can unlock offline for 7 days. A server "wrong PIN"
+  wipes it. Offline guessing locks for 5 minutes after 5 misses.
+- `SyncEngine` pushes the outbox, then pulls (`/v1/sync/pull`) menu + orders
+  every 5s and right after each sale.
+- `commitSale` = one local transaction: ticket number, local order row,
+  `order.create` + one `order.addPayment` per tender. Cash needs an open
+  drawer session (`cash.open` is queued the same way).
+- Receipt and kitchen tickets print after the sale is stored; print failures
+  show on screen and never undo the sale.
+
 ## Pricing
 
 The tablet never prices on its own. It calls `@bite/core` (same functions the

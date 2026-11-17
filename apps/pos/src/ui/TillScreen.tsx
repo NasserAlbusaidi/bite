@@ -1,0 +1,382 @@
+import type { MenuProduct } from "@bite/contracts";
+import type { Minor, PricedOrder } from "@bite/core";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+	type CashSession,
+	openCashSession,
+	openSession,
+} from "../domain/cash.js";
+import { newId } from "../domain/ids.js";
+import {
+	loadMenu,
+	type PricedMenu,
+	prepareMenu,
+	tilePrice,
+} from "../domain/menu.js";
+import {
+	commitSale,
+	quote,
+	type TenderInput,
+	type TillLine,
+} from "../domain/sale.js";
+import { useI18n } from "../i18n/I18nProvider.js";
+import type { Lang } from "../i18n/i18n.js";
+import { ticketLabels } from "../print/labels.js";
+import { kitchenTicket, receipt } from "../print/ticket.js";
+import { ModifierSheet } from "./ModifierSheet.js";
+import { fmt } from "./money.js";
+import { PaySheet } from "./PaySheet.js";
+import { useServices } from "./services.js";
+
+const loc = (text: { en: string; ar?: string | undefined }, lang: Lang) =>
+	(lang === "ar" && text.ar) || text.en;
+
+export function TillScreen() {
+	const { db, sync, device, member, print } = useServices();
+	const { t, lang, dir } = useI18n();
+	const [menu, setMenu] = useState<PricedMenu | null>(null);
+	const [category, setCategory] = useState<string | null>(null);
+	const [lines, setLines] = useState<TillLine[]>([]);
+	const [picking, setPicking] = useState<MenuProduct | null>(null);
+	const [paying, setPaying] = useState<{
+		priced: PricedOrder;
+		at: number;
+	} | null>(null);
+	const [drawer, setDrawer] = useState<CashSession | null>(null);
+	const [done, setDone] = useState<{
+		ticket: string;
+		change: number;
+		printError: string | null;
+	} | null>(null);
+	const [type, setType] = useState<"dine_in" | "takeaway">("takeaway");
+
+	const reloadMenu = useCallback(async () => {
+		const snap = await loadMenu(db);
+		setMenu(snap ? prepareMenu(snap) : null);
+	}, [db]);
+
+	useEffect(() => {
+		void reloadMenu();
+		void openSession(db).then(setDrawer);
+		const off = sync.onMenuChanged(() => void reloadMenu());
+		return () => {
+			off();
+		};
+	}, [db, sync, reloadMenu]);
+
+	const now = Date.now();
+	const q = useMemo(
+		() => (menu && lines.length ? quote(menu, lines, now) : null),
+		[menu, lines, now],
+	);
+
+	if (!menu) return <p className="empty">{t("pos.empty")}</p>;
+	const snap = menu.snapshot;
+	const cats = [...snap.categories].sort((a, b) => a.sortOrder - b.sortOrder);
+	const activeCat = category ?? cats[0]?.id ?? null;
+	const products = snap.products
+		.filter((p) => p.categoryId === activeCat)
+		.sort((a, b) => a.sortOrder - b.sortOrder);
+
+	function addProduct(p: MenuProduct) {
+		if (!p.isAvailable) return;
+		if (p.modifierGroupIds.length > 0) return setPicking(p);
+		// Same plain product: bump quantity instead of a new line.
+		const existing = lines.find(
+			(l) =>
+				l.productId === p.id && l.modifierOptionIds.length === 0 && !l.note,
+		);
+		if (existing)
+			return setLines(
+				lines.map((l) =>
+					l === existing ? { ...l, quantity: l.quantity + 1 } : l,
+				),
+			);
+		setLines([
+			...lines,
+			{ lineId: newId(), productId: p.id, quantity: 1, modifierOptionIds: [] },
+		]);
+	}
+
+	function bump(lineId: string, by: number) {
+		setLines((ls) =>
+			ls.flatMap((l) =>
+				l.lineId !== lineId
+					? [l]
+					: l.quantity + by <= 0
+						? []
+						: [{ ...l, quantity: l.quantity + by }],
+			),
+		);
+	}
+
+	async function charge(tenders: TenderInput[]) {
+		if (!paying || !menu) return;
+		const res = await commitSale(db, {
+			menu,
+			lines,
+			at: paying.at,
+			type,
+			ticketPrefix: device.ticketPrefix,
+			memberId: member.memberId,
+			tenders,
+			cashSessionId: drawer?.id ?? null,
+		});
+		if (!res.ok) return res.error;
+		sync.kick();
+		setPaying(null);
+		setLines([]);
+
+		// Print after the sale is safely stored. Failures are shown, never block.
+		const labels = ticketLabels(lang);
+		const tz = snap.location.timezone;
+		const base = {
+			ticketNumber: res.order.ticketNumber,
+			type: res.order.type,
+			placedAt: new Date(res.order.placedAt),
+			timeZone: tz,
+			note: res.order.note,
+			lines: res.order.lines.map((l) => ({
+				quantity: l.quantity,
+				name: loc(l.name, lang),
+				modifiers: l.modifiers.map((m) => loc(m.name, lang)),
+				note: l.note,
+				lineTotal: l.lineTotal as Minor,
+			})),
+		};
+		const ticketDir = dir;
+		const results = await Promise.all([
+			print.print("kitchen", kitchenTicket(base, labels, ticketDir)),
+			print.print(
+				"receipt",
+				receipt(
+					{
+						...base,
+						locationName: device.name,
+						subtotal: res.order.subtotal as Minor,
+						discountTotal: res.order.discountTotal as Minor,
+						taxTotal: res.order.taxTotal as Minor,
+						total: res.order.total as Minor,
+						payments: res.payments.map((p) => ({
+							label: p.method === "cash" ? t("pay.cash") : t("pay.card"),
+							amount: p.amount as Minor,
+						})),
+						change: res.change,
+						openDrawer: res.payments.some((p) => p.method === "cash"),
+					},
+					labels,
+					ticketDir,
+				),
+			),
+		]);
+		const failed = results.flat().find((r) => !r.ok);
+		setDone({
+			ticket: res.order.ticketNumber,
+			change: res.change,
+			printError: failed && !failed.ok ? failed.error : null,
+		});
+		return null;
+	}
+
+	return (
+		<div className="till">
+			<section className="menu-pane">
+				<nav className="cats">
+					{cats.map((c) => (
+						<button
+							type="button"
+							key={c.id}
+							className={c.id === activeCat ? "chip active" : "chip"}
+							onClick={() => setCategory(c.id)}
+						>
+							{loc(c.name, lang)}
+						</button>
+					))}
+				</nav>
+				<div className="grid">
+					{products.map((p) => {
+						const price = tilePrice(menu, p, now);
+						return (
+							<button
+								type="button"
+								key={p.id}
+								className={p.isAvailable ? "tile" : "tile soldout"}
+								onClick={() => addProduct(p)}
+								disabled={!p.isAvailable}
+							>
+								<span className="tile-title">{loc(p.name, lang)}</span>
+								<span className="tile-price">
+									{price.promotionId && (
+										<s className="muted">{fmt(price.listUnitPrice, lang)}</s>
+									)}{" "}
+									{fmt(price.unitPrice, lang)}
+								</span>
+								{!p.isAvailable && (
+									<span className="tag">{t("till.soldOut")}</span>
+								)}
+							</button>
+						);
+					})}
+				</div>
+			</section>
+
+			<aside className="cart-pane">
+				<div className="row">
+					<h2>{t("till.cart")}</h2>
+					<span className="spacer" />
+					<div className="seg">
+						<button
+							type="button"
+							className={type === "takeaway" ? "active" : ""}
+							onClick={() => setType("takeaway")}
+						>
+							{t("order.takeaway")}
+						</button>
+						<button
+							type="button"
+							className={type === "dine_in" ? "active" : ""}
+							onClick={() => setType("dine_in")}
+						>
+							{t("order.dineIn")}
+						</button>
+					</div>
+				</div>
+				<div className="cart-lines">
+					{lines.length === 0 && <p className="muted">{t("till.empty")}</p>}
+					{lines.map((l, i) => {
+						const p = snap.products.find((x) => x.id === l.productId);
+						const priced = q?.ok ? q.priced.lines[i] : undefined;
+						return (
+							<div key={l.lineId} className="cart-line">
+								<div className="grow">
+									<div>{p ? loc(p.name, lang) : "?"}</div>
+									{priced?.modifiers.map((m) => (
+										<div key={m.optionId} className="muted small">
+											+ {loc(m.name, lang)}
+										</div>
+									))}
+								</div>
+								<div className="qty">
+									<button type="button" onClick={() => bump(l.lineId, -1)}>
+										−
+									</button>
+									<span>{l.quantity}</span>
+									<button type="button" onClick={() => bump(l.lineId, 1)}>
+										+
+									</button>
+								</div>
+								<div className="amount">
+									{priced ? fmt(priced.lineGross, lang) : ""}
+								</div>
+							</div>
+						);
+					})}
+				</div>
+				{q && !q.ok && (
+					<p className="error">
+						{t("till.cannotPrice", {
+							errors: q.errors.map((e) => e.code).join(", "),
+						})}
+					</p>
+				)}
+				{q?.ok && (
+					<div className="totals">
+						{q.priced.discountTotal > 0 && (
+							<div className="row">
+								<span>{t("money.discount")}</span>
+								<span className="spacer" />
+								<span>-{fmt(q.priced.discountTotal, lang)}</span>
+							</div>
+						)}
+						<div className="row muted">
+							<span>{t("money.tax")}</span>
+							<span className="spacer" />
+							<span>{fmt(q.priced.taxTotal, lang)}</span>
+						</div>
+					</div>
+				)}
+				<div className="row">
+					<button
+						type="button"
+						onClick={() => setLines([])}
+						disabled={lines.length === 0}
+					>
+						{t("till.clear")}
+					</button>
+					<button
+						type="button"
+						className="primary grow big"
+						disabled={!q?.ok}
+						onClick={() => q?.ok && setPaying({ priced: q.priced, at: q.at })}
+					>
+						{t("till.pay", { amount: q?.ok ? fmt(q.priced.total, lang) : "" })}
+					</button>
+				</div>
+			</aside>
+
+			{picking && (
+				<ModifierSheet
+					menu={menu}
+					product={picking}
+					onCancel={() => setPicking(null)}
+					onAdd={(optionIds, note) => {
+						setLines([
+							...lines,
+							{
+								lineId: newId(),
+								productId: picking.id,
+								quantity: 1,
+								modifierOptionIds: optionIds,
+								...(note && { note }),
+							},
+						]);
+						setPicking(null);
+					}}
+				/>
+			)}
+			{paying && (
+				<PaySheet
+					total={paying.priced.total}
+					drawer={drawer}
+					onOpenDrawer={async (float) => {
+						const s = await openCashSession(db, {
+							openingFloat: float,
+							memberId: member.memberId,
+							at: Date.now(),
+							timeZone: snap.location.timezone,
+							dayCutoffMinutes: snap.location.dayCutoffMinutes,
+						});
+						setDrawer(s);
+						sync.kick();
+					}}
+					onCancel={() => setPaying(null)}
+					onCharge={charge}
+				/>
+			)}
+			{done && (
+				<div className="sheet-backdrop">
+					<div className="sheet narrow center">
+						<h2>{t("pay.done", { ticket: done.ticket })}</h2>
+						{done.change > 0 && (
+							<p className="huge">
+								{t("pay.change", { amount: fmt(done.change, lang) })}
+							</p>
+						)}
+						{done.printError && (
+							<p className="error">
+								{t("pay.printFailed", { error: done.printError })}
+							</p>
+						)}
+						<button
+							type="button"
+							className="primary big"
+							onClick={() => setDone(null)}
+						>
+							{t("pay.newOrder")}
+						</button>
+					</div>
+				</div>
+			)}
+		</div>
+	);
+}
