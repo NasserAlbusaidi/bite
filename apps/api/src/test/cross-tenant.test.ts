@@ -11,6 +11,7 @@ import {
 	staffLogin,
 	uuidv7,
 } from "./harness.js";
+import { openStream } from "./sse.js";
 
 /**
  * CLAUDE.md: every tenant-scoped endpoint gets a cross-tenant test.
@@ -212,6 +213,16 @@ const cases: Record<string, Case> = {
 		// Staff/device ids never appear on the public view.
 		for (const id of [h.A.device, h.A.cashier, h.A.org])
 			expect(text).not.toContain(id);
+	},
+	"GET /v1/realtime": async (h) => {
+		// Covered end to end in realtime.test.ts (B hears nothing of A's); here,
+		// a B stream stays silent while A's order changes.
+		const b = await openStream(h, h.B);
+		await h.owner`update orders set note = 'x' where org_id = ${h.A.org}`;
+		await h.owner`update products set price = price where id = ${h.A.prod}`;
+		await new Promise((r) => setTimeout(r, 150));
+		expect(b.events.filter((e) => e.event !== "ready")).toEqual([]);
+		await b.close();
 	},
 	"GET /v1/device/session": async (h) => {
 		// A's staff token presented with B's device token.

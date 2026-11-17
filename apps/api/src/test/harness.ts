@@ -8,6 +8,7 @@ import { createApp } from "../app.js";
 import type { Deps } from "../env.js";
 import { PinLimiter } from "../lib/pin-limiter.js";
 import { newSecret, sha256 } from "../lib/tokens.js";
+import { RealtimeHub } from "../realtime/hub.js";
 
 /**
  * Integration harness: a fresh schema, the app connected as a bite_app login
@@ -147,7 +148,10 @@ export async function setupHarness() {
 	const A = await seedTenant(ownerDb, "a");
 	const B = await seedTenant(ownerDb, "b");
 
+	const realtime = new RealtimeHub(10);
+	await realtime.start((channel, fn) => conn.client.listen(channel, fn));
 	const deps: Deps = {
+		realtime,
 		db,
 		staffTokenSecret: "test-secret-test-secret-test-secret!",
 		pinLimiter: new PinLimiter(),
@@ -162,6 +166,7 @@ export async function setupHarness() {
 		A,
 		B,
 		async close() {
+			await realtime.close();
 			await conn.client.end();
 			await owner.end();
 		},
