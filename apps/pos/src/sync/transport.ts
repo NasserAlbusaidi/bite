@@ -1,4 +1,4 @@
-import type { PushRequest, PushResponse } from "./contracts-stub.js";
+import type { PushRequest, PushResponse } from "./wire.js";
 
 export interface SyncTransport {
 	/** Throws on any network/HTTP failure. Per-mutation outcomes come back in the response. */

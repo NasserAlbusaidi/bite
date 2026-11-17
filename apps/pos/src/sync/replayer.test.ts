@@ -2,14 +2,10 @@ import { beforeEach, describe, expect, it } from "vitest";
 import type { SqlDriver } from "../db/driver.js";
 import { migrate } from "../db/migrations.js";
 import { openSqlJs } from "../db/sqljs-driver.js";
-import type {
-	MutationResult,
-	PushRequest,
-	PushResponse,
-} from "./contracts-stub.js";
 import { enqueue, listOutbox } from "./outbox.js";
 import { Replayer } from "./replayer.js";
 import type { SyncTransport } from "./transport.js";
+import type { MutationResult, PushRequest, PushResponse } from "./wire.js";
 
 const MEMBER = "0190f000-0000-7000-8000-000000000001";
 
@@ -70,7 +66,7 @@ async function q(
 			kind,
 			entityId,
 			memberId: MEMBER,
-			payload: { n: 1 },
+			payload: { n: 1 } as never,
 			...(id && { id }),
 		}),
 	);
@@ -93,7 +89,7 @@ describe("outbox", () => {
 					kind: "order.create",
 					entityId: "o1",
 					memberId: MEMBER,
-					payload: {},
+					payload: {} as never,
 				});
 				throw new Error("local insert failed");
 			}),

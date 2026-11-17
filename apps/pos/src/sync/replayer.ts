@@ -1,7 +1,7 @@
 import type { SqlDriver, SqlExecutor } from "../db/driver.js";
-import type { MutationResult } from "./contracts-stub.js";
 import { fromRow, type OutboxRow, toMutation } from "./outbox.js";
 import type { SyncTransport } from "./transport.js";
+import type { MutationResult } from "./wire.js";
 
 export type FlushSummary = {
 	applied: number;

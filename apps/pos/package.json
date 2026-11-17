@@ -13,6 +13,7 @@
 	},
 	"dependencies": {
 		"@bite/capacitor-printer-socket": "link:plugins/printer-socket",
+		"@bite/contracts": "workspace:*",
 		"@bite/core": "workspace:*",
 		"@capacitor-community/sqlite": "^8.1.1",
 		"@capacitor/core": "^8.6.2",

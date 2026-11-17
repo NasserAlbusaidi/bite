@@ -1,0 +1,1 @@
+ALTER TABLE "devices" ADD CONSTRAINT "devices_token_hash_unique" UNIQUE("token_hash");

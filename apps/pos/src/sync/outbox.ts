@@ -1,6 +1,6 @@
 import type { SqlExecutor } from "../db/driver.js";
 import { newId } from "../domain/ids.js";
-import type { Mutation, MutationKind } from "./contracts-stub.js";
+import type { Mutation, MutationKind, PayloadOf } from "./wire.js";
 
 export type OutboxStatus = "pending" | "applied" | "rejected" | "blocked";
 
@@ -38,19 +38,19 @@ type OutboxRow = {
  * write and its outbox row must commit together, or a crash between them
  * loses a sale (or syncs one that never happened locally).
  */
-export async function enqueue(
+export async function enqueue<K extends MutationKind>(
 	tx: SqlExecutor,
 	m: {
-		kind: MutationKind;
+		kind: K;
 		entityId: string;
 		memberId: string;
-		payload: unknown;
+		payload: PayloadOf<K>;
 		baseVersion?: number;
 		id?: string;
 		now?: Date;
 	},
 ): Promise<Mutation> {
-	const mutation: Mutation = {
+	const mutation = {
 		id: m.id ?? newId(),
 		kind: m.kind,
 		entityId: m.entityId,
@@ -58,7 +58,7 @@ export async function enqueue(
 		payload: m.payload,
 		createdAt: (m.now ?? new Date()).toISOString(),
 		...(m.baseVersion !== undefined && { baseVersion: m.baseVersion }),
-	};
+	} as Mutation;
 	await tx.run(
 		`INSERT INTO outbox (id, kind, entity_id, base_version, member_id, payload, created_at)
 		 VALUES (?, ?, ?, ?, ?, ?, ?)`,
