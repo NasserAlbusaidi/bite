@@ -25,6 +25,7 @@ export class SyncEngine {
 	private running: Promise<void> | null = null;
 	private readonly listeners = new Set<(s: SyncState) => void>();
 	private readonly menuListeners = new Set<() => void>();
+	private readonly orderListeners = new Set<() => void>();
 	state: SyncState = {
 		online: true,
 		lastPushAt: null,
@@ -37,7 +38,8 @@ export class SyncEngine {
 		private readonly db: SqlDriver,
 		private readonly api: ApiClient,
 		deviceId: string,
-		private readonly intervalMs = 5_000,
+		/** Fallback loop; realtime events and sales trigger a sync immediately. */
+		private readonly intervalMs = 15_000,
 	) {
 		this.replayer = new Replayer({
 			db,
@@ -69,14 +71,30 @@ export class SyncEngine {
 		return () => this.menuListeners.delete(fn);
 	}
 
-	/** Call after a sale so it leaves the tablet right away when online. */
+	onOrdersChanged(fn: () => void) {
+		this.orderListeners.add(fn);
+		return () => this.orderListeners.delete(fn);
+	}
+
+	/** Call after a local write (sale, bump) or a realtime hint. Coalesces with a run in flight. */
 	kick() {
+		if (this.running) {
+			this.again = true;
+			return;
+		}
 		void this.syncNow();
 	}
+
+	private again = false;
 
 	syncNow(): Promise<void> {
 		this.running ??= this.run().finally(() => {
 			this.running = null;
+			// A hint arrived mid-run: what it points at may have missed this pull.
+			if (this.again) {
+				this.again = false;
+				void this.syncNow();
+			}
 		});
 		return this.running;
 	}
@@ -122,6 +140,7 @@ export class SyncEngine {
 				for (const fn of this.menuListeners) fn();
 			}
 			await upsertOrders(this.db, res.orders);
+			if (res.orders.length > 0) for (const fn of this.orderListeners) fn();
 			await kvSet(this.db, "sync.cursor", res.cursor);
 			if (!res.hasMore) return;
 		}

@@ -8,6 +8,7 @@ import { I18nProvider, useI18n } from "../i18n/I18nProvider.js";
 import type { Lang } from "../i18n/i18n.js";
 import type { PrintService } from "../print/printers.js";
 import { SyncEngine } from "../sync/engine.js";
+import { connectRealtime } from "../sync/realtime.js";
 import { KdsShell } from "./KdsShell.js";
 import { LockScreen } from "./LockScreen.js";
 import { PairScreen } from "./PairScreen.js";
@@ -84,10 +85,25 @@ function PairedApp(props: {
 	const [settings, setSettings] = useState(false);
 	const { t, lang, setLang } = useI18n();
 
+	const { onUnpair } = props;
 	useEffect(() => {
 		sync.start();
-		return () => sync.stop();
-	}, [sync]);
+		// Realtime events are hints: every one (and every reconnect) just triggers a pull.
+		const rt = connectRealtime({
+			baseUrl: paired.cfg.baseUrl,
+			deviceToken: paired.cfg.deviceToken,
+			deviceId: paired.device.deviceId,
+			handlers: {
+				onReady: () => sync.kick(),
+				onEvent: () => sync.kick(),
+				onRevoked: onUnpair,
+			},
+		});
+		return () => {
+			rt.stop();
+			sync.stop();
+		};
+	}, [sync, paired, onUnpair]);
 	useEffect(() => {
 		void createPrintService(db).then(setPrint);
 	}, [db]);

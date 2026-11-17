@@ -93,6 +93,17 @@ const en = {
 	"settings.unpair": "Unpair tablet",
 	"settings.save": "Save",
 	"settings.close": "Close",
+	"kds.new": "New",
+	"kds.preparing": "Preparing",
+	"kds.ready": "Ready",
+	"kds.start": "Start",
+	"kds.done": "Ready",
+	"kds.collected": "Collected",
+	"kds.recall": "Recall",
+	"kds.minutes": "{count} min",
+	"kds.sound": "Sound on",
+	"kds.soundOff": "Sound off",
+	"kds.failed": "Couldn't move {ticket}: {error}",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -187,6 +198,17 @@ const ar: Record<MessageKey, string> = {
 	"settings.unpair": "إلغاء ربط الجهاز",
 	"settings.save": "حفظ",
 	"settings.close": "إغلاق",
+	"kds.new": "جديد",
+	"kds.preparing": "قيد التحضير",
+	"kds.ready": "جاهز",
+	"kds.start": "ابدأ",
+	"kds.done": "جاهز",
+	"kds.collected": "تم الاستلام",
+	"kds.recall": "إرجاع",
+	"kds.minutes": "{count} د",
+	"kds.sound": "الصوت مفعّل",
+	"kds.soundOff": "الصوت مغلق",
+	"kds.failed": "تعذر نقل {ticket}: {error}",
 };
 
 export const messages = { en, ar };
