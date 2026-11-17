@@ -1,5 +1,6 @@
 import { Link } from "react-router";
 import { adminApi } from "../lib/api";
+import { staffPowers } from "../lib/permissions";
 import { rolesSummary } from "../lib/staff-form";
 import { useShell } from "../lib/use-shell";
 import type { Route } from "./+types/staff";
@@ -9,7 +10,8 @@ export async function clientLoader() {
 }
 
 export default function StaffPage({ loaderData }: Route.ComponentProps) {
-	const { t, lang, places } = useShell();
+	const { t, lang, places, me } = useShell();
+	const powers = staffPowers(me);
 	const names = new Map(places.map((p) => [p.id, p.name]));
 	const sep = lang === "ar" ? "، " : ", ";
 	const sorted = [...loaderData.staff].sort(
@@ -22,9 +24,11 @@ export default function StaffPage({ loaderData }: Route.ComponentProps) {
 			<div className="page-head">
 				<h1>{t("staff")}</h1>
 				<div className="actions-row">
-					<Link className="btn" to="/staff/new?kind=invite">
-						{t("invite_manager")}
-					</Link>
+					{powers.canInvite && (
+						<Link className="btn" to="/staff/new?kind=invite">
+							{t("invite_manager")}
+						</Link>
+					)}
 					<Link className="btn btn--primary" to="/staff/new?kind=pin">
 						{t("add_pin_staff")}
 					</Link>

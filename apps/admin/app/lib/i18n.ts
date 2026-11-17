@@ -142,6 +142,7 @@ const en = {
 	new_pin: "New PIN",
 	reset_pin: "Reset PIN",
 	pin_updated: "PIN updated.",
+	cant_edit_member: "Only the owner or an admin can change this person.",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -280,6 +281,7 @@ const ar: Record<MessageKey, string> = {
 	new_pin: "رمز سري جديد",
 	reset_pin: "تغيير الرمز",
 	pin_updated: "تم تحديث الرمز.",
+	cant_edit_member: "فقط المالك أو المسؤول يمكنه تعديل هذا الشخص.",
 };
 
 export const messages: Record<Lang, Record<MessageKey, string>> = { en, ar };

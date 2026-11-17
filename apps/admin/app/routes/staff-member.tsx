@@ -12,6 +12,7 @@ import { adminApi } from "../lib/api";
 import { AdminApiError } from "../lib/api-types";
 import type { AdminStaff } from "../lib/contracts";
 import type { MessageKey } from "../lib/i18n";
+import { staffPowers } from "../lib/permissions";
 import { loadPlaces } from "../lib/places";
 import {
 	LOCATION_ROLES,
@@ -105,7 +106,9 @@ export default function StaffMember({
 		: search.get("kind") === "invite"
 			? "invite"
 			: "pin";
-	const { t } = useShell();
+	const { t, me } = useShell();
+	const powers = staffPowers(me);
+	const editable = !member || powers.canEdit(member);
 	const nav = useNavigation();
 	const busy = nav.state !== "idle";
 	const errors: Errors =
@@ -136,122 +139,133 @@ export default function StaffMember({
 					{kind === "invite" ? t("invite_hint") : t("pin_staff_hint")}
 				</p>
 			)}
-			<Form method="post" className="card form" key={member?.id ?? kind}>
-				<input type="hidden" name="kind" value={kind} />
-				{err("form")}
-				<div className="grid2">
-					<label>
-						{t("name")}
-						<input
-							name="displayName"
-							className="input"
-							defaultValue={member?.displayName ?? ""}
-							required
-							maxLength={80}
-						/>
-						{err("displayName")}
-					</label>
-					{kind === "invite" && (
+			{!editable && <p className="card muted">{t("cant_edit_member")}</p>}
+			{editable && (
+				<Form method="post" className="card form" key={member?.id ?? kind}>
+					<input type="hidden" name="kind" value={kind} />
+					{err("form")}
+					<div className="grid2">
 						<label>
-							{t("email")}
+							{t("name")}
 							<input
-								name="email"
-								type="email"
+								name="displayName"
 								className="input"
-								dir="ltr"
+								defaultValue={member?.displayName ?? ""}
 								required
+								maxLength={80}
 							/>
-							{err("email")}
+							{err("displayName")}
 						</label>
+						{kind === "invite" && (
+							<label>
+								{t("email")}
+								<input
+									name="email"
+									type="email"
+									className="input"
+									dir="ltr"
+									required
+								/>
+								{err("email")}
+							</label>
+						)}
+						{member?.email && (
+							<label>
+								{t("email")}
+								<input
+									className="input"
+									dir="ltr"
+									value={member.email}
+									readOnly
+									disabled
+								/>
+							</label>
+						)}
+						{kind === "pin" && (
+							<label>
+								{t("pin")}
+								<input
+									name="pin"
+									className="input"
+									inputMode="numeric"
+									autoComplete="off"
+									dir="ltr"
+									pattern="\d{4,8}"
+									required
+								/>
+								<span className="muted small">{t("pin_hint")}</span>
+								{err("pin")}
+							</label>
+						)}
+						{((kind === "invite" && powers.canSetOrgRole) ||
+							(member && powers.canChangeOrgRoleOf(member))) && (
+							<label>
+								{t("org_access")}
+								<select
+									name="orgRole"
+									className="input"
+									value={orgRole}
+									onChange={(e) =>
+										setOrgRole(e.currentTarget.value as AdminStaff["orgRole"])
+									}
+								>
+									<option value="staff">{t("org_staff")}</option>
+									{(powers.canGrantAdmin || orgRole === "admin") && (
+										<option value="admin">{t("org_admin")}</option>
+									)}
+								</select>
+							</label>
+						)}
+					</div>
+					{orgRole === "owner" || orgRole === "admin" ? (
+						<p className="muted small">{t("admin_all_locations")}</p>
+					) : (
+						<RolePicker member={member} grantable={powers.grantable} />
 					)}
-					{member?.email && (
-						<label>
-							{t("email")}
-							<input
-								className="input"
-								dir="ltr"
-								value={member.email}
-								readOnly
-								disabled
-							/>
-						</label>
-					)}
-					{kind === "pin" && (
-						<label>
-							{t("pin")}
-							<input
-								name="pin"
-								className="input"
-								inputMode="numeric"
-								autoComplete="off"
-								dir="ltr"
-								pattern="\d{4,8}"
-								required
-							/>
-							<span className="muted small">{t("pin_hint")}</span>
-							{err("pin")}
-						</label>
-					)}
-					{(kind === "invite" ||
-						(member && member.orgRole !== "owner" && member.email)) && (
-						<label>
-							{t("org_access")}
-							<select
-								name="orgRole"
-								className="input"
-								value={orgRole}
-								onChange={(e) =>
-									setOrgRole(e.currentTarget.value as AdminStaff["orgRole"])
-								}
-							>
-								<option value="staff">{t("org_staff")}</option>
-								<option value="admin">{t("org_admin")}</option>
-							</select>
-						</label>
-					)}
-				</div>
-				{orgRole === "owner" || orgRole === "admin" ? (
-					<p className="muted small">{t("admin_all_locations")}</p>
-				) : (
-					<RolePicker member={member} />
-				)}
-				{err("locations")}
-				<div className="form-actions">
-					<button type="submit" className="btn btn--primary" disabled={busy}>
-						{busy
-							? t("saving")
-							: kind === "invite"
-								? t("send_invite")
-								: t("save")}
-					</button>
-					{member && member.orgRole !== "owner" && member.isActive && (
-						<button
-							type="submit"
-							name="intent"
-							value="deactivate"
-							className="btn btn--danger"
-							disabled={busy}
-							formNoValidate
-							onClick={(e) => {
-								if (
-									!window.confirm(
-										t("deactivate_confirm", { name: member.displayName }),
-									)
-								)
-									e.preventDefault();
-							}}
-						>
-							{t("deactivate")}
+					{err("locations")}
+					<div className="form-actions">
+						<button type="submit" className="btn btn--primary" disabled={busy}>
+							{busy
+								? t("saving")
+								: kind === "invite"
+									? t("send_invite")
+									: t("save")}
 						</button>
-					)}
-				</div>
-			</Form>
-			{member?.isActive && <ResetPin errors={errors} />}
+						{member && member.orgRole !== "owner" && member.isActive && (
+							<button
+								type="submit"
+								name="intent"
+								value="deactivate"
+								className="btn btn--danger"
+								disabled={busy}
+								formNoValidate
+								onClick={(e) => {
+									if (
+										!window.confirm(
+											t("deactivate_confirm", { name: member.displayName }),
+										)
+									)
+										e.preventDefault();
+								}}
+							>
+								{t("deactivate")}
+							</button>
+						)}
+					</div>
+				</Form>
+			)}
+			{editable && member?.isActive && <ResetPin errors={errors} />}
 		</>
 	);
 }
 
-function RolePicker({ member }: { member: AdminStaff | undefined }) {
+function RolePicker({
+	member,
+	grantable,
+}: {
+	member: AdminStaff | undefined;
+	grantable: readonly string[];
+}) {
 	const { t, places } = useShell();
 	const current = new Map(
 		(member?.locations ?? []).map((l) => [l.locationId, l.role]),
@@ -268,7 +282,9 @@ function RolePicker({ member }: { member: AdminStaff | undefined }) {
 						defaultValue={current.get(p.id) ?? ""}
 					>
 						<option value="">{t("no_access")}</option>
-						{LOCATION_ROLES.map((r) => (
+						{LOCATION_ROLES.filter(
+							(r) => grantable.includes(r) || current.get(p.id) === r,
+						).map((r) => (
 							<option key={r} value={r}>
 								{t(`role_${r}`)}
 							</option>
