@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createApp } from "../app.js";
 import { PinLimiter } from "../lib/pin-limiter.js";
+import { adminCases } from "./cross-tenant-admin.js";
 import {
 	bearer,
 	type Harness,
@@ -11,7 +12,6 @@ import {
 	staffLogin,
 	uuidv7,
 } from "./harness.js";
-import { adminCases } from "./cross-tenant-admin.js";
 import { openStream } from "./sse.js";
 
 /**
