@@ -1,5 +1,6 @@
 import type {
 	AdminCategory,
+	AdminDevice,
 	AdminLocationSettings,
 	AdminMe,
 	AdminMenu,
@@ -12,8 +13,11 @@ import type {
 	CreatePromotion,
 	InviteStaff,
 	LocationProduct,
+	RegisterDeviceRequest,
+	RegisterDeviceResponse,
 	SetLocationProduct,
 	UpdateCategory,
+	UpdateLocation,
 	UpdateProduct,
 	UpdatePromotion,
 	UpdateStaff,
@@ -53,4 +57,8 @@ export interface AdminApi {
 	updateStaff(id: string, s: UpdateStaff): Promise<AdminStaff>;
 	resetPin(id: string, pin: string): Promise<void>;
 	deactivateStaff(id: string): Promise<void>;
+	updateLocation(id: string, l: UpdateLocation): Promise<AdminLocationSettings>;
+	devices(locationId: string): Promise<AdminDevice[]>;
+	registerDevice(d: RegisterDeviceRequest): Promise<RegisterDeviceResponse>;
+	revokeDevice(id: string): Promise<void>;
 }

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { type AdminApi, AdminApiError } from "./api-types";
 import {
 	AdminCategory,
+	AdminDevice,
 	AdminLocationSettings,
 	AdminMe,
 	AdminModifierGroup,
@@ -11,6 +12,7 @@ import {
 	AdminStaff,
 	LocationProduct,
 	Page,
+	RegisterDeviceResponse,
 } from "./contracts";
 
 /** Back office over HTTP, under /v1/admin. Auth is the Better Auth session cookie. */
@@ -121,6 +123,15 @@ export function httpAdminApi(
 			await call(z.unknown(), `/staff/${enc(id)}/deactivate`, {
 				method: "POST",
 			});
+		},
+		updateLocation: (id, l) =>
+			call(AdminLocationSettings, `/locations/${enc(id)}`, send("PATCH", l)),
+		devices: (locationId) =>
+			all(AdminDevice, `/locations/${enc(locationId)}/devices`),
+		registerDevice: (d) =>
+			call(RegisterDeviceResponse, "/devices", send("POST", d)),
+		revokeDevice: async (id) => {
+			await call(z.unknown(), `/devices/${enc(id)}/revoke`, { method: "POST" });
 		},
 	};
 }

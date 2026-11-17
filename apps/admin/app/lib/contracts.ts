@@ -1,6 +1,7 @@
 /** Back-office contracts come from the API (packages/contracts/src/admin.ts). */
 export {
 	AdminCategory,
+	AdminDevice,
 	AdminLocationSettings,
 	AdminMe,
 	AdminModifierGroup,
@@ -14,9 +15,12 @@ export {
 	InviteStaff,
 	LocationProduct,
 	Page,
+	RegisterDeviceRequest,
+	RegisterDeviceResponse,
 	ResetPin,
 	SetLocationProduct,
 	UpdateCategory,
+	UpdateLocation,
 	UpdateProduct,
 	UpdatePromotion,
 	UpdateStaff,
