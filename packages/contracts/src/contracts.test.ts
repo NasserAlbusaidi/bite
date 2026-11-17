@@ -72,3 +72,43 @@ describe("sync", () => {
 		).toBe(false);
 	});
 });
+
+describe("admin", () => {
+	it("promotion rules: single target, percent cap, paired daily window", async () => {
+		const { CreatePromotion } = await import("./admin.js");
+		const base = { name: "x", kind: "percent", value: 1000 };
+		expect(CreatePromotion.safeParse(base).success).toBe(true);
+		expect(CreatePromotion.safeParse({ ...base, value: 10_001 }).success).toBe(
+			false,
+		);
+		expect(
+			CreatePromotion.safeParse({ ...base, productId: id(), categoryId: id() })
+				.success,
+		).toBe(false);
+		expect(
+			CreatePromotion.safeParse({ ...base, dailyStart: "18:00" }).success,
+		).toBe(false);
+		expect(
+			CreatePromotion.safeParse({
+				...base,
+				dailyStart: "22:00",
+				dailyEnd: "02:00",
+			}).success,
+		).toBe(true);
+	});
+	it("PIN staff need a numeric PIN and a location", async () => {
+		const { CreatePinStaff } = await import("./admin.js");
+		const ok = {
+			displayName: "Ali",
+			pin: "1234",
+			locations: [{ locationId: id(), role: "cashier" }],
+		};
+		expect(CreatePinStaff.safeParse(ok).success).toBe(true);
+		expect(CreatePinStaff.safeParse({ ...ok, pin: "12a4" }).success).toBe(
+			false,
+		);
+		expect(CreatePinStaff.safeParse({ ...ok, locations: [] }).success).toBe(
+			false,
+		);
+	});
+});
