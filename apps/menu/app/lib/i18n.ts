@@ -117,6 +117,7 @@ const en = {
 	remove_unavailable: "Remove unavailable items",
 	unavailable_tag: "Unavailable",
 	placing: "Placing order…",
+	you_save: "You save",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -197,6 +198,7 @@ const ar: Record<MessageKey, string> = {
 	remove_unavailable: "إزالة العناصر غير المتاحة",
 	unavailable_tag: "غير متاح",
 	placing: "جارٍ إرسال الطلب…",
+	you_save: "وفّرت",
 };
 
 const messages: Record<Lang, Record<MessageKey, string>> = { en, ar };

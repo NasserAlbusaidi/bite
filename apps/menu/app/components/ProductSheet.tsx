@@ -1,14 +1,17 @@
-import { times } from "@bite/core";
+import type { LocalClock } from "@bite/core";
 import { useEffect, useId, useRef, useState } from "react";
-import { estimateUnit, type MenuIndex, validateSelection } from "../lib/cart";
+import { type MenuIndex, validateSelection } from "../lib/cart";
 import type { MenuProduct } from "../lib/contracts";
 import { type Lang, loc, type T } from "../lib/i18n";
 import type { Currency } from "../lib/money";
+import { type MenuPricing, priceSelection } from "../lib/pricing";
 import { Price } from "./Price";
 
 type Props = {
 	product: MenuProduct | null;
 	idx: MenuIndex;
+	pricing: MenuPricing;
+	at: LocalClock;
 	lang: Lang;
 	t: T;
 	currency: Currency;
@@ -25,6 +28,8 @@ type Props = {
 export function ProductSheet({
 	product,
 	idx,
+	pricing,
+	at,
 	lang,
 	t,
 	currency,
@@ -91,7 +96,7 @@ export function ProductSheet({
 		});
 	};
 
-	const unit = estimateUnit(product, idx, selected);
+	const priced = priceSelection(pricing, product.id, selected, qty, at);
 
 	return (
 		<dialog
@@ -207,7 +212,9 @@ export function ProductSheet({
 					</div>
 					<button type="submit" className="btn btn--primary btn--grow">
 						<span>{t("add_to_order")}</span>
-						<Price amount={times(unit, qty)} currency={currency} lang={lang} />
+						{priced && (
+							<Price amount={priced.total} currency={currency} lang={lang} />
+						)}
 					</button>
 				</footer>
 			</form>

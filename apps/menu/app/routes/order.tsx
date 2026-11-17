@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { data, Link, useRevalidator, useSearchParams } from "react-router";
 import { Price } from "../components/Price";
+import { Totals } from "../components/Totals";
 import { guestApi } from "../lib/api.server";
 import { useCart } from "../lib/cart-store";
 import { isLang, loc, type MessageKey, translator } from "../lib/i18n";
@@ -113,28 +114,12 @@ export default function OrderPage({ loaderData }: Route.ComponentProps) {
 					))}
 			</ul>
 
-			<dl className="summary">
-				{order.discountTotal > 0 && (
-					<>
-						<dt>{t("discount")}</dt>
-						<dd>
-							<Price
-								amount={-order.discountTotal}
-								currency={currency}
-								lang={lang}
-							/>
-						</dd>
-					</>
-				)}
-				<dt>{t("tax")}</dt>
-				<dd>
-					<Price amount={order.taxTotal} currency={currency} lang={lang} />
-				</dd>
-				<dt className="strong">{t("total")}</dt>
-				<dd className="strong">
-					<Price amount={order.total} currency={currency} lang={lang} />
-				</dd>
-			</dl>
+			<Totals
+				order={{ ...order, pricesIncludeTax: order.total === order.subtotal }}
+				lang={lang}
+				t={t}
+				currency={currency}
+			/>
 
 			<Link className="btn" to={`/${lang}/${location.slug}`}>
 				{t("back_to_menu")}

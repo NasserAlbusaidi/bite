@@ -1,4 +1,3 @@
-import { add, type Minor, minor, sum, times, ZERO } from "@bite/core";
 import type {
 	MenuModifierGroup,
 	MenuProduct,
@@ -9,8 +8,7 @@ import { uuidv7 } from "./uuid";
 
 /**
  * Guest cart. Holds ids and quantities only, never prices: the server
- * re-prices on quote and submit. Estimates shown in the UI are computed
- * from the menu the guest is looking at and are labelled as such.
+ * re-prices on submit. Display prices come from `./pricing` (@bite/core).
  */
 export type CartLine = {
 	key: string;
@@ -171,40 +169,6 @@ export function validateSelection(
 			return { kind: "max", groupId: gid, count: g.maxSelect };
 	}
 	return null;
-}
-
-/**
- * Display estimate only: list price + modifier deltas, no promotions yet.
- * TODO: switch to @bite/core pricing (promotions, tax) once it lands. The
- * order response from the server is the authoritative price either way.
- */
-export function estimateUnit(
-	product: MenuProduct,
-	idx: MenuIndex,
-	optionIds: readonly string[],
-): Minor {
-	const base = minor(product.price);
-	const deltas = optionIds.map((id) => {
-		const gid = idx.optionGroup.get(id);
-		const opt = gid
-			? idx.groups.get(gid)?.options.find((o) => o.id === id)
-			: undefined;
-		return minor(opt?.priceDelta ?? 0);
-	});
-	const unit = add(base, sum(deltas));
-	return unit < 0 ? ZERO : unit;
-}
-
-/** Display estimate only. Unknown products count as zero. */
-export function estimateCart(cart: Cart, idx: MenuIndex): Minor {
-	return sum(
-		cart.lines.map((l) => {
-			const p = idx.products.get(l.productId);
-			return p
-				? times(estimateUnit(p, idx, l.modifierOptionIds), l.quantity)
-				: ZERO;
-		}),
-	);
 }
 
 /** Parse an untrusted stored cart (localStorage); drop anything malformed. */
