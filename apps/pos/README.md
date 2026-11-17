@@ -26,8 +26,8 @@ The mode is picked per tablet and stored locally.
 ## Pricing
 
 The tablet never prices on its own. It calls `@bite/core` (same functions the
-server uses to re-check `expectedTotals`). `src/domain/pricing-port.ts` is a
-temporary type port until core publishes `priceLines()`.
+server uses to re-check `expectedTotals`): `priceLines`, `localClock`,
+`businessDate`. See `docs/core-api.md`.
 
 ## Printing
 

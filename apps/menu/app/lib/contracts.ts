@@ -1,0 +1,20 @@
+/** The guest menu's view of `@bite/contracts`. Import contracts from here. */
+export {
+	CreateGuestOrderRequest,
+	CreateGuestOrderResponse,
+	ErrorBody,
+	type ErrorCode,
+	GuestLocation,
+	GuestOrderRejectDetails,
+	type GuestOrderRejectReason,
+	GuestOrderView,
+	IDEMPOTENCY_KEY_HEADER,
+	type LocalizedText,
+	type MenuCategory,
+	type MenuModifierGroup,
+	type MenuModifierOption,
+	type MenuProduct,
+	MenuSnapshot,
+	type OrderLineInput,
+	PublicMenuResponse,
+} from "@bite/contracts";
