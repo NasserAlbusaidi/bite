@@ -8,15 +8,17 @@ import {
 	ScrollRestoration,
 	useRouteError,
 } from "react-router";
+import "@bite/ui/styles.css";
 import "./styles.css";
 
 export function Layout({ children }: { children: ReactNode }) {
 	return (
-		<html lang="en" dir="ltr">
+		<html lang="en" dir="ltr" data-theme="system" data-density="compact">
 			<head>
 				<meta charSet="utf-8" />
 				<meta name="viewport" content="width=device-width, initial-scale=1" />
 				<meta name="robots" content="noindex" />
+				<meta name="theme-color" content="#004225" />
 				<title>Bite back office</title>
 				<Meta />
 				<Links />

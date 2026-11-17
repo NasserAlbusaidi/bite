@@ -1,18 +1,31 @@
 import type {
 	AdminCategory,
+	AdminDevice,
 	AdminLocationSettings,
 	AdminMe,
 	AdminMenu,
+	AdminOrderRow,
+	AdminOrdersQuery,
 	AdminProduct,
 	AdminPromotion,
+	AdminStaff,
 	CreateCategory,
+	CreatePinStaff,
 	CreateProduct,
 	CreatePromotion,
+	InviteStaff,
+	InviteStaffResponse,
 	LocationProduct,
+	RegisterDeviceRequest,
+	RegisterDeviceResponse,
+	SalesReport,
+	SalesReportQuery,
 	SetLocationProduct,
 	UpdateCategory,
+	UpdateLocation,
 	UpdateProduct,
 	UpdatePromotion,
+	UpdateStaff,
 } from "./contracts";
 
 export class AdminApiError extends Error {
@@ -43,4 +56,22 @@ export interface AdminApi {
 	promotions(): Promise<AdminPromotion[]>;
 	createPromotion(p: CreatePromotion): Promise<AdminPromotion>;
 	updatePromotion(id: string, p: UpdatePromotion): Promise<AdminPromotion>;
+	staff(): Promise<AdminStaff[]>;
+	/** The token comes back once; the UI turns it into a share link. */
+	inviteStaff(s: InviteStaff): Promise<InviteStaffResponse>;
+	/** New link for a pending invite; the old one stops working. */
+	reissueInvite(id: string): Promise<InviteStaffResponse>;
+	createPinStaff(s: CreatePinStaff): Promise<AdminStaff>;
+	updateStaff(id: string, s: UpdateStaff): Promise<AdminStaff>;
+	resetPin(id: string, pin: string): Promise<void>;
+	deactivateStaff(id: string): Promise<void>;
+	updateLocation(id: string, l: UpdateLocation): Promise<AdminLocationSettings>;
+	devices(locationId: string): Promise<AdminDevice[]>;
+	registerDevice(d: RegisterDeviceRequest): Promise<RegisterDeviceResponse>;
+	revokeDevice(id: string): Promise<void>;
+	salesReport(q: SalesReportQuery): Promise<SalesReport>;
+	orders(
+		q: Omit<AdminOrdersQuery, "limit"> & { limit?: number },
+	): Promise<{ items: AdminOrderRow[]; nextCursor?: string | undefined }>;
+	ordersCsv(q: Omit<AdminOrdersQuery, "cursor" | "limit">): Promise<Blob>;
 }

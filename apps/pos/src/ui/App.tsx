@@ -1,4 +1,5 @@
 import type { DeviceMe } from "@bite/contracts";
+import { Logo } from "@bite/ui";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ApiClient, type ApiConfig } from "../api/client.js";
 import type { StaffMember } from "../auth/staff.js";
@@ -124,8 +125,14 @@ function PairedApp(props: {
 	};
 	return (
 		<ServicesCtx.Provider value={services}>
-			<div className="app">
+			<div
+				className="app"
+				{...(paired.device.kind === "kds"
+					? { "data-theme": "dark", "data-density": "far" }
+					: {})}
+			>
 				<header className="topbar">
+					<Logo height={22} className="topbar__logo" />
 					<strong>{paired.device.name}</strong>
 					<span className="muted">{member.displayName}</span>
 					<span className="spacer" />

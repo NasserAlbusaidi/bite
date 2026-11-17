@@ -79,7 +79,7 @@ export function ModifierSheet(props: {
 									>
 										{name(o.name)}
 										{o.priceDelta !== 0 &&
-											` ${o.priceDelta > 0 ? "+" : "−"}${fmt(Math.abs(o.priceDelta), lang)}`}
+											` ${fmt(o.priceDelta, lang, { signed: true })}`}
 									</button>
 								))}
 						</div>

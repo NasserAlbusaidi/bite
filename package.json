@@ -11,7 +11,11 @@
 		"test": "turbo run test",
 		"typecheck": "turbo run typecheck",
 		"lint": "biome check .",
-		"format": "biome format --write ."
+		"format": "biome format --write .",
+		"db:up": "docker compose up -d --wait",
+		"db:down": "docker compose down",
+		"dev:setup": "pnpm --filter @bite/api dev:setup",
+		"dev:all": "turbo run dev"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^2.6.8",

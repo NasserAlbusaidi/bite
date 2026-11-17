@@ -1,3 +1,4 @@
+import { UiProvider } from "@bite/ui";
 import {
 	createContext,
 	type ReactNode,
@@ -44,7 +45,11 @@ export function I18nProvider(props: {
 		}),
 		[lang, onChange],
 	);
-	return <Ctx.Provider value={value}>{props.children}</Ctx.Provider>;
+	return (
+		<Ctx.Provider value={value}>
+			<UiProvider lang={lang}>{props.children}</UiProvider>
+		</Ctx.Provider>
+	);
 }
 
 export function useI18n(): I18n {

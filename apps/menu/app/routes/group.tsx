@@ -1,3 +1,4 @@
+import { Icon } from "@bite/ui";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { data, Link, useFetcher, useSearchParams } from "react-router";
 import { CartLines } from "../components/CartLines";
@@ -319,7 +320,7 @@ export default function GroupOrder({ loaderData }: Route.ComponentProps) {
 							onClick={() => setParams({})}
 							aria-label={t("back_to_menu")}
 						>
-							<span className="flip">←</span>
+							<Icon name="arrow-back" />
 						</button>
 						<h1>{t("group_cart")}</h1>
 					</header>

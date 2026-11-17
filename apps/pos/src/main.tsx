@@ -2,6 +2,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { openLocalDb } from "./runtime.js";
 import { App } from "./ui/App.js";
+import "@bite/ui/styles.css";
 import "./ui/styles.css";
 
 const root = document.getElementById("root");

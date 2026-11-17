@@ -37,6 +37,12 @@ export const CreateOrg = z.object({
 });
 export const CreatedOrg = z.object({ orgId: Id, locationId: Id, memberId: Id });
 
+/** POST /v1/account/invites/accept. The session's email must match the invite. */
+export const AcceptInvite = z.object({ token: z.string().min(20).max(200) });
+export const AcceptedInvite = z.object({ orgId: Id, memberId: Id });
+
+export type AcceptInvite = z.infer<typeof AcceptInvite>;
+export type AcceptedInvite = z.infer<typeof AcceptedInvite>;
 export type AccountOrg = z.infer<typeof AccountOrg>;
 export type AccountOrgs = z.infer<typeof AccountOrgs>;
 export type CreateOrg = z.infer<typeof CreateOrg>;

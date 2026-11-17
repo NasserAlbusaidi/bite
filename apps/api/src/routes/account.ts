@@ -1,15 +1,22 @@
-import { type AccountOrgs, CreatedOrg, CreateOrg } from "@bite/contracts";
+import {
+	AcceptedInvite,
+	AcceptInvite,
+	type AccountOrgs,
+	CreatedOrg,
+	CreateOrg,
+} from "@bite/contracts";
 import { schema, withTenant } from "@bite/db";
-import { eq } from "@bite/db/orm";
+import { and, eq, isNull, sql } from "@bite/db/orm";
 import { Hono } from "hono";
 import { v7 as uuidv7 } from "uuid";
 import type { AppEnv } from "../env.js";
 import { ApiError } from "../lib/errors.js";
+import { sha256 } from "../lib/tokens.js";
 import { validate } from "../lib/validate.js";
 import { membershipsOf, sessionAuth } from "../middleware/admin-auth.js";
 import { isUniqueViolation } from "../sync/orders.js";
 
-const { orgs, locations, members, memberLocations } = schema;
+const { orgs, locations, members, memberLocations, memberInvites } = schema;
 
 /** A back-office login before it picks an org: list orgs, create one. */
 export const accountRoutes = new Hono<AppEnv>()
@@ -77,4 +84,53 @@ export const accountRoutes = new Hono<AppEnv>()
 			throw err;
 		}
 		return c.json(CreatedOrg.parse(ids), 201);
+	})
+	.post("/invites/accept", validate("json", AcceptInvite), async (c) => {
+		const s = c.var.session;
+		const rows = (await c.var.deps.db.execute(
+			sql`select org_id, invite_id from resolve_invite(${sha256(c.req.valid("json").token)})`,
+		)) as unknown as { org_id: string; invite_id: string }[];
+		const hit = rows[0];
+		// Unknown, expired and used links all look the same.
+		if (!hit) throw new ApiError("not_found", "invite not found or expired");
+		const res = await withTenant(c.var.deps.db, hit.org_id, async (tx) => {
+			const [inv] = await tx
+				.select()
+				.from(memberInvites)
+				.where(
+					and(
+						eq(memberInvites.id, hit.invite_id),
+						isNull(memberInvites.acceptedAt),
+					),
+				)
+				.for("update");
+			if (!inv) throw new ApiError("not_found", "invite not found or expired");
+			if (inv.email !== s.email.toLowerCase()) {
+				throw new ApiError("forbidden", "this invite is for a different email");
+			}
+			const [m] = await tx
+				.select()
+				.from(members)
+				.where(eq(members.id, inv.memberId));
+			if (!m?.isActive || m.userId) {
+				throw new ApiError("not_found", "invite not found or expired");
+			}
+			try {
+				await tx
+					.update(members)
+					.set({ userId: s.userId, updatedAt: new Date() })
+					.where(eq(members.id, m.id));
+			} catch (err) {
+				if (isUniqueViolation(err, "members_org_user_uq")) {
+					throw new ApiError("conflict", "already a member of this org");
+				}
+				throw err;
+			}
+			await tx
+				.update(memberInvites)
+				.set({ acceptedAt: new Date() })
+				.where(eq(memberInvites.id, inv.id));
+			return { orgId: hit.org_id, memberId: m.id };
+		});
+		return c.json(AcceptedInvite.parse(res));
 	});

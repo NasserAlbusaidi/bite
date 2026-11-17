@@ -1,4 +1,5 @@
 import type { PricedLine } from "@bite/core";
+import { QuantityStepper } from "@bite/ui";
 import type { MenuIndex } from "../lib/cart";
 import { type Lang, loc, type T } from "../lib/i18n";
 import type { Currency } from "../lib/money";
@@ -58,23 +59,13 @@ export function CartLines({
 							)}
 						</div>
 						{onChangeQty && (
-							<div className="stepper stepper--sm">
-								<button
-									type="button"
-									onClick={() => onChangeQty(l.key, -1)}
-									aria-label={t("decrease_qty")}
-								>
-									−
-								</button>
-								<output>{l.quantity}</output>
-								<button
-									type="button"
-									onClick={() => onChangeQty(l.key, 1)}
-									aria-label={t("increase_qty")}
-								>
-									+
-								</button>
-							</div>
+							<QuantityStepper
+								value={l.quantity}
+								onChange={(next) =>
+									onChangeQty(l.key, next > l.quantity ? 1 : -1)
+								}
+								onRemove={() => onChangeQty(l.key, -1)}
+							/>
 						)}
 						{l.priced && !l.failed && (
 							<Price

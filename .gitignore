@@ -9,3 +9,4 @@ coverage/
 *.log
 .DS_Store
 .react-router/
+.dev-credentials.txt

@@ -1,22 +1,34 @@
-import { ErrorBody } from "@bite/contracts";
+import { ErrorBody, ORG_HEADER } from "@bite/contracts";
 import { z } from "zod";
 import { type AdminApi, AdminApiError } from "./api-types";
 import {
 	AdminCategory,
+	AdminDevice,
 	AdminLocationSettings,
 	AdminMe,
 	AdminModifierGroup,
+	AdminOrderRow,
 	AdminProduct,
 	AdminPromotion,
+	AdminStaff,
+	InviteStaffResponse,
 	LocationProduct,
 	Page,
+	RegisterDeviceResponse,
+	SalesReport,
 } from "./contracts";
 
 /** Back office over HTTP, under /v1/admin. Auth is the Better Auth session cookie. */
 export function httpAdminApi(
 	baseUrl: string,
 	fetchImpl: typeof fetch = fetch,
+	/** Org to act on, for logins in several orgs. Read per request. */
+	orgId: () => string | undefined = () => undefined,
 ): AdminApi {
+	const orgHeader = (): Record<string, string> => {
+		const id = orgId();
+		return id ? { [ORG_HEADER]: id } : {};
+	};
 	async function call<S extends z.ZodType>(
 		schema: S,
 		path: string,
@@ -27,6 +39,7 @@ export function httpAdminApi(
 			...init,
 			headers: {
 				accept: "application/json",
+				...orgHeader(),
 				...(init.body ? { "content-type": "application/json" } : {}),
 				...init.headers,
 			},
@@ -61,6 +74,14 @@ export function httpAdminApi(
 		}
 		return out;
 	}
+
+	/** ?a=1&b=2 from the defined values only. */
+	const qs = (q: Record<string, string | number | undefined>) => {
+		const p = new URLSearchParams();
+		for (const [k, v] of Object.entries(q))
+			if (v !== undefined) p.set(k, String(v));
+		return `?${p.toString()}`;
+	};
 
 	const send = (method: string, body: unknown): RequestInit => ({
 		method,
@@ -104,5 +125,47 @@ export function httpAdminApi(
 			call(AdminPromotion, "/promotions", send("POST", p)),
 		updatePromotion: (id, p) =>
 			call(AdminPromotion, `/promotions/${enc(id)}`, send("PATCH", p)),
+		staff: () => all(AdminStaff, "/staff"),
+		inviteStaff: (s) =>
+			call(InviteStaffResponse, "/staff/invite", send("POST", s)),
+		reissueInvite: (id) =>
+			call(InviteStaffResponse, `/staff/${enc(id)}/invite`, { method: "POST" }),
+		createPinStaff: (s) => call(AdminStaff, "/staff", send("POST", s)),
+		updateStaff: (id, s) =>
+			call(AdminStaff, `/staff/${enc(id)}`, send("PATCH", s)),
+		resetPin: async (id, pin) => {
+			await call(
+				z.unknown(),
+				`/staff/${enc(id)}/reset-pin`,
+				send("POST", { pin }),
+			);
+		},
+		deactivateStaff: async (id) => {
+			await call(z.unknown(), `/staff/${enc(id)}/deactivate`, {
+				method: "POST",
+			});
+		},
+		updateLocation: (id, l) =>
+			call(AdminLocationSettings, `/locations/${enc(id)}`, send("PATCH", l)),
+		devices: (locationId) =>
+			all(AdminDevice, `/locations/${enc(locationId)}/devices`),
+		registerDevice: (d) =>
+			call(RegisterDeviceResponse, "/devices", send("POST", d)),
+		salesReport: (q) => call(SalesReport, `/reports/sales${qs(q)}`),
+		orders: (q) => call(Page(AdminOrderRow), `/orders${qs(q)}`),
+		ordersCsv: async (q) => {
+			const res = await fetchImpl(
+				new URL(`/v1/admin/orders.csv${qs(q)}`, baseUrl),
+				{
+					credentials: "include",
+					headers: { accept: "text/csv", ...orgHeader() },
+				},
+			);
+			if (!res.ok) throw new AdminApiError("internal", res.status);
+			return res.blob();
+		},
+		revokeDevice: async (id) => {
+			await call(z.unknown(), `/devices/${enc(id)}/revoke`, { method: "POST" });
+		},
 	};
 }

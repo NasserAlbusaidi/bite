@@ -1,4 +1,5 @@
 import type { LocalClock } from "@bite/core";
+import { Icon, QuantityStepper, useUi } from "@bite/ui";
 import { useEffect, useId, useRef, useState } from "react";
 import { type MenuIndex, validateSelection } from "../lib/cart";
 import type { MenuProduct } from "../lib/contracts";
@@ -37,6 +38,7 @@ export function ProductSheet({
 	onClose,
 }: Props) {
 	const ref = useRef<HTMLDialogElement>(null);
+	const ui = useUi();
 	const noteId = useId();
 	const [selected, setSelected] = useState<string[]>([]);
 	const [note, setNote] = useState("");
@@ -113,15 +115,25 @@ export function ProductSheet({
 					submit();
 				}}
 			>
+				{product.imageUrl && (
+					<img
+						className="sheet__img"
+						src={product.imageUrl}
+						alt=""
+						width={640}
+						height={400}
+						decoding="async"
+					/>
+				)}
 				<header className="sheet__head">
 					<h2 id={`${noteId}-title`}>{loc(product.name, lang)}</h2>
 					<button
 						type="button"
 						className="icon-btn"
 						onClick={onClose}
-						aria-label="✕"
+						aria-label={ui.t("close")}
 					>
-						✕
+						<Icon name="close" />
 					</button>
 				</header>
 				{product.description && (
@@ -193,23 +205,7 @@ export function ProductSheet({
 				)}
 
 				<footer className="sheet__foot">
-					<div className="stepper">
-						<button
-							type="button"
-							onClick={() => setQty((q) => Math.max(1, q - 1))}
-							aria-label={t("decrease_qty")}
-						>
-							−
-						</button>
-						<output aria-live="polite">{qty}</output>
-						<button
-							type="button"
-							onClick={() => setQty((q) => Math.min(99, q + 1))}
-							aria-label={t("increase_qty")}
-						>
-							+
-						</button>
-					</div>
+					<QuantityStepper value={qty} onChange={setQty} />
 					<button type="submit" className="btn btn--primary btn--grow">
 						<span>{t("add_to_order")}</span>
 						{priced && (

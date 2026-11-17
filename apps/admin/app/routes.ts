@@ -6,12 +6,19 @@ import {
 } from "@react-router/dev/routes";
 
 export default [
+	route("sign-in", "routes/sign-in.tsx"),
+	route("orgs", "routes/orgs.tsx"),
+	route("accept-invite", "routes/accept-invite.tsx"),
 	layout("routes/shell.tsx", [
 		index("routes/home.tsx"),
 		route("menu", "routes/menu.tsx"),
 		route("menu/products/:productId", "routes/product.tsx"),
 		route("locations/:locationId/menu", "routes/location-menu.tsx"),
+		route("locations/:locationId/settings", "routes/location-settings.tsx"),
 		route("promotions", "routes/promotions.tsx"),
 		route("promotions/:promotionId", "routes/promotion.tsx"),
+		route("reports", "routes/reports.tsx"),
+		route("staff", "routes/staff.tsx"),
+		route("staff/:staffId", "routes/staff-member.tsx"),
 	]),
 ] satisfies RouteConfig;

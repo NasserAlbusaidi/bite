@@ -6,20 +6,30 @@
 import { type AdminApi, AdminApiError } from "./api-types";
 import {
 	type AdminCategory,
+	type AdminDevice,
 	type AdminLocationSettings,
 	type AdminMe,
 	type AdminMenu,
 	type AdminProduct,
 	type AdminPromotion,
+	type AdminStaff,
 	CreateCategory,
+	CreatePinStaff,
 	CreateProduct,
 	CreatePromotion,
+	InviteStaff,
+	type InviteStaffResponse,
 	type LocationProduct,
+	RegisterDeviceRequest,
+	ResetPin,
 	SetLocationProduct,
 	UpdateCategory,
+	UpdateLocation,
 	UpdateProduct,
 	UpdatePromotion,
+	UpdateStaff,
 } from "./contracts";
+import { demoOrders, demoReport, ordersCsv } from "./demo-orders";
 import { uuidv7 } from "./uuid";
 
 const id = (n: number) =>
@@ -30,6 +40,11 @@ type DemoState = {
 	/** locationId -> productId -> override */
 	overrides: Record<string, Record<string, SetLocationProduct>>;
 	promotions: AdminPromotion[];
+	staff: AdminStaff[];
+	locations: AdminLocationSettings[];
+	devices: AdminDevice[];
+	/** memberId -> invited email, until accepted. Missing in older saves. */
+	pendingInvites?: Record<string, string>;
 };
 
 const azaiba = {
@@ -203,10 +218,75 @@ export function demoState(): DemoState {
 				isActive: true,
 			},
 		],
+		staff: [
+			{
+				id: DEMO_ME.member.id,
+				displayName: "Nasser",
+				email: "owner@example.com",
+				orgRole: "owner",
+				hasPin: true,
+				isActive: true,
+				locations: [
+					{ locationId: id(9000), role: "manager" },
+					{ locationId: id(9001), role: "manager" },
+				],
+			},
+			{
+				id: id(7001),
+				displayName: "Mohammed",
+				email: "manager@example.com",
+				orgRole: "staff",
+				hasPin: true,
+				isActive: true,
+				locations: [{ locationId: id(9000), role: "manager" }],
+			},
+			{
+				id: id(7002),
+				displayName: "Aisha",
+				email: null,
+				orgRole: "staff",
+				hasPin: true,
+				isActive: true,
+				locations: [{ locationId: id(9000), role: "cashier" }],
+			},
+			{
+				id: id(7003),
+				displayName: "Ravi",
+				email: null,
+				orgRole: "staff",
+				hasPin: true,
+				isActive: true,
+				locations: [
+					{ locationId: id(9000), role: "kitchen" },
+					{ locationId: id(9001), role: "kitchen" },
+				],
+			},
+		],
+		locations: structuredClone(DEMO_LOCATIONS),
+		devices: [
+			{
+				id: id(600),
+				locationId: id(9000),
+				name: "Counter iPad",
+				kind: "pos",
+				ticketPrefix: "A",
+				lastSeenAt: "2026-11-17T10:12:00Z",
+				revokedAt: null,
+			},
+			{
+				id: id(601),
+				locationId: id(9000),
+				name: "Kitchen screen",
+				kind: "kds",
+				ticketPrefix: "K",
+				lastSeenAt: "2026-11-17T10:14:00Z",
+				revokedAt: null,
+			},
+		],
 	};
 }
 
-const KEY = "bite.admin.demo.v3";
+const KEY = "bite.admin.demo.v5";
 
 export function fixtureAdminApi(
 	initial: DemoState = demoState(),
@@ -283,12 +363,51 @@ export function fixtureAdminApi(
 			throw new AdminApiError("bad_request", 400);
 	};
 
+	const member = (sid: string) => {
+		const s = state.staff.find((x) => x.id === sid);
+		if (!s) throw new AdminApiError("not_found", 404);
+		return s;
+	};
+	/** Same shape the API returns: a fresh one-time token, valid 7 days. */
+	const issueInvite = (sid: string, email: string): InviteStaffResponse => {
+		const bytes = crypto.getRandomValues(new Uint8Array(32));
+		const inviteToken = btoa(String.fromCharCode(...bytes))
+			.replaceAll("+", "-")
+			.replaceAll("/", "_")
+			.replace(/=+$/, "");
+		state.pendingInvites = { ...state.pendingInvites, [sid]: email };
+		return {
+			staff: clone(member(sid)),
+			inviteToken,
+			expiresAt: new Date(Date.now() + 7 * 86_400_000).toISOString(),
+		};
+	};
+	const checkStaffLocations = (ls: { locationId: string }[]) => {
+		const ids = ls.map((l) => l.locationId);
+		if (
+			new Set(ids).size !== ids.length ||
+			!ids.every((i) => DEMO_ME.locations.some((l) => l.location.id === i))
+		)
+			throw new AdminApiError("bad_request", 400);
+	};
+
 	return {
 		async me() {
-			return clone(DEMO_ME);
+			const me = clone(DEMO_ME);
+			for (const l of me.locations) {
+				const s = state.locations.find((x) => x.id === l.location.id);
+				if (s)
+					l.location = {
+						id: s.id,
+						name: s.name,
+						slug: s.slug,
+						isActive: s.isActive,
+					};
+			}
+			return me;
 		},
 		async locations() {
-			return clone(DEMO_LOCATIONS);
+			return clone(state.locations);
 		},
 		async menu() {
 			return clone(state.menu);
@@ -417,6 +536,156 @@ export function fixtureAdminApi(
 			Object.assign(existing, merged);
 			persist();
 			return clone(existing);
+		},
+		async updateLocation(lid, input) {
+			const l = state.locations.find((x) => x.id === lid);
+			if (!l) throw new AdminApiError("not_found", 404);
+			for (const [k, v] of Object.entries(valid(UpdateLocation, input)))
+				if (v !== undefined) Object.assign(l, { [k]: v });
+			persist();
+			return clone(l);
+		},
+		async devices(lid) {
+			if (!state.locations.some((x) => x.id === lid))
+				throw new AdminApiError("not_found", 404);
+			return clone(state.devices.filter((d) => d.locationId === lid));
+		},
+		async registerDevice(input) {
+			const v = valid(RegisterDeviceRequest, input);
+			if (v.ticketPrefix === "G") throw new AdminApiError("bad_request", 400);
+			if (!state.locations.some((x) => x.id === v.locationId))
+				throw new AdminApiError("not_found", 404);
+			if (
+				state.devices.some(
+					(d) =>
+						d.locationId === v.locationId &&
+						!d.revokedAt &&
+						d.ticketPrefix === v.ticketPrefix,
+				)
+			)
+				throw new AdminApiError("conflict", 409);
+			const deviceId = uuidv7();
+			state.devices.push({
+				id: deviceId,
+				locationId: v.locationId,
+				name: v.name,
+				kind: v.kind,
+				ticketPrefix: v.ticketPrefix,
+				lastSeenAt: null,
+				revokedAt: null,
+			});
+			persist();
+			// Demo only: a real token comes from the API and is shown once.
+			return { deviceId, token: `demo_${deviceId.replaceAll("-", "")}` };
+		},
+		async revokeDevice(did) {
+			const d = state.devices.find((x) => x.id === did);
+			if (!d) throw new AdminApiError("not_found", 404);
+			d.revokedAt ??= new Date().toISOString();
+			persist();
+		},
+		async salesReport(q) {
+			if (!state.locations.some((x) => x.id === q.locationId))
+				throw new AdminApiError("not_found", 404);
+			const orders = demoOrders(q.locationId, state.menu, q.from, q.to);
+			return demoReport(q.locationId, q.from, q.to, orders, state.menu);
+		},
+		async orders(q) {
+			if (!state.locations.some((x) => x.id === q.locationId))
+				throw new AdminApiError("not_found", 404);
+			const rows = demoOrders(q.locationId, state.menu, q.from, q.to)
+				.map((o) => o.row)
+				.filter(
+					(r) =>
+						(!q.paymentStatus || r.paymentStatus === q.paymentStatus) &&
+						(!q.fulfillmentStatus ||
+							r.fulfillmentStatus === q.fulfillmentStatus),
+				)
+				.sort((a, b) => b.placedAt.localeCompare(a.placedAt));
+			const start = q.cursor ? Number.parseInt(q.cursor, 10) : 0;
+			const limit = q.limit ?? 50;
+			const items = rows.slice(start, start + limit);
+			const next = start + limit;
+			return next < rows.length
+				? { items, nextCursor: String(next) }
+				: { items };
+		},
+		async ordersCsv(q) {
+			const { items } = await this.orders({ ...q, limit: 100_000 });
+			return new Blob([ordersCsv(items, 3)], { type: "text/csv" });
+		},
+		async staff() {
+			return clone(state.staff);
+		},
+		async inviteStaff(input) {
+			const v = valid(InviteStaff, input);
+			checkStaffLocations(v.locations);
+			if (
+				state.staff.some(
+					(s) => s.email?.toLowerCase() === v.email.toLowerCase(),
+				)
+			)
+				throw new AdminApiError("conflict", 409);
+			const created: AdminStaff = {
+				id: uuidv7(),
+				displayName: v.displayName,
+				email: v.email,
+				orgRole: v.orgRole,
+				hasPin: false,
+				isActive: true,
+				locations: v.locations,
+			};
+			state.staff.push(created);
+			const res = issueInvite(created.id, v.email);
+			persist();
+			return res;
+		},
+		async reissueInvite(sid) {
+			const s = member(sid);
+			const email = state.pendingInvites?.[sid];
+			if (!email) throw new AdminApiError("conflict", 409);
+			const res = issueInvite(s.id, email);
+			persist();
+			return res;
+		},
+		async createPinStaff(input) {
+			const v = valid(CreatePinStaff, input);
+			checkStaffLocations(v.locations);
+			const created: AdminStaff = {
+				id: uuidv7(),
+				displayName: v.displayName,
+				email: null,
+				orgRole: "staff",
+				hasPin: true,
+				isActive: true,
+				locations: v.locations,
+			};
+			state.staff.push(created);
+			persist();
+			return clone(created);
+		},
+		async updateStaff(sid, input) {
+			const s = member(sid);
+			const v = valid(UpdateStaff, input);
+			if (s.orgRole === "owner" && v.orgRole !== undefined)
+				throw new AdminApiError("forbidden", 403);
+			if (v.locations) checkStaffLocations(v.locations);
+			if (v.displayName !== undefined) s.displayName = v.displayName;
+			if (v.orgRole !== undefined) s.orgRole = v.orgRole;
+			if (v.locations !== undefined) s.locations = v.locations;
+			persist();
+			return clone(s);
+		},
+		async resetPin(sid, pin) {
+			valid(ResetPin, { pin });
+			member(sid).hasPin = true;
+			persist();
+		},
+		async deactivateStaff(sid) {
+			const s = member(sid);
+			if (s.orgRole === "owner") throw new AdminApiError("forbidden", 403);
+			s.isActive = false;
+			persist();
 		},
 	};
 }
