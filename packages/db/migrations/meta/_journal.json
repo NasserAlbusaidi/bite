@@ -57,6 +57,13 @@
 			"when": 1794924710665,
 			"tag": "0007_ticket_counters",
 			"breakpoints": true
+		},
+		{
+			"idx": 8,
+			"version": "7",
+			"when": 1794924890739,
+			"tag": "0008_realtime_notify",
+			"breakpoints": true
 		}
 	]
 }
