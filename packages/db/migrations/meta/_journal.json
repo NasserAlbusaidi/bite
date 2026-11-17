@@ -64,6 +64,13 @@
 			"when": 1794924890739,
 			"tag": "0008_realtime_notify",
 			"breakpoints": true
+		},
+		{
+			"idx": 9,
+			"version": "7",
+			"when": 1794925111987,
+			"tag": "0009_cart_notify",
+			"breakpoints": true
 		}
 	]
 }
