@@ -1,0 +1,48 @@
+name: POS native builds
+on:
+  pull_request:
+    paths:
+      [
+        "apps/pos/**",
+        "packages/core/**",
+        "pnpm-lock.yaml",
+        ".github/workflows/pos-native.yml",
+      ]
+  push:
+    branches: [main]
+    paths: ["apps/pos/**", "packages/core/**", "pnpm-lock.yaml"]
+concurrency:
+  group: pos-native-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: apps/pos } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version-file: .nvmrc, cache: pnpm }
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: "21", cache: gradle }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: pnpm exec cap sync android
+      - run: ./gradlew assembleDebug --no-daemon
+        working-directory: apps/pos/android
+  ios:
+    runs-on: macos-latest
+    defaults: { run: { working-directory: apps/pos } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version-file: .nvmrc, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: pnpm exec cap sync ios
+      - run: >-
+          xcodebuild -project App.xcodeproj -scheme App -configuration Debug
+          -sdk iphonesimulator -destination 'generic/platform=iOS Simulator'
+          CODE_SIGNING_ALLOWED=NO build
+        working-directory: apps/pos/ios/App

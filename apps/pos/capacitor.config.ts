@@ -1,9 +1,8 @@
 import type { CapacitorConfig } from "@capacitor/cli";
 
 /**
- * Android vs iPad is still undecided, so no native project is checked in yet.
- * `pnpm exec cap add android` / `cap add ios` once Nasser picks; nothing in
- * src/ is platform specific outside the driver/transport adapters.
+ * Ships on Android and iPad. Nothing in src/ is platform specific outside the
+ * SQLite driver and the printer bridge. Run `pnpm exec cap sync` after builds.
  */
 const config: CapacitorConfig = {
 	appId: "app.bite.pos",

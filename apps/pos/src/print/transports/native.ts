@@ -1,10 +1,11 @@
 import type { PrinterTransport } from "../printers.js";
 
 /**
- * TCP (port 9100) and Bluetooth need a native Capacitor plugin. Which plugin
- * depends on Android vs iPad (iPad needs MFi or BLE printers; Android can do
- * Bluetooth Classic). Until that's decided this bridge is the seam: register
- * an implementation at startup and the PrintService picks it up.
+ * Seam between PrintService and native code. TCP (port 9100) is implemented
+ * for Android and iOS in plugins/printer-socket (see native-bridge.ts).
+ * Bluetooth is optional because it differs per platform: Classic SPP on
+ * Android, BLE (or MFi) on iPad. LAN printers are the recommended setup since
+ * one printer works with both kinds of tablet.
  */
 export interface NativePrinterBridge {
 	tcpSend(host: string, port: number, bytes: Uint8Array): Promise<void>;

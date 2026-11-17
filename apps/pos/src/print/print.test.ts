@@ -210,3 +210,13 @@ describe("PrintService", () => {
 		});
 	});
 });
+
+describe("toBase64", () => {
+	it("round-trips large binary buffers", async () => {
+		const { toBase64 } = await import("./transports/native-bridge.js");
+		const bytes = new Uint8Array(100_000).map((_, i) => (i * 31) & 0xff);
+		expect(
+			Buffer.from(toBase64(bytes), "base64").equals(Buffer.from(bytes)),
+		).toBe(true);
+	});
+});

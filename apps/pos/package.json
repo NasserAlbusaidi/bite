@@ -12,6 +12,7 @@
 		"cap:sync": "cap sync"
 	},
 	"dependencies": {
+		"@bite/capacitor-printer-socket": "link:plugins/printer-socket",
 		"@bite/core": "workspace:*",
 		"@capacitor-community/sqlite": "^8.1.1",
 		"@capacitor/core": "^8.6.2",
@@ -21,7 +22,9 @@
 		"uuid": "^14.0.3"
 	},
 	"devDependencies": {
+		"@capacitor/android": "^8.6.2",
 		"@capacitor/cli": "^8.6.2",
+		"@capacitor/ios": "^8.6.2",
 		"@types/react": "^19.3.0",
 		"@types/react-dom": "^19.3.0",
 		"@types/sql.js": "^1.4.11",

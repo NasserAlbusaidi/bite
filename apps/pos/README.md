@@ -37,8 +37,8 @@ for a role (`receipt`, `kitchen`). It never throws into the sale flow.
 - ASCII tickets go out as ESC/POS text.
 - Anything with Arabic is drawn on a canvas by the web view (proper shaping
   and RTL) and sent as an ESC/POS raster image.
-- Transports: `console` (dev), `tcp` and `bluetooth` through a
-  `NativePrinterBridge`, implemented once Android vs iPad is decided.
+- Transports: `console` (dev), `tcp` through `NativePrinterBridge`
+  (implemented for both platforms), `bluetooth` not yet.
 - Printing is local (LAN/Bluetooth), so it works with the internet down. This
   replaces the legacy single global PrintNode printer.
 
@@ -50,5 +50,16 @@ for a role (`receipt`, `kitchen`). It never throws into the sale flow.
 ## Commands
 
 `pnpm dev` (browser), `pnpm test`, `pnpm typecheck`, `pnpm build`.
-No native project is checked in yet: `pnpm exec cap add android|ios` once the
-platform is picked.
+
+## Native (Android and iPad, both supported)
+
+- `android/` and `ios/` are Capacitor projects. After changing web code or
+  plugins: `pnpm build && pnpm exec cap sync`. CI builds both
+  (`.github/workflows/pos-native.yml`): Android `assembleDebug`, iOS simulator.
+- `plugins/printer-socket` is our own small Capacitor plugin: raw TCP to
+  port 9100 printers, Java on Android, Network.framework on iOS.
+- iOS asks for Local Network permission the first time it prints
+  (`NSLocalNetworkUsageDescription`).
+- Recommended printers: network (LAN) ESC/POS. They work with both tablet
+  types. Bluetooth is per platform (Classic on Android, BLE/MFi on iPad) and
+  not wired yet.
