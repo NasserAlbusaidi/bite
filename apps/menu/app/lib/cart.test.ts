@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
 	cartReducer,
 	EMPTY_CART,
-	estimateCart,
 	indexMenu,
 	itemCount,
 	lineKey,
@@ -11,6 +10,7 @@ import {
 	validateSelection,
 } from "./cart";
 import { demoMenu } from "./fixtures.server";
+import { clockFor, menuPricing, priceSelection, quoteCart } from "./pricing";
 
 const { menu } = demoMenu();
 const idx = indexMenu(menu);
@@ -115,7 +115,9 @@ describe("modifier validation", () => {
 });
 
 describe("estimates and line inputs", () => {
-	it("sums list price + deltas in integer baisa", () => {
+	it("prices through core: promotion on the base, modifiers on top, VAT included", () => {
+		const pricing = menuPricing(menu);
+		const at = clockFor(pricing, Date.parse("2026-11-17T10:00:00Z"));
 		let c = cartReducer(EMPTY_CART, {
 			type: "add",
 			productId: croissant.id,
@@ -127,8 +129,36 @@ describe("estimates and line inputs", () => {
 			productId: flatWhite.id,
 			modifierOptionIds: [opt(milk, "Oat"), opt(extras, "Extra shot")],
 		});
-		// 3 × 1.200 + (1.600 + 0.300 + 0.400)
-		expect(estimateCart(c, idx)).toBe(3600 + 2300);
+		const q = quoteCart(pricing, c, at);
+		// Croissant 1.200 with 20% pastry promo = 0.960 x 3; flat white 1.600 + 0.300 + 0.400.
+		expect(q.order?.total).toBe(2880 + 2300);
+		expect(q.order?.discountTotal).toBe(720);
+		expect(q.lineAt(0)?.lineGross).toBe(2880);
+		expect(q.badIndexes.size).toBe(0);
+		expect(
+			priceSelection(pricing, flatWhite.id, [opt(milk, "Oat")], 2, at)?.total,
+		).toBe(3800);
+	});
+
+	it("leaves sold-out lines out of the total and reports them", () => {
+		const pricing = menuPricing(menu);
+		const at = clockFor(pricing, Date.parse("2026-11-17T10:00:00Z"));
+		const rye = menu.products.find((p) => !p.isAvailable)!;
+		let c = cartReducer(EMPTY_CART, {
+			type: "add",
+			productId: rye.id,
+			modifierOptionIds: [],
+		});
+		c = cartReducer(c, {
+			type: "add",
+			productId: croissant.id,
+			modifierOptionIds: [],
+		});
+		const q = quoteCart(pricing, c, at);
+		expect([...q.badIndexes]).toEqual([0]);
+		expect(q.order?.total).toBe(960);
+		expect(q.lineAt(0)).toBeUndefined();
+		expect(q.lineAt(1)?.lineGross).toBe(960);
 	});
 
 	it("sends no prices and gives each line a fresh id mapped back to its key", () => {

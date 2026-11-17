@@ -22,7 +22,8 @@ describe("fixture api", () => {
 		const a = await api.placeOrder(req, key);
 		const b = await api.placeOrder(req, key);
 		expect(b.trackingToken).toBe(a.trackingToken);
-		expect(a.total).toBe(2400);
+		expect(a.total).toBe(1920); // 2 x 1.200 less the 20% pastry promotion
+		expect(a.discountTotal).toBe(480);
 		await expect(
 			api.placeOrder({ ...req, customerName: "Sara" }, key),
 		).rejects.toMatchObject({

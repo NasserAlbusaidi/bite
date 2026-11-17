@@ -3,6 +3,7 @@ import type { AppEnv, Deps } from "./env.js";
 import { notFound, onError } from "./lib/errors.js";
 import { deviceRoutes } from "./routes/device.js";
 import { publicRoutes } from "./routes/public.js";
+import { realtimeRoutes } from "./routes/realtime.js";
 import { syncRoutes } from "./routes/sync.js";
 
 export function createApp(deps: Deps) {
@@ -14,6 +15,7 @@ export function createApp(deps: Deps) {
 		.get("/health", (c) => c.json({ ok: true }))
 		.route("/v1/device", deviceRoutes)
 		.route("/v1/public", publicRoutes)
+		.route("/v1/realtime", realtimeRoutes)
 		.route("/v1", syncRoutes);
 	app.onError(onError);
 	app.notFound(notFound);

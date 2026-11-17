@@ -1,11 +1,14 @@
 import type { Db } from "@bite/db";
 import type { PinLimiter } from "./lib/pin-limiter.js";
+import type { RealtimeHub } from "./realtime/hub.js";
 
 export type Deps = {
 	db: Db;
 	/** HMAC key for staff tokens. >= 32 bytes. */
 	staffTokenSecret: string;
 	pinLimiter: PinLimiter;
+	/** Absent in unit tests that don't need it. */
+	realtime?: RealtimeHub;
 	now?: () => Date;
 };
 

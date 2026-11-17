@@ -15,7 +15,8 @@ export const RealtimeEvent = z.discriminatedUnion("type", [
 		paymentStatus: PaymentStatus,
 		fulfillmentStatus: FulfillmentStatus,
 	}),
-	z.object({ type: z.literal("menu.changed"), menuVersion: z.string() }),
+	/** Pull (or refetch the menu) to get the new menuVersion. */
+	z.object({ type: z.literal("menu.changed") }),
 	z.object({ type: z.literal("device.revoked"), deviceId: Id }),
 ]);
 export type RealtimeEvent = z.infer<typeof RealtimeEvent>;
