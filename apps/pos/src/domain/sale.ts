@@ -20,6 +20,7 @@ import {
 import type { SqlDriver } from "../db/driver.js";
 import { enqueue } from "../sync/outbox.js";
 import { newId } from "./ids.js";
+import { recordPayment } from "./ledger.js";
 import type { PricedMenu } from "./menu.js";
 import { nextTicketNumber } from "./tickets.js";
 
@@ -178,12 +179,27 @@ export async function commitSale(
 				}),
 			} as AddPayment;
 			payments.push(p);
-			await enqueue(tx, {
+			const m = await enqueue(tx, {
 				kind: "order.addPayment",
 				entityId: orderId,
 				memberId: input.memberId,
 				payload: p,
 				now: new Date(input.at),
+			});
+			await recordPayment(tx, {
+				id: p.id,
+				orderId,
+				outboxId: m.id,
+				amount: p.amount,
+				tip: p.tip,
+				tendered: p.tendered ?? null,
+				method: p.method,
+				sessionId: input.cashSessionId,
+				reversesPaymentId: null,
+				reason: null,
+				memberId: input.memberId,
+				businessDate: day,
+				createdAt: placedAt,
 			});
 		}
 

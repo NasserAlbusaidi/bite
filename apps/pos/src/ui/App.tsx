@@ -12,6 +12,7 @@ import { connectRealtime } from "../sync/realtime.js";
 import { KdsShell } from "./KdsShell.js";
 import { LockScreen } from "./LockScreen.js";
 import { PairScreen } from "./PairScreen.js";
+import { ProblemsSheet } from "./ProblemsSheet.js";
 import { createPrintService } from "./printing.js";
 import { SettingsSheet } from "./SettingsSheet.js";
 import { SyncBadge } from "./SyncBadge.js";
@@ -83,6 +84,7 @@ function PairedApp(props: {
 	} | null>(null);
 	const [member, setMember] = useState<StaffMember | null>(null);
 	const [settings, setSettings] = useState(false);
+	const [problems, setProblems] = useState(false);
 	const { t, lang, setLang } = useI18n();
 
 	const { onUnpair } = props;
@@ -127,7 +129,7 @@ function PairedApp(props: {
 					<strong>{paired.device.name}</strong>
 					<span className="muted">{member.displayName}</span>
 					<span className="spacer" />
-					<SyncBadge db={db} sync={sync} />
+					<SyncBadge db={db} sync={sync} onOpen={() => setProblems(true)} />
 					<button
 						type="button"
 						onClick={() => setLang(lang === "en" ? "ar" : "en")}
@@ -144,6 +146,7 @@ function PairedApp(props: {
 				<main className="main-full">
 					{paired.device.kind === "kds" ? <KdsShell /> : <TillScreen />}
 				</main>
+				{problems && <ProblemsSheet onClose={() => setProblems(false)} />}
 				{settings && (
 					<SettingsSheet
 						holder={print.holder}

@@ -82,6 +82,53 @@ CREATE TABLE staff (
 );
 `,
 	},
+	{
+		version: 3,
+		sql: `
+-- Payments and refunds this tablet recorded, so it can refund them later and
+-- add up its own drawer. The pulled Order carries no payments, so this is the
+-- only ledger the tablet has. outbox_id ties a row to the mutation that sent
+-- it: a row whose mutation was rejected never happened on the server.
+CREATE TABLE payments (
+	id                  TEXT PRIMARY KEY,
+	order_id            TEXT NOT NULL,
+	outbox_id           TEXT NOT NULL,
+	amount              INTEGER NOT NULL,                -- negative = refund
+	tip                 INTEGER NOT NULL DEFAULT 0,
+	tendered            INTEGER,
+	method              TEXT NOT NULL,
+	session_id          TEXT,                            -- drawer open on this tablet at the time, any method
+	reverses_payment_id TEXT,
+	reason              TEXT,
+	member_id           TEXT NOT NULL,
+	business_date       TEXT NOT NULL,
+	created_at          TEXT NOT NULL
+);
+CREATE INDEX payments_order ON payments (order_id);
+CREATE INDEX payments_session ON payments (session_id);
+
+CREATE TABLE cash_movements (
+	id          TEXT PRIMARY KEY,
+	session_id  TEXT NOT NULL,
+	outbox_id   TEXT NOT NULL,
+	kind        TEXT NOT NULL CHECK (kind IN ('pay_in','pay_out','drop')),
+	amount      INTEGER NOT NULL,
+	reason      TEXT NOT NULL,
+	member_id   TEXT NOT NULL,
+	created_at  TEXT NOT NULL
+);
+CREATE INDEX cash_movements_session ON cash_movements (session_id);
+
+ALTER TABLE cash_sessions ADD COLUMN closed_by TEXT;
+ALTER TABLE cash_sessions ADD COLUMN counted_cash INTEGER;
+ALTER TABLE cash_sessions ADD COLUMN expected_cash INTEGER;
+
+-- A rejected change a manager has looked at and set aside. It stays in the
+-- outbox (and keeps blocking later changes to the same record) but stops
+-- nagging in the sync badge.
+ALTER TABLE outbox ADD COLUMN dismissed_at TEXT;
+`,
+	},
 ];
 
 export async function migrate(db: SqlDriver): Promise<number> {

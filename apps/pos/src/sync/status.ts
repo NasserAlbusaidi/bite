@@ -5,7 +5,7 @@ export type SyncCounts = { pending: number; attention: number };
 /** What the sync badge shows: queued rows, and rows a human must look at. */
 export async function syncCounts(db: SqlExecutor): Promise<SyncCounts> {
 	const rows = await db.all<{ status: string; n: number }>(
-		"SELECT status, COUNT(*) AS n FROM outbox WHERE status != 'applied' GROUP BY status",
+		"SELECT status, COUNT(*) AS n FROM outbox WHERE status != 'applied' AND dismissed_at IS NULL GROUP BY status",
 	);
 	let pending = 0;
 	let attention = 0;

@@ -159,14 +159,14 @@ export class Replayer {
 	}
 }
 
-/** Park pending rows that sit behind a rejected/blocked row of the same entity. */
+/** Park pending rows that sit behind a rejected/blocked row of the same entity. A rejection a manager set aside no longer blocks. */
 async function blockOrphans(tx: SqlExecutor): Promise<number> {
 	const rows = await tx.all<{ seq: number }>(
 		`SELECT p.seq FROM outbox p
 		 WHERE p.status = 'pending' AND EXISTS (
 			SELECT 1 FROM outbox r
 			WHERE r.entity_id = p.entity_id AND r.seq < p.seq
-			  AND r.status IN ('rejected', 'blocked'))`,
+			  AND (r.status = 'blocked' OR (r.status = 'rejected' AND r.dismissed_at IS NULL)))`,
 	);
 	for (const { seq } of rows) {
 		await tx.run(
