@@ -28,8 +28,15 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
       - run: pnpm exec cap sync android
-      - run: ./gradlew assembleDebug --no-daemon
+      # Maven Central rate-limits shared runner IPs (HTTP 429). Let Gradle back off
+      # longer than its default 3 tries, then one more full attempt after a pause.
+      - name: assembleDebug
         working-directory: apps/pos/android
+        env:
+          GRADLE_OPTS: >-
+            -Dorg.gradle.internal.repository.max.retries=8
+            -Dorg.gradle.internal.repository.initial.backoff=2000
+        run: ./gradlew assembleDebug --no-daemon || (sleep 90 && ./gradlew assembleDebug --no-daemon)
   ios:
     runs-on: macos-latest
     defaults: { run: { working-directory: apps/pos } }
