@@ -71,6 +71,20 @@
 			"when": 1794925111987,
 			"tag": "0009_cart_notify",
 			"breakpoints": true
+		},
+		{
+			"idx": 10,
+			"version": "7",
+			"when": 1794925963867,
+			"tag": "0010_auth_tables",
+			"breakpoints": true
+		},
+		{
+			"idx": 11,
+			"version": "7",
+			"when": 1794925964813,
+			"tag": "0011_auth_memberships_fn",
+			"breakpoints": true
 		}
 	]
 }

@@ -20,9 +20,56 @@ import { openStream } from "./sse.js";
  */
 type Case = (h: Harness) => Promise<void>;
 
-const PUBLIC_ROUTES = new Set(["GET /health"]);
+/** Not tenant-scoped: health, and Better Auth identity endpoints (no org data). */
+const PUBLIC_ROUTES = new Set([
+	"GET /health",
+	"GET /v1/auth/*",
+	"POST /v1/auth/*",
+]);
 
 const cases: Record<string, Case> = {
+	"GET /v1/admin/me": async (h) => {
+		// B's owner aims at A's org: refused, and nothing of A comes back.
+		const res = await h.app.request("/v1/admin/me", {
+			headers: { ...h.logins.B.owner, "x-org-id": h.A.org },
+		});
+		expect(res.status).toBe(403);
+		const text = await res.text();
+		for (const id of [h.A.org, h.A.loc]) expect(text).not.toContain(id);
+		const own = await h.app.request("/v1/admin/me", {
+			headers: h.logins.B.owner,
+		});
+		const body = await own.text();
+		expect(body).toContain(h.B.org);
+		for (const id of [h.A.org, h.A.loc, h.A.otherLoc])
+			expect(body).not.toContain(id);
+	},
+	"GET /v1/account/orgs": async (h) => {
+		const res = await h.app.request("/v1/account/orgs", {
+			headers: h.logins.B.owner,
+		});
+		const body = (await res.json()) as { items: { id: string }[] };
+		expect(body.items.map((o) => o.id)).toEqual([h.B.org]);
+	},
+	"POST /v1/account/orgs": async (h) => {
+		// Onboarding can't take over A: ids are server-minted, A's slugs collide.
+		const res = await h.app.request(
+			"/v1/account/orgs",
+			json(
+				{
+					orgName: "Hijack",
+					orgSlug: "hijack-org",
+					locationName: "x",
+					locationSlug: "a-main",
+				},
+				h.logins.B.owner,
+			),
+		);
+		expect(res.status).toBe(409);
+		const owners = await h.owner<{ n: number }[]>`
+			select count(*)::int as n from members where org_id = ${h.A.org} and org_role = 'owner'`;
+		expect(owners[0]?.n).toBe(1);
+	},
 	"GET /v1/device/me": async (h) => {
 		const res = await h.app.request("/v1/device/me", { headers: bearer(h.B) });
 		const body = (await res.json()) as { orgId: string };
