@@ -104,7 +104,7 @@ function writeEnvFiles() {
 	);
 	writeIfMissing(
 		root("apps/menu/.env"),
-		`BITE_API_URL=http://localhost:${API_PORT}\n`,
+		`BITE_API_URL=http://localhost:${API_PORT}\nBITE_ADMIN_URL=http://localhost:${ADMIN_PORT}\n`,
 	);
 }
 

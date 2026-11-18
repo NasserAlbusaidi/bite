@@ -1,7 +1,9 @@
 import { index, type RouteConfig, route } from "@react-router/dev/routes";
 
 export default [
-	index("routes/index.tsx"),
+	// The bare domain is Bite's own page, in English and Arabic.
+	index("routes/landing.tsx"),
+	route("ar", "routes/landing.tsx", { id: "landing-ar" }),
 	route(":slug", "routes/lang-redirect.tsx"),
 	// Shared group links carry no language, so each guest gets their own.
 	route(":slug/group/:token", "routes/lang-redirect.tsx", {

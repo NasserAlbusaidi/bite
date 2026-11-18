@@ -8,6 +8,7 @@ import {
 	Outlet,
 	Scripts,
 	ScrollRestoration,
+	useLocation,
 	useMatches,
 	useParams,
 	useRouteError,
@@ -18,7 +19,10 @@ import "./styles.css";
 
 function useLang(): Lang {
 	const { lang } = useParams();
-	return isLang(lang) ? lang : "en";
+	const { pathname } = useLocation();
+	if (isLang(lang)) return lang;
+	// Bite's own page in Arabic is the one address with no :lang in it.
+	return pathname === "/ar" || pathname === "/ar/" ? "ar" : "en";
 }
 
 /** The shop's brand colour, from whichever route loaded the location. */
