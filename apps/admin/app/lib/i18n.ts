@@ -208,9 +208,26 @@ const en = {
 	device_name: "Name",
 	device_name_ph: "Counter iPad",
 	register_device: "Add device",
-	device_token_title: "Token for {name}",
-	device_token_hint:
-		"Enter this on the device now. It's shown once and can't be recovered; if you lose it, revoke and add the device again.",
+	pair_title: "Pair {name}",
+	pair_qr_alt: "Pairing code for the tablet",
+	pair_step_open: "Open the Bite app on the tablet.",
+	pair_step_scan:
+		"Tap Scan pairing code and point the camera at this code. Or copy the code and paste it there.",
+	pair_once:
+		"This code is shown once. If you leave before pairing, revoke the device and add it again.",
+	copy_pairing_code: "Copy pairing code",
+	pair_manual: "Type it in by hand instead",
+	pair_server: "Server address",
+	pair_token: "Device token",
+	guest_qr: "QR code for guests",
+	guest_qr_alt: "QR code that opens this location's menu",
+	guest_qr_hint:
+		"Guests scan this to open the menu and order. One code works in Arabic and English, and it never changes, so print it once.",
+	guest_qr_unset:
+		"The guest menu's address isn't configured for this back office yet (VITE_MENU_URL), so there is no code to show.",
+	print_table_card: "Print table card",
+	download_svg: "Download QR",
+	copy_link: "Copy link",
 	copy: "Copy",
 	copied: "Copied",
 	owner_admin_only: "Only the owner or an admin can change these.",
@@ -516,9 +533,26 @@ const ar: Record<MessageKey, string> = {
 	device_name: "الاسم",
 	device_name_ph: "آيباد الكاشير",
 	register_device: "إضافة جهاز",
-	device_token_title: "رمز {name}",
-	device_token_hint:
-		"أدخل هذا الرمز على الجهاز الآن. يظهر مرة واحدة فقط ولا يمكن استرجاعه؛ إذا فقدته، ألغِ الجهاز وأضفه من جديد.",
+	pair_title: "ربط {name}",
+	pair_qr_alt: "رمز ربط الجهاز",
+	pair_step_open: "افتح تطبيق بايت على الجهاز.",
+	pair_step_scan:
+		"اضغط «مسح رمز الربط» ووجّه الكاميرا إلى هذا الرمز. أو انسخ الرمز والصقه هناك.",
+	pair_once:
+		"يظهر هذا الرمز مرة واحدة. إذا غادرت قبل الربط، ألغِ الجهاز وأضفه من جديد.",
+	copy_pairing_code: "نسخ رمز الربط",
+	pair_manual: "الإدخال يدوياً بدلاً من ذلك",
+	pair_server: "عنوان الخادم",
+	pair_token: "رمز الجهاز",
+	guest_qr: "رمز QR للزبائن",
+	guest_qr_alt: "رمز QR يفتح قائمة هذا الفرع",
+	guest_qr_hint:
+		"يمسحه الزبائن لفتح القائمة والطلب. رمز واحد يعمل بالعربية والإنجليزية ولا يتغير، فاطبعه مرة واحدة.",
+	guest_qr_unset:
+		"عنوان قائمة الزبائن غير مضبوط لهذه اللوحة بعد (VITE_MENU_URL)، لذا لا يوجد رمز لعرضه.",
+	print_table_card: "طباعة بطاقة الطاولة",
+	download_svg: "تنزيل رمز QR",
+	copy_link: "نسخ الرابط",
 	copy: "نسخ",
 	copied: "تم النسخ",
 	owner_admin_only: "فقط المالك أو المسؤول يمكنه تغيير هذه الإعدادات.",

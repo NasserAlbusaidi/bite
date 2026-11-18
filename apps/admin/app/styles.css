@@ -521,3 +521,96 @@ fieldset.bare {
 .table tbody tr:hover td {
 	background: var(--surface-sunken);
 }
+
+/* ---- QR codes: tablet pairing and the guest menu ---- */
+.qr-row {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-4);
+	align-items: flex-start;
+}
+.qr-row > svg {
+	flex: none;
+	border-radius: var(--radius-sm);
+	border: 1px solid var(--line);
+}
+.qr-row__body {
+	flex: 1 1 240px;
+	display: grid;
+	gap: var(--space-2);
+	min-inline-size: 0;
+}
+.qr-row__body p {
+	margin: 0;
+}
+.qr-row code {
+	font-family: var(--font-mono);
+	font-size: var(--fs-sm);
+	word-break: break-all;
+	user-select: all;
+}
+.steps {
+	margin: 0;
+	padding-inline-start: var(--space-5);
+	display: grid;
+	gap: var(--space-1);
+}
+.token details > * + * {
+	margin-block-start: var(--space-1);
+}
+.token details p {
+	margin-block-end: 0;
+}
+
+/* The table card exists only on paper. */
+.table-card {
+	display: none;
+}
+@media print {
+	@page {
+		margin: 12mm;
+	}
+	/* Print the table card and nothing else, on one page. */
+	.topbar,
+	.sidenav,
+	.demo,
+	.content > :not(.card--print),
+	.card--print > :not(.table-card) {
+		display: none;
+	}
+	.app,
+	.content,
+	.card--print {
+		display: block;
+		margin: 0;
+		padding: 0;
+		border: 0;
+		box-shadow: none;
+		background: #fff;
+	}
+	.table-card {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 4mm;
+		padding-block-start: 6mm;
+		text-align: center;
+		color: #000;
+	}
+	.table-card__name {
+		font-size: 22pt;
+		line-height: 1.15;
+	}
+	.table-card__cta {
+		font-size: 14pt;
+		font-weight: 600;
+	}
+	.table-card__qr {
+		inline-size: 62mm;
+		block-size: 62mm;
+	}
+	.table-card__url {
+		font-family: var(--font-mono);
+		font-size: 8pt;
+	}
+}

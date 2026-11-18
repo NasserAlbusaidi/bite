@@ -90,7 +90,18 @@ function writeEnvFiles() {
 	);
 	// The admin dev server proxies /v1 to the API, so the API is same-origin
 	// ("/") and the session cookie needs no cross-site settings.
-	writeIfMissing(root("apps/admin/.env.local"), "VITE_API_URL=/\n");
+	// VITE_PAIRING_API_URL: what the tablet-pairing QR points at. In dev the
+	// POS can only reach the API through its own https dev server.
+	const posHost = lanIps()[0] ?? "localhost";
+	writeIfMissing(
+		root("apps/admin/.env.local"),
+		[
+			"VITE_API_URL=/",
+			`VITE_MENU_URL=http://${posHost}:${MENU_PORT}`,
+			`VITE_PAIRING_API_URL=https://${posHost}:${POS_PORT}`,
+			"",
+		].join("\n"),
+	);
 	writeIfMissing(
 		root("apps/menu/.env"),
 		`BITE_API_URL=http://localhost:${API_PORT}\n`,

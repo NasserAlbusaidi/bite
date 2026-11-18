@@ -1,9 +1,13 @@
+import { encodePairingCode } from "@bite/contracts";
+import { Logo } from "@bite/ui";
 import { useState } from "react";
 import { data, Form, useFetcher, useNavigation } from "react-router";
-import { adminApi } from "../lib/api";
+import { QrCode, qrSvg } from "../components/QrCode";
+import { adminApi, isDemo } from "../lib/api";
 import { AdminApiError } from "../lib/api-types";
 import type { AdminDevice } from "../lib/contracts";
 import type { MessageKey } from "../lib/i18n";
+import { guestMenuUrl, pairingServerUrl } from "../lib/links";
 import {
 	locationFormDefaults,
 	parseLocationForm,
@@ -300,8 +304,87 @@ export default function LocationSettings({
 					{saved && !busy && <span className="muted small">{t("saved")}</span>}
 				</div>
 			</Form>
+			<GuestQr name={location.name} slug={location.slug} />
 			<Devices devices={devices} />
 		</>
+	);
+}
+
+/**
+ * The QR code guests scan to open this location's menu, with a printable
+ * table card. The address never carries a language, so one sticker serves
+ * Arabic and English guests.
+ */
+function GuestQr({ name, slug }: { name: string; slug: string }) {
+	const { t } = useShell();
+	const [copied, setCopied] = useState(false);
+	// Demo data has no real menu behind it: show a sample address.
+	const url =
+		guestMenuUrl(slug) ?? (isDemo() ? `https://menu.example/${slug}` : null);
+	if (!url)
+		return (
+			<section className="card">
+				<h2>{t("guest_qr")}</h2>
+				<p className="muted small">{t("guest_qr_unset")}</p>
+			</section>
+		);
+	const download = () => {
+		const a = document.createElement("a");
+		a.href = URL.createObjectURL(
+			new Blob([qrSvg(url)], { type: "image/svg+xml" }),
+		);
+		a.download = `${slug}-menu-qr.svg`;
+		a.click();
+		setTimeout(() => URL.revokeObjectURL(a.href), 10_000);
+	};
+	return (
+		<section className="card card--print">
+			<h2>{t("guest_qr")}</h2>
+			<div className="qr-row">
+				<QrCode value={url} size={148} label={t("guest_qr_alt")} />
+				<div className="qr-row__body">
+					<p className="muted small">{t("guest_qr_hint")}</p>
+					<code dir="ltr">{url}</code>
+					<div className="actions-row">
+						<button
+							type="button"
+							className="btn btn--primary"
+							onClick={() => window.print()}
+						>
+							{t("print_table_card")}
+						</button>
+						<button type="button" className="btn" onClick={download}>
+							{t("download_svg")}
+						</button>
+						<button
+							type="button"
+							className="btn"
+							onClick={() => {
+								navigator.clipboard?.writeText(url).then(
+									() => setCopied(true),
+									() => setCopied(false),
+								);
+							}}
+						>
+							{copied ? t("copied") : t("copy_link")}
+						</button>
+					</div>
+				</div>
+			</div>
+			{/* Only this card prints (see @media print in styles.css). Both languages on one card. */}
+			<div className="table-card" aria-hidden="true">
+				<strong className="table-card__name">{name}</strong>
+				<span className="table-card__cta">Scan to order</span>
+				<span className="table-card__cta" lang="ar" dir="rtl">
+					امسح الرمز للطلب
+				</span>
+				<QrCode value={url} size={260} label="" className="table-card__qr" />
+				<span className="table-card__url" dir="ltr">
+					{url.replace(/^https?:\/\//, "")}
+				</span>
+				<Logo height={18} />
+			</div>
+		</section>
 	);
 }
 
@@ -359,7 +442,6 @@ function Devices({ devices }: { devices: AdminDevice[] }) {
 	const { t, lang } = useShell();
 	const reg = useFetcher<typeof clientAction>();
 	const revoker = useFetcher();
-	const [copied, setCopied] = useState(false);
 	const res = reg.data && reg.data.intent === "register" ? reg.data : undefined;
 	const token = res && "token" in res ? res.token : undefined;
 	const errors: Errors = res && "errors" in res ? (res.errors ?? {}) : {};
@@ -420,27 +502,10 @@ function Devices({ devices }: { devices: AdminDevice[] }) {
 			</table>
 
 			{token ? (
-				<div className="token" role="status">
-					<strong>
-						{t("device_token_title", {
-							name: res && "deviceName" in res ? res.deviceName : "",
-						})}
-					</strong>
-					<p className="small">{t("device_token_hint")}</p>
-					<code dir="ltr">{token}</code>
-					<button
-						type="button"
-						className="btn"
-						onClick={() => {
-							navigator.clipboard?.writeText(token).then(
-								() => setCopied(true),
-								() => setCopied(false),
-							);
-						}}
-					>
-						{copied ? t("copied") : t("copy")}
-					</button>
-				</div>
+				<PairingPanel
+					token={token}
+					deviceName={res && "deviceName" in res ? res.deviceName : ""}
+				/>
 			) : (
 				<reg.Form method="post" className="inline-form">
 					<input type="hidden" name="intent" value="register" />
@@ -493,5 +558,57 @@ function Devices({ devices }: { devices: AdminDevice[] }) {
 				</reg.Form>
 			)}
 		</section>
+	);
+}
+
+/**
+ * Shown once, right after a device is added: a QR the tablet scans to pair
+ * (API address + token in one code), with copy and the bare token as fallbacks.
+ */
+function PairingPanel({
+	token,
+	deviceName,
+}: {
+	token: string;
+	deviceName: string;
+}) {
+	const { t } = useShell();
+	const [copied, setCopied] = useState(false);
+	const code = encodePairingCode({ serverUrl: pairingServerUrl(), token });
+	return (
+		<div className="token" role="status">
+			<strong>{t("pair_title", { name: deviceName })}</strong>
+			<div className="qr-row">
+				<QrCode value={code} size={196} label={t("pair_qr_alt")} />
+				<div className="qr-row__body">
+					<ol className="steps small">
+						<li>{t("pair_step_open")}</li>
+						<li>{t("pair_step_scan")}</li>
+					</ol>
+					<p className="small strong">{t("pair_once")}</p>
+					<div className="actions-row">
+						<button
+							type="button"
+							className="btn"
+							onClick={() => {
+								navigator.clipboard?.writeText(code).then(
+									() => setCopied(true),
+									() => setCopied(false),
+								);
+							}}
+						>
+							{copied ? t("copied") : t("copy_pairing_code")}
+						</button>
+					</div>
+					<details className="small">
+						<summary>{t("pair_manual")}</summary>
+						<p className="muted">{t("pair_server")}</p>
+						<code dir="ltr">{pairingServerUrl()}</code>
+						<p className="muted">{t("pair_token")}</p>
+						<code dir="ltr">{token}</code>
+					</details>
+				</div>
+			</div>
+		</div>
 	);
 }
