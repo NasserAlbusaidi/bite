@@ -10,10 +10,13 @@ import {
 	type AdminLocationSettings,
 	type AdminMe,
 	type AdminMenu,
+	type AdminModifierGroup,
 	type AdminProduct,
 	type AdminPromotion,
 	type AdminStaff,
 	CreateCategory,
+	CreateModifierGroup,
+	CreateModifierOption,
 	CreatePinStaff,
 	CreateProduct,
 	CreatePromotion,
@@ -25,6 +28,8 @@ import {
 	SetLocationProduct,
 	UpdateCategory,
 	UpdateLocation,
+	UpdateModifierGroup,
+	UpdateModifierOption,
 	UpdateProduct,
 	UpdatePromotion,
 	UpdateStaff,
@@ -327,6 +332,15 @@ export function fixtureAdminApi(
 		if (!p) throw new AdminApiError("not_found", 404);
 		return p;
 	};
+	const group = (gid: string) => {
+		const g = state.menu.modifierGroups.find((x) => x.id === gid);
+		if (!g) throw new AdminApiError("not_found", 404);
+		return g;
+	};
+	const defined = <T extends object>(o: T) =>
+		Object.fromEntries(
+			Object.entries(o).filter(([, v]) => v !== undefined),
+		) as Partial<T>;
 	const checkRefs = (p: {
 		categoryId?: string | undefined;
 		modifierGroupIds?: string[] | undefined;
@@ -465,6 +479,48 @@ export function fixtureAdminApi(
 				if (v !== undefined) Object.assign(c, { [k]: v });
 			persist();
 			return clone(c);
+		},
+		async createModifierGroup(input) {
+			const v = valid(CreateModifierGroup, input);
+			const g: AdminModifierGroup = { id: uuidv7(), ...v, options: [] };
+			state.menu.modifierGroups.push(g);
+			persist();
+			return clone(g);
+		},
+		async updateModifierGroup(gid, input) {
+			const g = group(gid);
+			const v = valid(UpdateModifierGroup, input);
+			const next = {
+				name: v.name ?? g.name,
+				minSelect: v.minSelect ?? g.minSelect,
+				maxSelect: v.maxSelect ?? g.maxSelect,
+			};
+			if (next.maxSelect < next.minSelect)
+				throw new AdminApiError("bad_request", 400);
+			Object.assign(g, next);
+			persist();
+			return clone(g);
+		},
+		async createModifierOption(gid, input) {
+			const g = group(gid);
+			const v = valid(CreateModifierOption, input);
+			g.options.push({
+				id: uuidv7(),
+				name: v.name,
+				priceDelta: v.priceDelta ?? 0,
+				sortOrder: v.sortOrder ?? g.options.length,
+				isAvailable: v.isAvailable ?? true,
+			});
+			persist();
+			return clone(g);
+		},
+		async updateModifierOption(gid, oid, input) {
+			const g = group(gid);
+			const o = g.options.find((x) => x.id === oid);
+			if (!o) throw new AdminApiError("not_found", 404);
+			Object.assign(o, defined(valid(UpdateModifierOption, input)));
+			persist();
+			return clone(g);
 		},
 		async locationProducts(locationId) {
 			if (!DEMO_ME.locations.some((l) => l.location.id === locationId))

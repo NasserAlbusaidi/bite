@@ -116,6 +116,9 @@ export default function Shell({ loaderData }: Route.ComponentProps) {
 			</header>
 			{demo && <p className="demo">{t("demo_banner")}</p>}
 			<nav className="sidenav" aria-label="Main">
+				<NavLink to="/" end>
+					{t("overview")}
+				</NavLink>
 				<NavLink to="/menu">{t("menu")}</NavLink>
 				{locationId && (
 					<NavLink to={`/locations/${locationId}/menu`}>

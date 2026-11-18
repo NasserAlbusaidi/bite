@@ -4,12 +4,15 @@ import type {
 	AdminLocationSettings,
 	AdminMe,
 	AdminMenu,
+	AdminModifierGroup,
 	AdminOrderRow,
 	AdminOrdersQuery,
 	AdminProduct,
 	AdminPromotion,
 	AdminStaff,
 	CreateCategory,
+	CreateModifierGroup,
+	CreateModifierOption,
 	CreatePinStaff,
 	CreateProduct,
 	CreatePromotion,
@@ -23,6 +26,8 @@ import type {
 	SetLocationProduct,
 	UpdateCategory,
 	UpdateLocation,
+	UpdateModifierGroup,
+	UpdateModifierOption,
 	UpdateProduct,
 	UpdatePromotion,
 	UpdateStaff,
@@ -47,6 +52,21 @@ export interface AdminApi {
 	archiveProduct(id: string): Promise<void>;
 	createCategory(c: CreateCategory): Promise<AdminCategory>;
 	updateCategory(id: string, c: UpdateCategory): Promise<AdminCategory>;
+	createModifierGroup(g: CreateModifierGroup): Promise<AdminModifierGroup>;
+	updateModifierGroup(
+		id: string,
+		g: UpdateModifierGroup,
+	): Promise<AdminModifierGroup>;
+	/** Option calls answer with the whole group, like the API. */
+	createModifierOption(
+		groupId: string,
+		o: CreateModifierOption,
+	): Promise<AdminModifierGroup>;
+	updateModifierOption(
+		groupId: string,
+		optionId: string,
+		o: UpdateModifierOption,
+	): Promise<AdminModifierGroup>;
 	locationProducts(locationId: string): Promise<LocationProduct[]>;
 	setLocationProduct(
 		locationId: string,
