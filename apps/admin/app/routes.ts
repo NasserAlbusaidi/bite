@@ -13,6 +13,8 @@ export default [
 		index("routes/home.tsx"),
 		route("menu", "routes/menu.tsx"),
 		route("menu/products/:productId", "routes/product.tsx"),
+		route("menu/modifiers", "routes/modifiers.tsx"),
+		route("menu/modifiers/:groupId", "routes/modifier-group.tsx"),
 		route("locations/:locationId/menu", "routes/location-menu.tsx"),
 		route("locations/:locationId/settings", "routes/location-settings.tsx"),
 		route("promotions", "routes/promotions.tsx"),

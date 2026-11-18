@@ -111,6 +111,22 @@ export function httpAdminApi(
 		createCategory: (c) => call(AdminCategory, "/categories", send("POST", c)),
 		updateCategory: (id, c) =>
 			call(AdminCategory, `/categories/${enc(id)}`, send("PATCH", c)),
+		createModifierGroup: (g) =>
+			call(AdminModifierGroup, "/modifier-groups", send("POST", g)),
+		updateModifierGroup: (id, g) =>
+			call(AdminModifierGroup, `/modifier-groups/${enc(id)}`, send("PATCH", g)),
+		createModifierOption: (groupId, o) =>
+			call(
+				AdminModifierGroup,
+				`/modifier-groups/${enc(groupId)}/options`,
+				send("POST", o),
+			),
+		updateModifierOption: (groupId, optionId, o) =>
+			call(
+				AdminModifierGroup,
+				`/modifier-groups/${enc(groupId)}/options/${enc(optionId)}`,
+				send("PATCH", o),
+			),
 		locationProducts: (locationId) =>
 			all(LocationProduct, `/locations/${enc(locationId)}/products`),
 		setLocationProduct: async (locationId, productId, s) => {

@@ -1,6 +1,7 @@
 import { data, Form, Link, redirect, useNavigation } from "react-router";
 import { adminApi } from "../lib/api";
 import { loc } from "../lib/i18n";
+import { ruleLabel } from "../lib/modifier-form";
 import { catalogPowers } from "../lib/permissions";
 import { loadPlaces } from "../lib/places";
 import { parseProductForm, productFormDefaults } from "../lib/product-form";
@@ -196,10 +197,14 @@ export default function ProductPage({
 					</label>
 				</div>
 
-				{menu.modifierGroups.length > 0 && (
-					<fieldset className="fieldset">
-						<legend>{t("modifier_groups")}</legend>
-						{menu.modifierGroups.map((g) => (
+				<fieldset className="fieldset">
+					<legend>{t("modifier_groups")}</legend>
+					{menu.modifierGroups.length === 0 && (
+						<p className="muted small">{t("options_none")}</p>
+					)}
+					{menu.modifierGroups.map((g) => {
+						const rule = ruleLabel(g);
+						return (
 							<label key={g.id} className="check">
 								<input
 									type="checkbox"
@@ -208,13 +213,14 @@ export default function ProductPage({
 									defaultChecked={d.modifierGroupIds.includes(g.id)}
 								/>
 								{loc(g.name, lang)}{" "}
-								<span className="muted small">
-									{t("min_max", { min: g.minSelect, max: g.maxSelect })}
-								</span>
+								<span className="muted small">{t(rule.key, rule.params)}</span>
 							</label>
-						))}
-					</fieldset>
-				)}
+						);
+					})}
+					<Link to="/menu/modifiers" className="small">
+						{t("options_manage")}
+					</Link>
+				</fieldset>
 
 				<div className="form-actions">
 					<button type="submit" className="btn btn--primary" disabled={busy}>

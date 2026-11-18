@@ -46,11 +46,16 @@ export default function MenuPage({
 		<>
 			<div className="page-head">
 				<h1>{t("menu")}</h1>
-				{canEditMenu && (
-					<Link className="btn btn--primary" to="/menu/products/new">
-						{t("new_product")}
+				<div className="actions-row">
+					<Link className="btn" to="/menu/modifiers">
+						{t("options_title")}
 					</Link>
-				)}
+					{canEditMenu && (
+						<Link className="btn btn--primary" to="/menu/products/new">
+							{t("new_product")}
+						</Link>
+					)}
+				</div>
 			</div>
 			{!canEditMenu && (
 				<p className="card muted">
