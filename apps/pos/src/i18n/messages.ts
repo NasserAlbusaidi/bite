@@ -33,7 +33,13 @@ const en = {
 	"receipt.thanks": "Thank you!",
 	"pair.title": "Pair this tablet",
 	"pair.hint":
-		"Register the tablet in the back office, then enter the server address and the device token shown there.",
+		"In the back office, open the location, add this tablet under Devices, then scan the pairing code it shows.",
+	"pair.scan": "Scan pairing code",
+	"pair.paste": "Or paste the pairing code",
+	"pair.manual": "Enter the server address and token by hand",
+	"pair.noCamera":
+		"Can't use the camera on this tablet. Paste the pairing code instead.",
+	"pair.badCode": "That isn't a Bite pairing code.",
 	"pair.server": "Server address",
 	"pair.token": "Device token",
 	"pair.submit": "Pair",
@@ -260,7 +266,13 @@ const ar: Record<MessageKey, string> = {
 	"receipt.thanks": "شكراً لزيارتكم!",
 	"pair.title": "ربط الجهاز",
 	"pair.hint":
-		"سجّل الجهاز من لوحة الإدارة، ثم أدخل عنوان الخادم ورمز الجهاز الظاهر هناك.",
+		"من لوحة الإدارة افتح الفرع وأضف هذا الجهاز ضمن الأجهزة، ثم امسح رمز الربط الظاهر هناك.",
+	"pair.scan": "مسح رمز الربط",
+	"pair.paste": "أو الصق رمز الربط",
+	"pair.manual": "إدخال عنوان الخادم ورمز الجهاز يدوياً",
+	"pair.noCamera":
+		"تعذر استخدام الكاميرا على هذا الجهاز. الصق رمز الربط بدلاً من ذلك.",
+	"pair.badCode": "هذا ليس رمز ربط من بايت.",
 	"pair.server": "عنوان الخادم",
 	"pair.token": "رمز الجهاز",
 	"pair.submit": "ربط",

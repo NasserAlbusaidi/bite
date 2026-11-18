@@ -18,6 +18,7 @@
 		"@bite/ui": "workspace:*",
 		"@capacitor-community/sqlite": "^8.1.1",
 		"@capacitor/core": "^8.6.2",
+		"jsqr": "1.4.0",
 		"react": "^19.3.1",
 		"react-dom": "^19.3.1",
 		"sql.js": "^1.16.0",

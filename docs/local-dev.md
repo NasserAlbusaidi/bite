@@ -33,6 +33,12 @@ PINs go to `.dev-credentials.txt` (gitignored). To start over:
   localhost and on a LAN IP. `ADMIN_ORIGINS` lists `http://localhost:5173`
   and the LAN IPs found at setup time; re-run setup after deleting
   `apps/api/.env` if your IP changes.
+- `apps/admin/.env.local` also sets `VITE_MENU_URL` (what the guest QR code
+  opens) and `VITE_PAIRING_API_URL` (what the tablet pairing QR points at: the
+  POS dev server's own https address, because that is the only way the POS
+  page can reach the API in dev). An older `.env.local` won't have them: add
+  `VITE_MENU_URL=http://localhost:5174` and
+  `VITE_PAIRING_API_URL=https://localhost:5175` (or your LAN IP for a tablet).
 - The menu SSR server calls the API directly (`BITE_API_URL` in `apps/menu/.env`).
   Guest menu: `http://localhost:5174/demo-cafe`.
 
@@ -42,8 +48,9 @@ The POS dev server is HTTPS with a self-signed certificate. Browsers expose
 `crypto.subtle` (offline PIN unlock) only on HTTPS or localhost.
 
 1. Open `https://<PC LAN IP>:5175` on the tablet and accept the warning.
-2. Pair with server address = that same URL, and the POS (or KDS) token from
-   `.dev-credentials.txt`.
+2. Pair: in the back office open the location, add a device, and scan the
+   pairing code it shows (or paste it). By hand: server address = that same
+   URL, and the POS (or KDS) token from `.dev-credentials.txt`.
 3. Pick a staff member and type the PIN.
 
 The browser build stores data in memory (sql.js): a reload loses unsynced
