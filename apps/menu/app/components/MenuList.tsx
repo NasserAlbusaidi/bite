@@ -1,6 +1,6 @@
 import type { LocalClock } from "@bite/core";
 import { Icon, Logo } from "@bite/ui";
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 import type { MenuProduct, MenuSnapshot } from "../lib/contracts";
 import { type Lang, loc, type T } from "../lib/i18n";
 import type { Currency } from "../lib/money";
@@ -17,6 +17,8 @@ type Props = {
 	canOrder: boolean;
 	onOpen: (p: MenuProduct) => void;
 	onQuickAdd: (p: MenuProduct) => void;
+	/** Shown above the list, under the search box. Hidden while searching. */
+	top?: ReactNode;
 };
 
 /** Category nav, search and product list. Shared by solo and group ordering. */
@@ -30,6 +32,7 @@ export function MenuList({
 	canOrder,
 	onOpen,
 	onQuickAdd,
+	top,
 }: Props) {
 	const [query, setQuery] = useState("");
 	const q = query.trim().toLowerCase();
@@ -81,6 +84,8 @@ export function MenuList({
 					onChange={(e) => setQuery(e.target.value)}
 					aria-label={t("search_menu")}
 				/>
+
+				{!q && top}
 
 				{offers.length > 0 && canOrder && (
 					<section className="rail" aria-labelledby="offers-title">

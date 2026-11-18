@@ -4,13 +4,21 @@ import { MenuHeader } from "../components/MenuHeader";
 import { MenuList } from "../components/MenuList";
 import { Price } from "../components/Price";
 import { ProductSheet } from "../components/ProductSheet";
-import { indexMenu, itemCount } from "../lib/cart";
+import { type Cart, indexMenu, itemCount } from "../lib/cart";
 import { useCart } from "../lib/cart-store";
 import type { MenuProduct } from "../lib/contracts";
 import type { GroupActionResult } from "../lib/group.server";
 import { loadMenu, MENU_CACHE } from "../lib/guest.server";
-import { type Lang, type T, translator } from "../lib/i18n";
+import { type Lang, loc, type T, translator } from "../lib/i18n";
 import { menuPricing, quoteCart, usePricingClock } from "../lib/pricing";
+import {
+	activeKey,
+	lastKey,
+	parseActive,
+	parseLast,
+	reorderable,
+	useRemembered,
+} from "../lib/recent";
 import type { Route } from "./+types/menu";
 
 export async function loader({ params }: Route.LoaderArgs) {
@@ -40,6 +48,19 @@ export default function Menu({ loaderData }: Route.ComponentProps) {
 	const canOrder = location.isAcceptingOrders;
 
 	const count = itemCount(cart);
+	const activeRaw = useRemembered(activeKey(location.slug));
+	const lastRaw = useRemembered(lastKey(location.slug));
+	const active = useMemo(() => parseActive(activeRaw, Date.now()), [activeRaw]);
+	// Only what can still be ordered exactly as it was last time.
+	const again = useMemo((): Cart | null => {
+		const last = parseLast(lastRaw, Date.now());
+		const lines = last ? reorderable(last, idx) : [];
+		return lines.length > 0 ? { lines } : null;
+	}, [lastRaw, idx]);
+	const againQuote = useMemo(
+		() => (again ? quoteCart(pricing, again, at) : null),
+		[again, pricing, at],
+	);
 	const quote = useMemo(
 		() => quoteCart(pricing, cart, at),
 		[pricing, cart, at],
@@ -54,6 +75,20 @@ export default function Menu({ loaderData }: Route.ComponentProps) {
 				pricesIncludeTax={menu.location.pricesIncludeTax}
 				switchTo={`/${location.slug}`}
 			>
+				{active && (
+					<Link
+						className="orderlink"
+						to={`/${lang}/${location.slug}/orders/${active.token}`}
+					>
+						<span>
+							{t("order_in_progress")}{" "}
+							<bdi dir="ltr" className="strong">
+								{active.ticket}
+							</bdi>
+						</span>
+						<span className="orderlink__go">{t("order_track")}</span>
+					</Link>
+				)}
 				{canOrder && <OrderTogether lang={lang} slug={location.slug} t={t} />}
 			</MenuHeader>
 
@@ -70,6 +105,47 @@ export default function Menu({ loaderData }: Route.ComponentProps) {
 					p.modifierGroupIds.length === 0
 						? dispatch({ type: "add", productId: p.id, modifierOptionIds: [] })
 						: setOpen(p)
+				}
+				top={
+					canOrder &&
+					count === 0 &&
+					again &&
+					againQuote?.order && (
+						<section className="again" aria-labelledby="again-title">
+							<div className="again__body">
+								<h2 id="again-title">{t("again_title")}</h2>
+								<p className="muted small">
+									{again.lines
+										.map(
+											(l) =>
+												`${l.quantity} × ${loc(idx.products.get(l.productId)?.name ?? { en: "" }, lang)}`,
+										)
+										.join(lang === "ar" ? "، " : ", ")}
+								</p>
+							</div>
+							<button
+								type="button"
+								className="btn btn--primary"
+								onClick={() => {
+									for (const l of again.lines)
+										dispatch({
+											type: "add",
+											productId: l.productId,
+											modifierOptionIds: l.modifierOptionIds,
+											quantity: l.quantity,
+											...(l.note ? { note: l.note } : {}),
+										});
+								}}
+							>
+								<span>{t("again_add")}</span>
+								<Price
+									amount={againQuote.order.total}
+									currency={currency}
+									lang={lang}
+								/>
+							</button>
+						</section>
+					)
 				}
 			/>
 
