@@ -41,6 +41,10 @@ PINs go to `.dev-credentials.txt` (gitignored). To start over:
   `VITE_PAIRING_API_URL=https://localhost:5175` (or your LAN IP for a tablet).
 - The menu SSR server calls the API directly (`BITE_API_URL` in `apps/menu/.env`).
   Guest menu: `http://localhost:5174/demo-cafe`.
+- `http://localhost:5174/` (and `/ar`) is Bite's public page. Its sign-up and
+  log-in buttons point at `BITE_ADMIN_URL` in `apps/menu/.env`; an older `.env`
+  won't have it: add `BITE_ADMIN_URL=http://localhost:5173`. Unset, the page
+  shows no buttons.
 
 ## POS on a tablet (same Wi-Fi)
 

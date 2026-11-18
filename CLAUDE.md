@@ -6,7 +6,7 @@ Legacy app: `NasserAlbusaidi/pos-system` (Laravel). It stays in production until
 
 - `apps/api` Hono API (Node 22)
 - `apps/pos` React + Vite + Capacitor POS and KDS, offline with a local SQLite outbox. Read `apps/pos/README.md` first.
-- `apps/menu` SSR guest menu + group carts (React Router framework mode). With `BITE_API_URL` unset it runs on in-memory fixtures (`app/lib/fixtures.server.ts`).
+- `apps/menu` SSR guest menu + group carts (React Router framework mode). With `BITE_API_URL` unset it runs on in-memory fixtures (`app/lib/fixtures.server.ts`). The bare domain (`/`, `/ar`) is Bite's own public page; `BITE_ADMIN_URL` is the back office address its sign-up and log-in buttons point at (unset = no buttons).
 - `apps/admin` back office SPA (React Router, `ssr: false`) on the `/v1/admin` contracts. With `VITE_API_URL` unset it runs on in-browser demo data (`app/lib/fixtures.ts`, saved to localStorage). With it set, sign-in is Better Auth on the API: the API's `ADMIN_ORIGINS` must list the admin origin, and admin + API should share a site (admin.bite.om / api.bite.om) so the session cookie works without SameSite=None. `VITE_MENU_URL` is the guest menu's public address (for the printable QR); `VITE_PAIRING_API_URL` overrides the API address in the tablet pairing QR (dev only).
 - `packages/core` pure TS, zero runtime deps: money, pricing, VAT, order state machine. Runs on the server AND offline on the tablet.
 - `packages/db` Drizzle schema, migrations, RLS policies. Read `docs/data-model.md` before touching it.
