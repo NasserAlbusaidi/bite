@@ -92,7 +92,9 @@ export default function Shell({ loaderData }: Route.ComponentProps) {
 				>
 					{t("language")}
 				</button>
-				<span className="muted small">{me.member.displayName}</span>
+				<NavLink className="link-btn small" to="/account">
+					{me.member.displayName}
+				</NavLink>
 				{!demo && (
 					<NavLink className="link-btn small" to="/orgs?switch=1">
 						{t("switch_business")}

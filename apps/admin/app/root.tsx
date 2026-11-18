@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
 import {
-	isRouteErrorResponse,
 	Links,
 	Meta,
 	Outlet,
@@ -9,8 +8,9 @@ import {
 	useRouteError,
 } from "react-router";
 import "@bite/ui/styles.css";
-import { AdminApiError } from "./lib/api-types";
-import { translator } from "./lib/i18n";
+import { Logo } from "@bite/ui";
+import { ErrorPanel } from "./components/ErrorPanel";
+import { savedLang, translator } from "./lib/i18n";
 import "./styles.css";
 
 export function Layout({ children }: { children: ReactNode }) {
@@ -42,34 +42,16 @@ export function HydrateFallback() {
 	return <p className="loading">Loading…</p>;
 }
 
+/** Only reached when the shell itself can't load, or outside it. */
 export function ErrorBoundary() {
 	const error = useRouteError();
-	const forbidden =
-		(isRouteErrorResponse(error) && error.status === 403) ||
-		(error instanceof AdminApiError && error.status === 403);
-	const t = translator(
-		typeof document !== "undefined" && document.documentElement.lang === "ar"
-			? "ar"
-			: "en",
-	);
-	const message = forbidden
-		? t("forbidden_page")
-		: isRouteErrorResponse(error)
-			? `${error.status} ${error.statusText}`
-			: error instanceof Error
-				? error.message
-				: "";
+	const lang = typeof window === "undefined" ? "en" : savedLang();
 	return (
-		<main className="content">
-			<h1>{forbidden ? t("forbidden_page") : "Something went wrong"}</h1>
-			{!forbidden && message && <p className="muted">{message}</p>}
-			<button
-				type="button"
-				className="btn"
-				onClick={() => window.history.back()}
-			>
-				{t("back_home")}
-			</button>
+		<main className="auth" lang={lang} dir={lang === "ar" ? "rtl" : "ltr"}>
+			<Logo height={36} className="brand" />
+			<div className="auth-card">
+				<ErrorPanel error={error} t={translator(lang)} bare />
+			</div>
 		</main>
 	);
 }

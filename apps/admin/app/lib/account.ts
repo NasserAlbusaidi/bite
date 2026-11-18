@@ -59,6 +59,20 @@ export function accountApi(baseUrl: string, fetchImpl: typeof fetch = fetch) {
 		signUp: (name: string, email: string, password: string) =>
 			call(z.unknown(), "/v1/auth/sign-up/email", { name, email, password }),
 		signOut: () => call(z.unknown(), "/v1/auth/sign-out", {}),
+		/** The login's own name. A member's name per business is separate. */
+		updateName: (name: string) =>
+			call(z.unknown(), "/v1/auth/update-user", { name }),
+		/** Needs the current password. Can sign every other device out. */
+		changePassword: (
+			currentPassword: string,
+			newPassword: string,
+			revokeOtherSessions: boolean,
+		) =>
+			call(z.unknown(), "/v1/auth/change-password", {
+				currentPassword,
+				newPassword,
+				revokeOtherSessions,
+			}),
 		orgs: () => call(AccountOrgs, "/v1/account/orgs"),
 		createOrg: (o: CreateOrg) => call(CreatedOrg, "/v1/account/orgs", o),
 		acceptInvite: (token: string) =>
