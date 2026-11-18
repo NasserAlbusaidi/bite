@@ -26,6 +26,7 @@ orgs ─┬─ locations ─── devices (tablets, revocable token, ticket pre
 
 - **orgs** is the customer account. **locations** is a branch. RLS is keyed on the org; the location is a normal filter.
 - **members** covers everyone in an org. `user_id` links to a Better Auth login (owners, admins, managers). Floor staff usually only have a `pin_hash`. Their role is per location (`manager`, `cashier`, `server`, `kitchen`).
+- **billing_subscriptions** and the org's `status`, `trial_ends_at` and `entitlement_overrides` decide the org's plan. The app role can read them but not write them. See `docs/plans.md`.
 - **devices**: each tablet has a `ticket_prefix` (A, B, …) that is unique per location, so offline tickets never clash (`A-042`).
 - Location settings that used to live in the `branding` blob are now typed columns: timezone, currency, `prices_include_tax`, `tax_bps`, VAT number, `day_cutoff_minutes`, contact. Only the visual theme stays jsonb.
 

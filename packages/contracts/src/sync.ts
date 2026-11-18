@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { Entitlements } from "./billing.js";
 import { CashMovement, CloseCashSession, OpenCashSession } from "./cash.js";
 import {
 	BusinessDate,
@@ -156,6 +157,12 @@ export const SyncPullResponse = z.object({
 	 * (the server allows one open session per device). Sent on every page.
 	 */
 	cashSession: OpenDrawer.nullable().optional(),
+	/**
+	 * The org's plan, for showing or hiding features on the tablet. Sent on
+	 * every page. A tablet keeps the last copy and trusts it until its
+	 * `validUntil`; selling for cash is never gated by it.
+	 */
+	entitlements: Entitlements.optional(),
 });
 
 export type SyncPushRequest = z.infer<typeof SyncPushRequest>;

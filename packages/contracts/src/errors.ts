@@ -7,6 +7,7 @@ import { z } from "zod";
 export const ErrorCode = z.enum([
 	"bad_request", // 400, body failed validation (details = zod issues)
 	"unauthenticated", // 401, missing/invalid/revoked token
+	"plan_limit", // 402, the org's plan doesn't allow it (details = PlanLimitDetails)
 	"forbidden", // 403, authenticated but role not allowed
 	"not_found", // 404, includes rows hidden by tenancy
 	"conflict", // 409, version mismatch

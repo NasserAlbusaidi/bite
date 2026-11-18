@@ -19,9 +19,11 @@ import {
 } from "@bite/contracts";
 import { schema, type Tx } from "@bite/db";
 import { and, asc, eq, inArray, isNull, or, type SQL, sql } from "@bite/db/orm";
+import type { Context } from "hono";
 import { Hono } from "hono";
 import { z } from "zod";
 import type { AppEnv } from "../env.js";
+import { requireRoomFor } from "../lib/entitlements.js";
 import { ApiError } from "../lib/errors.js";
 import { validate } from "../lib/validate.js";
 import {
@@ -192,6 +194,23 @@ function requirePromotionScope(
 ) {
 	if (locationId === null) requireOrgWide(c);
 	else requireLocation(c, locationId);
+}
+
+/** Plan check before one more promotion goes live: active ones across the org. */
+function requirePromotionRoom(c: Context<AppEnv>, tx: Tx) {
+	return requireRoomFor(
+		tx,
+		c.var.deps,
+		c.var.admin.orgId,
+		"activePromotions",
+		async () => {
+			const [r] = await tx
+				.select({ n: sql<number>`count(*)::int` })
+				.from(promotions)
+				.where(eq(promotions.isActive, true));
+			return r?.n ?? 0;
+		},
+	);
 }
 
 /** Reorder: every id must exist (in this org), else nothing changes. */
@@ -621,8 +640,9 @@ export const adminMenuRoutes = new Hono<AppEnv>()
 		const b = c.req.valid("json");
 		const locationId = b.locationId ?? null;
 		requirePromotionScope(c, locationId);
-		const [row] = await adminTx(c, (tx) =>
-			tx
+		const [row] = await adminTx(c, async (tx) => {
+			if (b.isActive !== false) await requirePromotionRoom(c, tx);
+			return tx
 				.insert(promotions)
 				.values({
 					orgId: c.var.admin.orgId,
@@ -639,8 +659,8 @@ export const adminMenuRoutes = new Hono<AppEnv>()
 					daysOfWeek: b.daysOfWeek ?? null,
 					...defined({ priority: b.priority, isActive: b.isActive }),
 				})
-				.returning(),
-		);
+				.returning();
+		});
 		return c.json(promotionDto(row as PromotionRow), 201);
 	})
 	.patch(
@@ -660,6 +680,10 @@ export const adminMenuRoutes = new Hono<AppEnv>()
 				// Must be allowed to touch it where it is now AND where it's going.
 				requirePromotionScope(c, cur.locationId);
 				if (b.locationId !== undefined) requirePromotionScope(c, b.locationId);
+				// Switching one back on counts as adding one.
+				if (b.isActive === true && !cur.isActive) {
+					await requirePromotionRoom(c, tx);
+				}
 				const ts = (v: string | null | undefined) =>
 					v === undefined ? undefined : v === null ? null : new Date(v);
 				const [u] = await tx

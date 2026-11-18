@@ -33,6 +33,12 @@ const auth = createAuth(db, {
 	trustedOrigins: adminOrigins,
 });
 
+/**
+ * The billing kill switch. Anything but "on" leaves every org on everything,
+ * unlimited, exactly as before plans existed.
+ */
+const planEnforcement = process.env.PLAN_ENFORCEMENT === "on";
+
 const realtime = new RealtimeHub();
 // postgres.js keeps a dedicated connection for LISTEN and re-listens after reconnects.
 await realtime.start((channel, fn) => client.listen(channel, fn));
@@ -44,6 +50,7 @@ const app = createApp({
 	realtime,
 	auth,
 	adminOrigins,
+	planEnforcement,
 });
 const port = Number(process.env.PORT ?? 3000);
 serve({ fetch: app.fetch, port });

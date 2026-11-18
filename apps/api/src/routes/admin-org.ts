@@ -18,6 +18,11 @@ import type { Context } from "hono";
 import { Hono } from "hono";
 import { z } from "zod";
 import type { AdminCtx, AppEnv } from "../env.js";
+import {
+	loadEntitlements,
+	requireFeature,
+	requireRoomFor,
+} from "../lib/entitlements.js";
 import { ApiError } from "../lib/errors.js";
 import { newSecret, sha256 } from "../lib/tokens.js";
 import { validate } from "../lib/validate.js";
@@ -253,6 +258,23 @@ const deviceDto = (d: DeviceRow): AdminDevice => ({
 
 const now = (c: Context<AppEnv>) => c.var.deps.now?.() ?? new Date();
 
+/** Plan check before adding a staff member: active members across the org. */
+function requireStaffRoom(c: Context<AppEnv>, tx: Tx) {
+	return requireRoomFor(
+		tx,
+		c.var.deps,
+		c.var.admin.orgId,
+		"staff",
+		async () => {
+			const [r] = await tx
+				.select({ n: sql<number>`count(*)::int` })
+				.from(members)
+				.where(eq(members.isActive, true));
+			return r?.n ?? 0;
+		},
+	);
+}
+
 // ---------------------------------------------------------------- routes
 
 export const adminOrgRoutes = new Hono<AppEnv>()
@@ -283,6 +305,7 @@ export const adminOrgRoutes = new Hono<AppEnv>()
 					field: "email",
 				});
 			}
+			await requireStaffRoom(c, tx);
 			const [m] = await tx
 				.insert(members)
 				.values({
@@ -308,6 +331,7 @@ export const adminOrgRoutes = new Hono<AppEnv>()
 		checkRoles(a, c, b.locations);
 		const pinHash = await hash(b.pin);
 		const dto = await adminTx(c, async (tx) => {
+			await requireStaffRoom(c, tx);
 			const [m] = await tx
 				.insert(members)
 				.values({ orgId: a.orgId, displayName: b.displayName, pinHash })
@@ -496,19 +520,43 @@ export const adminOrgRoutes = new Hono<AppEnv>()
 		requireLocation(c, b.locationId);
 		const token = newSecret("dev_");
 		try {
-			const [row] = await adminTx(c, (tx) =>
-				tx
+			const [row] = await adminTx(c, async (tx) => {
+				const { deps, admin } = c.var;
+				if (deps.planEnforcement && b.kind === "kds") {
+					requireFeature(await loadEntitlements(tx, deps, admin.orgId), "kds");
+				}
+				// Revoked devices don't count: replacing a broken tablet is free.
+				await requireRoomFor(
+					tx,
+					deps,
+					admin.orgId,
+					"devicesPerLocation",
+					async () => {
+						const [r] = await tx
+							.select({ n: sql<number>`count(*)::int` })
+							.from(devices)
+							.where(
+								and(
+									eq(devices.locationId, b.locationId),
+									isNull(devices.revokedAt),
+								),
+							);
+						return r?.n ?? 0;
+					},
+					b.locationId,
+				);
+				return tx
 					.insert(devices)
 					.values({
-						orgId: c.var.admin.orgId,
+						orgId: admin.orgId,
 						locationId: b.locationId,
 						name: b.name,
 						kind: b.kind,
 						ticketPrefix: b.ticketPrefix,
 						tokenHash: sha256(token),
 					})
-					.returning({ id: devices.id }),
-			);
+					.returning({ id: devices.id });
+			});
 			const res: RegisterDeviceResponse = {
 				deviceId: (row as { id: string }).id,
 				token,

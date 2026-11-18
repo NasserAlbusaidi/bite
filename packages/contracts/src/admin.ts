@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { Entitlements } from "./billing.js";
 import {
 	Bps,
 	BusinessDate,
@@ -47,6 +48,8 @@ export const AdminMe = z.object({
 	org: z.object({ id: Id, name: z.string(), slug: z.string() }),
 	/** Locations this member can manage, with their role there. Owners/admins: all, role manager. */
 	locations: z.array(z.object({ location: AdminLocation, role: LocationRole })),
+	/** The org's plan: which features are on and what its limits are. */
+	entitlements: Entitlements,
 });
 
 // ---------------------------------------------------------------- menu (org-level)

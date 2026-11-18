@@ -174,6 +174,76 @@ describe.runIf(ownerUrl)("tenancy (RLS + composite FKs)", () => {
 		await expectPgError(db.select().from(s.webhookEvents), /permission denied/);
 	});
 
+	describe("billing state is read-only for the app role", () => {
+		beforeAll(async () => {
+			for (const t of [A, B]) {
+				await ownerDb.insert(s.billingSubscriptions).values({
+					orgId: t.org,
+					provider: "manual",
+					plan: "essentials",
+					status: "active",
+				});
+			}
+		});
+
+		it("reads only its own subscription", async () => {
+			const rows = await withTenant(db, A.org, (tx) =>
+				tx.select().from(s.billingSubscriptions),
+			);
+			expect(rows.map((r) => r.orgId)).toEqual([A.org]);
+		});
+
+		it("cannot grant itself a plan", async () => {
+			await expectPgError(
+				withTenant(db, A.org, (tx) =>
+					tx.insert(s.billingSubscriptions).values({
+						orgId: A.org,
+						provider: "manual",
+						plan: "pro",
+						status: "active",
+					}),
+				),
+				/permission denied/,
+			);
+			await expectPgError(
+				withTenant(db, A.org, (tx) =>
+					tx.update(s.billingSubscriptions).set({ plan: "pro" }),
+				),
+				/permission denied/,
+			);
+			await expectPgError(
+				withTenant(db, A.org, (tx) => tx.delete(s.billingSubscriptions)),
+				/permission denied/,
+			);
+		});
+
+		it("cannot extend its own trial, lift a suspension or set overrides", async () => {
+			for (const set of [
+				{ trialEndsAt: new Date("2099-01-01T00:00:00Z") },
+				{ status: "active" as const },
+				{ entitlementOverrides: { plan: "pro" } },
+			]) {
+				await expectPgError(
+					withTenant(db, A.org, (tx) =>
+						tx.update(s.orgs).set(set).where(eq(s.orgs.id, A.org)),
+					),
+					/permission denied/,
+				);
+			}
+		});
+
+		it("can still rename its own org", async () => {
+			const [row] = await withTenant(db, A.org, (tx) =>
+				tx
+					.update(s.orgs)
+					.set({ name: "a renamed" })
+					.where(eq(s.orgs.id, A.org))
+					.returning({ name: s.orgs.name }),
+			);
+			expect(row?.name).toBe("a renamed");
+		});
+	});
+
 	describe("money ledger constraints", () => {
 		const order = uuidv7();
 		const device = uuidv7();

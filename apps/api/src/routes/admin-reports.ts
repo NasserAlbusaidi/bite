@@ -10,6 +10,7 @@ import { and, between, desc, eq, isNull, lt, ne, or, sql } from "@bite/db/orm";
 import type { Context } from "hono";
 import { Hono } from "hono";
 import type { AppEnv } from "../env.js";
+import { requireHistory } from "../lib/entitlements.js";
 import { ApiError } from "../lib/errors.js";
 import { validate } from "../lib/validate.js";
 import { adminTx, requireLocation } from "../middleware/admin-auth.js";
@@ -20,7 +21,7 @@ const MAX_DAYS = 366;
 const CSV_MAX_ROWS = 20_000;
 const n = (v: unknown) => Number(v ?? 0);
 
-function checkRange(
+async function checkRange(
 	c: Context<AppEnv>,
 	q: { locationId: string; from: string; to: string },
 ) {
@@ -29,6 +30,12 @@ function checkRange(
 	if (days < 0) throw new ApiError("bad_request", "from is after to");
 	if (days >= MAX_DAYS)
 		throw new ApiError("bad_request", `at most ${MAX_DAYS} days`);
+	// The plan's history window (free: the last 31 days).
+	if (c.var.deps.planEnforcement) {
+		await adminTx(c, (tx) =>
+			requireHistory(tx, c.var.deps, c.var.admin.orgId, q.from),
+		);
+	}
 }
 
 // ---------------------------------------------------------------- orders list
@@ -202,13 +209,13 @@ async function salesReport(
 export const adminReportRoutes = new Hono<AppEnv>()
 	.get("/reports/sales", validate("query", SalesReportQuery), async (c) => {
 		const q = c.req.valid("query");
-		checkRange(c, q);
+		await checkRange(c, q);
 		const report = await adminTx(c, (tx) => salesReport(tx, q));
 		return c.json(report);
 	})
 	.get("/orders", validate("query", AdminOrdersQuery), async (c) => {
 		const q = c.req.valid("query");
-		checkRange(c, q);
+		await checkRange(c, q);
 		const after = q.cursor ? decodeCursor(q.cursor) : undefined;
 		const rows = await adminTx(c, (tx) =>
 			tx
@@ -250,7 +257,7 @@ export const adminReportRoutes = new Hono<AppEnv>()
 		validate("query", AdminOrdersQuery.omit({ cursor: true, limit: true })),
 		async (c) => {
 			const q = c.req.valid("query");
-			checkRange(c, q);
+			await checkRange(c, q);
 			const { rows, decimals, currency } = await adminTx(c, async (tx) => {
 				const [loc] = await tx
 					.select({

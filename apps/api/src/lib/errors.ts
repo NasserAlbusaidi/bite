@@ -6,6 +6,7 @@ import { ZodError } from "zod";
 const STATUS: Record<ErrorCode, ContentfulStatusCode> = {
 	bad_request: 400,
 	unauthenticated: 401,
+	plan_limit: 402,
 	forbidden: 403,
 	not_found: 404,
 	conflict: 409,

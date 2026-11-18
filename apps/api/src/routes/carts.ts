@@ -322,6 +322,7 @@ export const cartRoutes = new Hono<AppEnv>()
 						now: ctx.now,
 						idempotencyKey: key.data,
 						fingerprint: guestFingerprint(input, ctx.cart.id),
+						deps: c.var.deps,
 					},
 				);
 				await bump(ctx, {

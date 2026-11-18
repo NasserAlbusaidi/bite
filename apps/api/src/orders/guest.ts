@@ -17,6 +17,8 @@ import {
 } from "@bite/core";
 import { schema, type Tx } from "@bite/db";
 import { and, eq, sql } from "@bite/db/orm";
+import type { Deps } from "../env.js";
+import { loadEntitlements } from "../lib/entitlements.js";
 import { ApiError } from "../lib/errors.js";
 import { acceptsOrders } from "../menu/hours.js";
 import { loadMenuSnapshot } from "../menu/snapshot.js";
@@ -110,6 +112,8 @@ export async function placeGuestOrder(
 		now: Date;
 		idempotencyKey: string;
 		fingerprint: string;
+		/** For the plan check (QR ordering is a paid feature). */
+		deps: Pick<Deps, "planEnforcement" | "now">;
 	},
 ): Promise<{ view: GuestOrderView; created: boolean; orderId: string }> {
 	const [prior] = await tx
@@ -148,6 +152,10 @@ export async function placeGuestOrder(
 	const menu = await loadMenuSnapshot(tx, ids.locationId, opts.now);
 	if (!loc || !menu) throw new ApiError("not_found", "no such location");
 	if (!acceptsOrders(loc, opts.now)) throw rejectGuest("not_accepting_orders");
+	// On a plan without QR ordering the menu is view-only. Same answer as a
+	// closed shop: the guest is told to order at the counter.
+	const plan = await loadEntitlements(tx, opts.deps, ids.orgId);
+	if (!plan.features.qr_ordering) throw rejectGuest("not_accepting_orders");
 
 	const catalog = buildCatalog(
 		menu.products.map((p) => ({

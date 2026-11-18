@@ -3,6 +3,7 @@
  * State persists in localStorage so edits survive a refresh. Validation is
  * the same schema validation the API does; tenancy and auth are not modelled.
  */
+import { resolveEntitlements } from "@bite/core";
 import { type AdminApi, AdminApiError } from "./api-types";
 import {
 	type AdminCategory,
@@ -77,6 +78,14 @@ export const DEMO_ME: AdminMe = {
 		{ location: azaiba, role: "manager" },
 		{ location: almouj, role: "manager" },
 	],
+	// The demo runs with billing switched off: everything on, no limits.
+	entitlements: resolveEntitlements({
+		enforce: false,
+		now: new Date(),
+		orgStatus: "active",
+		trialEndsAt: null,
+		subscription: null,
+	}),
 };
 
 const settings = (l: typeof azaiba): AdminLocationSettings => ({

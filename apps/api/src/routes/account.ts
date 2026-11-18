@@ -5,6 +5,7 @@ import {
 	CreatedOrg,
 	CreateOrg,
 } from "@bite/contracts";
+import { TRIAL_DAYS } from "@bite/core";
 import { schema, withTenant } from "@bite/db";
 import { and, eq, isNull, sql } from "@bite/db/orm";
 import { Hono } from "hono";
@@ -48,9 +49,15 @@ export const accountRoutes = new Hono<AppEnv>()
 			// The org id is minted here and becomes the tenant before the org row
 			// exists; the own_org_insert policy only allows inserting that one id.
 			await withTenant(c.var.deps.db, ids.orgId, async (tx) => {
-				await tx
-					.insert(orgs)
-					.values({ id: ids.orgId, name: body.orgName, slug: body.orgSlug });
+				// Every new business starts on a full-featured trial, then falls to
+				// the free plan on its own (see @bite/core plans.ts).
+				const now = c.var.deps.now?.() ?? new Date();
+				await tx.insert(orgs).values({
+					id: ids.orgId,
+					name: body.orgName,
+					slug: body.orgSlug,
+					trialEndsAt: new Date(now.getTime() + TRIAL_DAYS * 86_400_000),
+				});
 				await tx.insert(locations).values({
 					id: ids.locationId,
 					orgId: ids.orgId,
