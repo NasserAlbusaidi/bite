@@ -15,6 +15,11 @@ const storageKey = (slug: string) => `bite.cart.${slug}`;
 const listeners = new Set<() => void>();
 const cache = new Map<string, { raw: string | null; cart: Cart }>();
 
+/** The stored cart right now, outside React (effects, event handlers). */
+export function readCart(slug: string): Cart {
+	return read(slug);
+}
+
 function read(slug: string): Cart {
 	let raw: string | null = null;
 	try {

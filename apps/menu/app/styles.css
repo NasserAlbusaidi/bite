@@ -705,6 +705,119 @@ input[type="search"].input {
 	margin: 0;
 }
 
+.ticket--ready {
+	background: var(--action);
+	color: var(--on-action);
+}
+.ticket--ready .ticket__no {
+	color: inherit;
+}
+.steps {
+	list-style: none;
+	margin: var(--space-5) 0 0;
+	padding: 0;
+	display: grid;
+	grid-template-columns: repeat(4, minmax(0, 1fr));
+	font-size: var(--fs-xs);
+	font-weight: 600;
+}
+.steps__step {
+	position: relative;
+	display: grid;
+	justify-items: center;
+	gap: var(--space-2);
+	opacity: 0.55;
+}
+.steps__step--done,
+.steps__step--now {
+	opacity: 1;
+}
+/* The line back to the step before it. */
+.steps__step + .steps__step::before {
+	content: "";
+	position: absolute;
+	inset-block-start: 6px;
+	inset-inline-end: 50%;
+	inline-size: 100%;
+	block-size: 2px;
+	background: currentcolor;
+	opacity: 0.35;
+}
+.steps__step--done + .steps__step::before {
+	opacity: 1;
+}
+.steps__dot {
+	position: relative;
+	z-index: 1;
+	inline-size: 14px;
+	block-size: 14px;
+	border-radius: 50%;
+	border: 2px solid currentcolor;
+	background: var(--surface-inverse);
+}
+.ticket--ready .steps__dot {
+	background: var(--action);
+}
+.steps__step--done .steps__dot {
+	background: currentcolor;
+}
+.steps__step--now .steps__dot {
+	background: currentcolor;
+	box-shadow: 0 0 0 4px color-mix(in srgb, currentcolor 30%, transparent);
+	animation: step-pulse 1.6s var(--ease-out) infinite;
+}
+@keyframes step-pulse {
+	50% {
+		box-shadow: 0 0 0 8px color-mix(in srgb, currentcolor 0%, transparent);
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	.steps__step--now .steps__dot {
+		animation: none;
+	}
+}
+
+/* ── Back to an open order, and the same again ── */
+.orderlink {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--space-3);
+	margin-block-start: var(--space-3);
+	padding: var(--space-3) var(--space-4);
+	border-radius: var(--radius-md);
+	background: var(--action);
+	color: var(--on-action);
+	text-decoration: none;
+	font-weight: 600;
+}
+.orderlink__go {
+	text-decoration: underline;
+	white-space: nowrap;
+}
+.again {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--space-3);
+	padding: var(--space-4);
+	border-radius: var(--radius-lg);
+	background: var(--surface);
+	box-shadow: var(--shadow-md);
+}
+.again__body {
+	flex: 1 1 200px;
+	min-inline-size: 0;
+}
+.again h2,
+.again p {
+	margin: 0;
+}
+.again .btn {
+	gap: var(--space-3);
+}
+
 /* ── Group ordering ── */
 .groupbar {
 	display: flex;
