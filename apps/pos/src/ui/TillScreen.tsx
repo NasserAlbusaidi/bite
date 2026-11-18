@@ -14,6 +14,7 @@ import {
 	prepareMenu,
 	tilePrice,
 } from "../domain/menu.js";
+import { listToPay } from "../domain/orders.js";
 import {
 	commitSale,
 	quote,
@@ -24,7 +25,7 @@ import { useI18n } from "../i18n/I18nProvider.js";
 import { DrawerSheet } from "./DrawerSheet.js";
 import { ModifierSheet } from "./ModifierSheet.js";
 import { fmt, OMR } from "./money.js";
-import { OrdersSheet } from "./OrdersSheet.js";
+import { OrdersSheet, type OrdersView } from "./OrdersSheet.js";
 import { PaySheet } from "./PaySheet.js";
 import { kitchenFor, loc, receiptFor } from "./receipts.js";
 import { useServices } from "./services.js";
@@ -50,6 +51,9 @@ export function TillScreen() {
 	} | null>(null);
 	const [type, setType] = useState<"dine_in" | "takeaway">("takeaway");
 	const [sheet, setSheet] = useState<"orders" | "drawer" | null>(null);
+	const [ordersView, setOrdersView] = useState<OrdersView>("today");
+	/** Orders waiting to be paid at this counter (QR and group orders). */
+	const [waiting, setWaiting] = useState(0);
 
 	const reloadMenu = useCallback(async () => {
 		const snap = await loadMenu(db);
@@ -63,9 +67,14 @@ export function TillScreen() {
 		const offDrawer = sync.onDrawerChanged(
 			() => void openSession(db).then(setDrawer),
 		);
+		const countWaiting = () =>
+			void listToPay(db).then((w) => setWaiting(w.length));
+		countWaiting();
+		const offOrders = sync.onOrdersChanged(countWaiting);
 		return () => {
 			off();
 			offDrawer();
+			offOrders();
 		};
 	}, [db, sync, reloadMenu]);
 
@@ -150,9 +159,12 @@ export function TillScreen() {
 			),
 		]);
 		const failed = results.flat().find((r) => !r.ok);
+		// On a split bill the earlier guests already got their change in the pay
+		// sheet: what's owed now is the last tender's.
+		const last = tenders.at(-1);
 		setDone({
 			ticket: res.order.ticketNumber,
-			change: res.change,
+			change: last?.tendered !== undefined ? last.tendered - last.amount : 0,
 			printError: failed && !failed.ok ? failed.error : null,
 		});
 		return null;
@@ -204,7 +216,13 @@ export function TillScreen() {
 
 			<aside className="cart-pane">
 				<div className="row tools">
-					<button type="button" onClick={() => setSheet("orders")}>
+					<button
+						type="button"
+						onClick={() => {
+							setOrdersView("today");
+							setSheet("orders");
+						}}
+					>
 						{t("orders.title")}
 					</button>
 					{canDrawer && (
@@ -213,6 +231,19 @@ export function TillScreen() {
 						</button>
 					)}
 				</div>
+				{waiting > 0 && (
+					<button
+						type="button"
+						className="waiting"
+						onClick={() => {
+							setOrdersView("toPay");
+							setSheet("orders");
+						}}
+					>
+						<span className="count">{waiting}</span>
+						{t("till.waiting")}
+					</button>
+				)}
 				<div className="row">
 					<h2>{t("till.cart")}</h2>
 					<span className="spacer" />
@@ -362,7 +393,17 @@ export function TillScreen() {
 					onCharge={charge}
 				/>
 			)}
-			{sheet === "orders" && <OrdersSheet onClose={() => setSheet(null)} />}
+			{sheet === "orders" && (
+				<OrdersSheet
+					initialView={ordersView}
+					onClose={() => {
+						setSheet(null);
+						// Paying or cancelling in there changes both.
+						void listToPay(db).then((w) => setWaiting(w.length));
+						void openSession(db).then(setDrawer);
+					}}
+				/>
+			)}
 			{sheet === "drawer" && (
 				<DrawerSheet
 					onClose={() => {

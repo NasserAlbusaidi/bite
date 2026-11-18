@@ -1,44 +1,69 @@
 import type { Order } from "@bite/contracts";
 import { businessDate, formatDecimal, type Minor } from "@bite/core";
 import { useCallback, useEffect, useState } from "react";
-import { openSession } from "../domain/cash.js";
+import {
+	type CashSession,
+	openCashSession,
+	openSession,
+} from "../domain/cash.js";
 import { loadMenu } from "../domain/menu.js";
 import {
+	cancelOrder,
 	lineGross,
 	listOrders,
+	listToPay,
 	loadOrder,
 	type OrderDetail,
 	type OrderListItem,
 	type Place,
+	payOrder,
 	refund,
 	voidUnpaidLine,
 } from "../domain/orders.js";
+import type { TenderInput } from "../domain/sale.js";
 import { useI18n } from "../i18n/I18nProvider.js";
 import type { MessageKey } from "../i18n/messages.js";
 import { useManagerGate } from "./ManagerApproval.js";
 import { fmt, parseAmount } from "./money.js";
-import { loc, methodLabel, receiptFor } from "./receipts.js";
+import { PaySheet } from "./PaySheet.js";
+import { kitchenFor, loc, methodLabel, receiptFor } from "./receipts.js";
 import { useServices } from "./services.js";
 
 const DAY_MS = 86_400_000;
 
 type Ask =
 	| { kind: "refund"; lineId?: string; amount: number; max: number }
-	| { kind: "void"; lineId: string };
+	| { kind: "void"; lineId: string }
+	| { kind: "cancel" };
 
-/** Today's and yesterday's orders, with refunds, voids and reprints. */
-export function OrdersSheet(props: { onClose: () => void }) {
+/** "toPay" = every order waiting for money, whatever day it was placed. */
+export type OrdersView = "toPay" | "today" | "yesterday";
+
+/**
+ * Today's and yesterday's orders, with refunds, voids and reprints, plus the
+ * "to pay" queue: QR and group orders that guests pay for at the counter.
+ */
+export function OrdersSheet(props: {
+	onClose: () => void;
+	initialView?: OrdersView;
+}) {
 	const { db, sync, member, print, device } = useServices();
 	const { t, lang, dir } = useI18n();
 	const [place, setPlace] = useState<Place | null>(null);
-	const [dayOffset, setDayOffset] = useState(0);
+	const [view, setView] = useState<OrdersView>(props.initialView ?? "today");
+	const dayOffset = view === "yesterday" ? 1 : 0;
 	const [search, setSearch] = useState("");
 	const [items, setItems] = useState<OrderListItem[]>([]);
+	const [toPay, setToPay] = useState(0);
 	const [selected, setSelected] = useState<string | null>(null);
 	const [detail, setDetail] = useState<OrderDetail | null>(null);
 	const [ask, setAsk] = useState<Ask | null>(null);
 	const [notice, setNotice] = useState<string | null>(null);
+	const [paying, setPaying] = useState(false);
+	const [drawer, setDrawer] = useState<CashSession | null>(null);
 	const { gate, sheet } = useManagerGate();
+	// Mirrors the API's cash.* role rules.
+	const canDrawer = member.role === "manager" || member.role === "cashier";
 
 	useEffect(() => {
 		void loadMenu(db).then((m) =>
@@ -63,9 +88,24 @@ export function OrdersSheet(props: { onClose: () => void }) {
 
 	const reload = useCallback(async () => {
 		if (!day) return;
-		setItems(await listOrders(db, day, search));
+		const waiting = await listToPay(db);
+		setToPay(waiting.length);
+		if (view === "toPay") {
+			const needle = search.trim().toUpperCase();
+			setItems(
+				waiting
+					.filter(
+						({ order }) =>
+							!needle ||
+							order.ticketNumber.toUpperCase().includes(needle) ||
+							(order.customerName ?? "").toUpperCase().includes(needle),
+					)
+					.map(({ order }) => ({ order, problem: false, pending: false })),
+			);
+		} else setItems(await listOrders(db, day, search));
 		if (selected) setDetail(await loadOrder(db, selected));
-	}, [db, day, search, selected]);
+		setDrawer(await openSession(db));
+	}, [db, day, search, selected, view]);
 
 	useEffect(() => {
 		void reload();
@@ -81,6 +121,13 @@ export function OrdersSheet(props: { onClose: () => void }) {
 		o.fulfillmentStatus !== "completed" &&
 		o.fulfillmentStatus !== "cancelled";
 	const net = detail?.summary.net ?? o?.paidTotal ?? 0;
+	const due = open ? (detail?.summary.chargeable ?? 0) : 0;
+	const canCancel =
+		open &&
+		member.role !== "server" &&
+		detail !== null &&
+		(detail.summary.status === "unpaid" ||
+			detail.summary.status === "refunded");
 	const settled = (detail?.payments ?? []).filter(
 		(p) => p.state === "succeeded",
 	);
@@ -137,6 +184,75 @@ export function OrdersSheet(props: { onClose: () => void }) {
 		await reload();
 	}
 
+	async function doPay(tenders: TenderInput[]) {
+		if (!o || !place) return "not_found";
+		const wasUnpaid = detail?.summary.net === 0;
+		const res = await payOrder(db, {
+			orderId: o.id,
+			tenders,
+			memberId: member.memberId,
+			cashSessionId: drawer?.id ?? null,
+			place,
+		});
+		if (!res.ok) return t(`orders.error.${res.error}` as MessageKey);
+		sync.kick();
+		setPaying(false);
+		// The guest's change is for the tender just handed over, not the sum.
+		const last = tenders.at(-1);
+		const change =
+			last?.tendered !== undefined ? last.tendered - last.amount : 0;
+		setNotice(
+			change > 0
+				? `${t("orders.paid")} ${t("pay.change", { amount: fmt(change, lang) })}`
+				: t("orders.paid"),
+		);
+		await reload();
+
+		// A QR order reaches the kitchen once it is paid: print its ticket now.
+		// Failures are shown, never undo the payment.
+		const after = await loadOrder(db, o.id);
+		const jobs = [
+			print.print(
+				"receipt",
+				receiptFor(res.order, {
+					timeZone: place.timeZone,
+					lang,
+					dir,
+					locationName: device.name,
+					payments: (after?.payments ?? []).filter(
+						(p) => p.state === "succeeded",
+					),
+					change: res.change,
+					openDrawer: tenders.some((p) => p.method === "cash"),
+				}),
+			),
+		];
+		if (res.settled && wasUnpaid && res.order.fulfillmentStatus === "pending")
+			jobs.push(
+				print.print(
+					"kitchen",
+					kitchenFor(res.order, place.timeZone, lang, dir),
+				),
+			);
+		const failed = (await Promise.all(jobs)).flat().find((r) => !r.ok);
+		if (failed && !failed.ok)
+			setNotice(t("pay.printFailed", { error: failed.error }));
+		return null;
+	}
+
+	async function doCancel(reason: string) {
+		if (!o) return;
+		const res = await cancelOrder(db, {
+			orderId: o.id,
+			reason,
+			memberId: member.memberId,
+		});
+		if (!res.ok) return setNotice(t(`orders.error.${res.error}` as MessageKey));
+		sync.kick();
+		setNotice(t("orders.cancelled"));
+		await reload();
+	}
+
 	function reprint() {
 		if (!o || !place) return;
 		void print
@@ -167,15 +283,23 @@ export function OrdersSheet(props: { onClose: () => void }) {
 					<div className="seg">
 						<button
 							type="button"
-							className={dayOffset === 0 ? "active" : ""}
-							onClick={() => setDayOffset(0)}
+							className={view === "toPay" ? "active" : ""}
+							onClick={() => setView("toPay")}
+						>
+							{t("orders.toPay")}
+							{toPay > 0 && <span className="count">{toPay}</span>}
+						</button>
+						<button
+							type="button"
+							className={view === "today" ? "active" : ""}
+							onClick={() => setView("today")}
 						>
 							{t("orders.today")}
 						</button>
 						<button
 							type="button"
-							className={dayOffset === 1 ? "active" : ""}
-							onClick={() => setDayOffset(1)}
+							className={view === "yesterday" ? "active" : ""}
+							onClick={() => setView("yesterday")}
 						>
 							{t("orders.yesterday")}
 						</button>
@@ -193,7 +317,11 @@ export function OrdersSheet(props: { onClose: () => void }) {
 							value={search}
 							onChange={(e) => setSearch(e.target.value)}
 						/>
-						{items.length === 0 && <p className="muted">{t("orders.none")}</p>}
+						{items.length === 0 && (
+							<p className="muted">
+								{t(view === "toPay" ? "orders.nonePay" : "orders.none")}
+							</p>
+						)}
 						{items.map(({ order, problem, pending }) => (
 							<button
 								type="button"
@@ -211,7 +339,15 @@ export function OrdersSheet(props: { onClose: () => void }) {
 								<span className="muted small">
 									{timeOf(order, place?.timeZone)}
 								</span>
+								{order.customerName && (
+									<span className="small order-row__who">
+										{order.customerName}
+									</span>
+								)}
 								<span className="spacer" />
+								{order.source !== "counter" && (
+									<span className="pill">{t("orders.qr")}</span>
+								)}
 								{problem && <span className="pill bad">!</span>}
 								{pending && <span className="pill">⟳</span>}
 								<StatusTag order={order} />
@@ -230,7 +366,8 @@ export function OrdersSheet(props: { onClose: () => void }) {
 										{t(
 											o.type === "dine_in" ? "order.dineIn" : "order.takeaway",
 										)}
-										{o.source === "guest" ? ` · ${t("orders.qr")}` : ""}
+										{o.source !== "counter" ? ` · ${t("orders.qr")}` : ""}
+										{o.customerName ? ` · ${o.customerName}` : ""}
 									</span>
 									<span className="spacer" />
 									<button type="button" onClick={reprint}>
@@ -238,6 +375,28 @@ export function OrdersSheet(props: { onClose: () => void }) {
 									</button>
 								</div>
 								{notice && <p className="notice">{notice}</p>}
+								{due > 0 && (
+									<button
+										type="button"
+										className="primary big"
+										onClick={() => {
+											setNotice(null);
+											setPaying(true);
+										}}
+									>
+										{t("orders.takePayment", { amount: fmt(due, lang) })}
+									</button>
+								)}
+								{o.note && (
+									<p className="muted">
+										{t("order.orderNote")}: {o.note}
+									</p>
+								)}
+								{o.fulfillmentStatus === "cancelled" && o.cancelReason && (
+									<p className="muted">
+										{t("orders.cancelled")}: {o.cancelReason}
+									</p>
+								)}
 								<div className="detail-lines">
 									{o.lines.map((l) => {
 										const voided = l.voidedAt !== null;
@@ -317,6 +476,18 @@ export function OrdersSheet(props: { onClose: () => void }) {
 								{detail && detail.payments.length === 0 && net > 0 && (
 									<p className="muted small">{t("orders.paymentsMissing")}</p>
 								)}
+								{canCancel && (
+									<div className="row">
+										<span className="spacer" />
+										<button
+											type="button"
+											className="danger"
+											onClick={() => setAsk({ kind: "cancel" })}
+										>
+											{t("orders.cancelOrder")}
+										</button>
+									</div>
+								)}
 								{detail && detail.refundable > 0 && (
 									<div className="row">
 										<span className="spacer" />
@@ -348,12 +519,36 @@ export function OrdersSheet(props: { onClose: () => void }) {
 						const a = ask;
 						setAsk(null);
 						if (a.kind === "void") return void doVoid(a.lineId, reason);
+						if (a.kind === "cancel") return void doCancel(reason);
 						const r = { ...a, amount };
 						gate(
 							t("orders.approveRefund", { amount: fmt(amount, lang) }),
 							(id) => void doRefund(id, r, reason),
 						);
 					}}
+				/>
+			)}
+			{paying && o && place && due > 0 && (
+				<PaySheet
+					total={due}
+					ticket={o.ticketNumber}
+					drawer={drawer}
+					canOpenDrawer={canDrawer}
+					onOpenDrawer={async (float) => {
+						const m = await loadMenu(db);
+						if (!m) return;
+						const s = await openCashSession(db, {
+							openingFloat: float,
+							memberId: member.memberId,
+							at: Date.now(),
+							timeZone: m.location.timezone,
+							dayCutoffMinutes: m.location.dayCutoffMinutes,
+						});
+						setDrawer(s);
+						sync.kick();
+					}}
+					onCancel={() => setPaying(false)}
+					onCharge={doPay}
 				/>
 			)}
 			{sheet}
@@ -385,9 +580,15 @@ function StatusTag({ order }: { order: Order }) {
 	const bad =
 		order.paymentStatus === "refunded" ||
 		order.fulfillmentStatus === "cancelled";
+	const owes =
+		order.fulfillmentStatus !== "cancelled" &&
+		(order.paymentStatus === "unpaid" ||
+			order.paymentStatus === "partially_paid");
 	return (
-		<span className={bad ? "pill bad" : "pill"}>
-			{t(`orders.pay.${order.paymentStatus}` as MessageKey)}
+		<span className={bad ? "pill bad" : owes ? "pill warn" : "pill"}>
+			{order.fulfillmentStatus === "cancelled"
+				? t("orders.cancelled")
+				: t(`orders.pay.${order.paymentStatus}` as MessageKey)}
 		</span>
 	);
 }
@@ -396,6 +597,12 @@ const REASONS = [
 	"orders.reason.changedMind",
 	"orders.reason.wrongItem",
 	"orders.reason.quality",
+] as const;
+
+const CANCEL_REASONS = [
+	"orders.reason.guestLeft",
+	"orders.reason.duplicate",
+	"orders.reason.changedMind",
 ] as const;
 
 function ReasonSheet(props: {
@@ -411,11 +618,21 @@ function ReasonSheet(props: {
 	);
 	const amount = ask.kind === "refund" ? parseAmount(amountText) : 0;
 	const amountOk =
-		ask.kind === "void" || (amount !== null && amount > 0 && amount <= ask.max);
+		ask.kind !== "refund" ||
+		(amount !== null && amount > 0 && amount <= ask.max);
+	const reasons = ask.kind === "cancel" ? CANCEL_REASONS : REASONS;
 	return (
 		<div className="sheet-backdrop">
 			<div className="sheet narrow">
-				<h2>{t(ask.kind === "void" ? "orders.voidItem" : "orders.refund")}</h2>
+				<h2>
+					{t(
+						ask.kind === "void"
+							? "orders.voidItem"
+							: ask.kind === "cancel"
+								? "orders.cancelOrder"
+								: "orders.refund",
+					)}
+				</h2>
 				{ask.kind === "refund" && (
 					<label className="stack">
 						<span>{t("orders.amountMax", { amount: fmt(ask.max, lang) })}</span>
@@ -430,7 +647,7 @@ function ReasonSheet(props: {
 					</label>
 				)}
 				<div className="chips">
-					{REASONS.map((k) => (
+					{reasons.map((k) => (
 						<button
 							type="button"
 							key={k}

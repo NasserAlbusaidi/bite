@@ -1,10 +1,19 @@
-import type { Order, RefundPayment, VoidLine } from "@bite/contracts";
+import type {
+	AddPayment,
+	Order,
+	RefundPayment,
+	SetFulfillment,
+	VoidLine,
+} from "@bite/contracts";
 import {
 	businessDate,
+	checkFulfillmentTransition,
+	checkTender,
 	type Minor,
 	type PaymentSummary,
 	planRefund,
 	refundableAmount,
+	summarizePayments,
 } from "@bite/core";
 import type { SqlDriver, SqlExecutor } from "../db/driver.js";
 import { enqueue } from "../sync/outbox.js";
@@ -18,6 +27,7 @@ import {
 	summarize,
 	toLedger,
 } from "./ledger.js";
+import type { TenderInput } from "./sale.js";
 
 export type OrderListItem = {
 	order: Order;
@@ -332,6 +342,214 @@ export async function voidUnpaidLine(
 			...after,
 			paymentStatus: s.status,
 			paidTotal: s.net,
+		});
+		return { ok: true as const };
+	});
+}
+
+export type ToPayItem = {
+	order: Order;
+	/** What is still owed, counting this tablet's payments the server hasn't echoed yet. */
+	due: Minor;
+};
+
+/**
+ * Orders waiting for money at the counter: QR and group orders mostly, plus
+ * anything left part paid. Oldest first, because that guest has waited
+ * longest. Any business day: an unpaid order from before the cutoff is still
+ * standing at the till.
+ */
+export async function listToPay(db: SqlExecutor): Promise<ToPayItem[]> {
+	const rows = await db.all<{ id: string }>(
+		`SELECT id FROM orders
+		 WHERE payment_status IN ('unpaid', 'partially_paid')
+		   AND fulfillment_status NOT IN ('completed', 'cancelled')
+		 ORDER BY placed_at ASC`,
+	);
+	const out: ToPayItem[] = [];
+	for (const r of rows) {
+		const d = await loadOrder(db, r.id);
+		// The column can lag a payment queued on this tablet; the ledger doesn't.
+		if (d && d.summary.balanceDue > 0)
+			out.push({ order: d.order, due: d.summary.balanceDue });
+	}
+	return out;
+}
+
+export type PayOrderError =
+	| "not_found"
+	| "order_cancelled"
+	| "nothing_due"
+	| "no_cash_session"
+	| "amount_not_positive"
+	| "overpayment"
+	| "tendered_not_cash"
+	| "tendered_too_low";
+
+export type PayOrderResult =
+	| {
+			ok: true;
+			order: Order;
+			/** Change across every cash tender. */
+			change: Minor;
+			payments: AddPayment[];
+			/** Nothing left to pay after these tenders. */
+			settled: boolean;
+	  }
+	| { ok: false; error: PayOrderError };
+
+/**
+ * Take money on an order that already exists: a QR order paid at the counter,
+ * or the rest of a part-paid bill. One order.addPayment per tender, each
+ * checked with core against the running balance exactly as the server will.
+ * No baseVersion: the server skips it for payments (overpayment is the guard).
+ */
+export async function payOrder(
+	db: SqlDriver,
+	input: {
+		orderId: string;
+		tenders: readonly TenderInput[];
+		memberId: string;
+		/** The drawer open on this tablet. Cash goes into it. */
+		cashSessionId: string | null;
+		place: Place;
+		at?: number;
+	},
+): Promise<PayOrderResult> {
+	const at = input.at ?? Date.now();
+	const iso = new Date(at).toISOString();
+	const day = businessDate(
+		at,
+		input.place.timeZone,
+		input.place.dayCutoffMinutes,
+	);
+	return db.transaction(async (tx) => {
+		const d = await loadOrder(tx, input.orderId);
+		if (!d) return { ok: false as const, error: "not_found" as const };
+		if (d.order.fulfillmentStatus === "cancelled")
+			return { ok: false as const, error: "order_cancelled" as const };
+		if (d.summary.chargeable <= 0 || input.tenders.length === 0)
+			return { ok: false as const, error: "nothing_due" as const };
+		if (input.tenders.some((t) => t.method === "cash") && !input.cashSessionId)
+			return { ok: false as const, error: "no_cash_session" as const };
+
+		// Validate every tender before writing anything.
+		const ledger = toLedger(d.payments);
+		let change = 0;
+		const payments: AddPayment[] = [];
+		for (const t of input.tenders) {
+			const check = checkTender(
+				summarizePayments(d.order.total as Minor, ledger),
+				{
+					amount: t.amount,
+					method: t.method,
+					...(t.tendered !== undefined && { tendered: t.tendered }),
+				},
+			);
+			if (!check.ok) return { ok: false as const, error: check.error };
+			change += check.change;
+			const p = {
+				id: newId(),
+				orderId: input.orderId,
+				amount: t.amount,
+				tip: 0,
+				method: t.method,
+				businessDate: day,
+				...(t.method === "cash" && {
+					cashSessionId: input.cashSessionId ?? undefined,
+					tendered: t.tendered ?? t.amount,
+				}),
+			} as AddPayment;
+			payments.push(p);
+			ledger.push({
+				id: p.id,
+				amount: t.amount,
+				method: t.method,
+				state: "succeeded",
+				reversesPaymentId: null,
+			});
+		}
+
+		for (const p of payments) {
+			const m = await enqueue(tx, {
+				kind: "order.addPayment",
+				entityId: input.orderId,
+				memberId: input.memberId,
+				payload: p,
+				now: new Date(at),
+			});
+			await recordPayment(tx, {
+				id: p.id,
+				orderId: input.orderId,
+				outboxId: m.id,
+				amount: p.amount,
+				tip: p.tip,
+				tendered: p.tendered ?? null,
+				method: p.method,
+				// Every method, like a counter sale: the X/Z report counts card too.
+				sessionId: input.cashSessionId,
+				reversesPaymentId: null,
+				reason: null,
+				memberId: input.memberId,
+				businessDate: day,
+				createdAt: iso,
+			});
+		}
+
+		const s = summarizePayments(d.order.total as Minor, ledger);
+		const order: Order = {
+			...d.order,
+			paymentStatus: s.status,
+			paidTotal: s.net,
+		};
+		await saveLocal(tx, order);
+		return {
+			ok: true as const,
+			order,
+			change: change as Minor,
+			payments,
+			settled: s.balanceDue === 0,
+		};
+	});
+}
+
+/**
+ * Cancel a whole order nobody holds money for: a QR order the guest walked
+ * away from, or one already refunded in full. An order with money on it must
+ * be refunded first (core and the server both say "refund_first").
+ */
+export async function cancelOrder(
+	db: SqlDriver,
+	input: { orderId: string; reason: string; memberId: string; at?: number },
+): Promise<{ ok: true } | { ok: false; error: string }> {
+	const at = input.at ?? Date.now();
+	return db.transaction(async (tx) => {
+		const d = await loadOrder(tx, input.orderId);
+		if (!d) return { ok: false as const, error: "not_found" };
+		const check = checkFulfillmentTransition(
+			d.order.fulfillmentStatus,
+			"cancelled",
+			d.summary.status,
+		);
+		if (!check.ok) return { ok: false as const, error: check.error };
+		const payload: SetFulfillment = {
+			orderId: input.orderId,
+			to: "cancelled",
+			reason: input.reason,
+		};
+		await enqueue(tx, {
+			kind: "order.setFulfillment",
+			entityId: input.orderId,
+			memberId: input.memberId,
+			payload,
+			...(await baseVersionFor(tx, input.orderId)),
+			now: new Date(at),
+		});
+		await saveLocal(tx, {
+			...d.order,
+			fulfillmentStatus: "cancelled",
+			cancelledAt: new Date(at).toISOString(),
+			cancelReason: input.reason,
 		});
 		return { ok: true as const };
 	});
