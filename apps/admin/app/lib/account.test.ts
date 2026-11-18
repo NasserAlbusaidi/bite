@@ -1,100 +1,137 @@
 import { describe, expect, it } from "vitest";
-import { accountApi, adminGate, safeNext } from "./account";
+import { errorKind } from "../components/ErrorPanel";
+import { parsePasswordForm, passwordError } from "./account-form";
 import { AdminApiError } from "./api-types";
-import { httpAdminApi } from "./http";
+import { noOrdersYet, setupSteps } from "./getting-started";
 
-const json = (status: number, body: unknown) =>
-	new Response(JSON.stringify(body), {
-		status,
-		headers: { "content-type": "application/json" },
-	});
+const form = (v: Record<string, string>) => {
+	const f = new FormData();
+	for (const [k, x] of Object.entries(v)) f.set(k, x);
+	return f;
+};
 
-describe("safeNext", () => {
-	it("keeps in-app paths and drops anything that could leave the app", () => {
-		expect(safeNext("/reports?from=2026-11-01")).toBe(
-			"/reports?from=2026-11-01",
-		);
-		for (const bad of [
-			null,
-			"",
-			"https://evil.example",
-			"//evil.example",
-			"/\\evil",
-			"reports",
-		])
-			expect(safeNext(bad)).toBe("/");
-	});
-});
-
-describe("adminGate", () => {
-	it("sends 401 to sign-in, multi-org 400 to the picker, 403 to the picker with the org cleared", () => {
+describe("change password form", () => {
+	it("takes a good form and remembers the sign-out choice", () => {
 		expect(
-			adminGate(new AdminApiError("unauthenticated", 401), "/staff"),
-		).toEqual({
-			to: "/sign-in?next=%2Fstaff",
-		});
-		expect(
-			adminGate(
-				new AdminApiError("bad_request", 400, { orgIds: ["a", "b"] }),
-				"/",
+			parsePasswordForm(
+				form({
+					current: "old-password-1",
+					next: "new-password-1",
+					confirm: "new-password-1",
+					signOutOthers: "on",
+				}),
 			),
-		).toEqual({ to: "/orgs?next=%2F" });
-		expect(adminGate(new AdminApiError("forbidden", 403), "/")).toEqual({
-			to: "/orgs?next=%2F&denied=1",
-			clearOrg: true,
+		).toEqual({
+			ok: true,
+			current: "old-password-1",
+			next: "new-password-1",
+			signOutOthers: true,
 		});
 	});
-	it("leaves other failures to the error page", () => {
-		expect(adminGate(new AdminApiError("bad_request", 400), "/")).toBeNull();
-		expect(adminGate(new AdminApiError("internal", 500), "/")).toBeNull();
-		expect(adminGate(new Error("boom"), "/")).toBeNull();
+
+	it("keeps spaces: a password is what was typed", () => {
+		const r = parsePasswordForm(
+			form({
+				current: " old pass ",
+				next: " new pass 12",
+				confirm: " new pass 12",
+			}),
+		);
+		expect(r).toMatchObject({
+			ok: true,
+			current: " old pass ",
+			signOutOthers: false,
+		});
+	});
+
+	it("refuses short, long, repeated and mistyped passwords", () => {
+		const errors = (v: Record<string, string>) => {
+			const r = parsePasswordForm(form(v));
+			return r.ok ? {} : r.errors;
+		};
+		expect(errors({ current: "", next: "short", confirm: "short" })).toEqual({
+			current: "required_field",
+			next: "password_hint",
+		});
+		expect(
+			errors({ current: "x", next: "a".repeat(129), confirm: "a".repeat(129) }),
+		).toEqual({ next: "password_hint" });
+		expect(
+			errors({
+				current: "same-password-1",
+				next: "same-password-1",
+				confirm: "same-password-1",
+			}),
+		).toEqual({ next: "password_same" });
+		expect(
+			errors({
+				current: "old-password-1",
+				next: "new-password-1",
+				confirm: "new-password-2",
+			}),
+		).toEqual({ confirm: "password_mismatch" });
+	});
+
+	it("puts the server's answer on the right field", () => {
+		expect(passwordError("INVALID_PASSWORD")).toEqual({
+			current: "password_wrong",
+		});
+		expect(passwordError("PASSWORD_TOO_SHORT")).toEqual({
+			next: "password_hint",
+		});
+		expect(passwordError("rate_limited")).toEqual({
+			current: "password_change_failed",
+		});
 	});
 });
 
-describe("accountApi", () => {
-	it("posts with the cookie and maps Better Auth error codes", async () => {
-		const seen: { url: string; init: RequestInit | undefined }[] = [];
-		const api = accountApi("https://api.example", async (url, init) => {
-			seen.push({ url: String(url), init });
-			return json(401, { code: "INVALID_EMAIL_OR_PASSWORD", message: "nope" });
-		});
-		await expect(api.signIn("a@b.co", "x")).rejects.toMatchObject({
-			status: 401,
-			code: "INVALID_EMAIL_OR_PASSWORD",
-		});
-		expect(seen[0]?.url).toBe("https://api.example/v1/auth/sign-in/email");
-		expect(seen[0]?.init?.credentials).toBe("include");
-		expect(seen[0]?.init?.method).toBe("POST");
-	});
-	it("reads a missing session as null and parses our error envelope", async () => {
-		const api = accountApi("https://api.example", async (url) =>
-			String(url).endsWith("/get-session")
-				? json(200, null)
-				: json(404, { error: { code: "not_found", message: "expired" } }),
-		);
-		expect(await api.session()).toBeNull();
-		await expect(api.acceptInvite("t".repeat(43))).rejects.toMatchObject({
-			status: 404,
-			code: "not_found",
-		});
+describe("error pages", () => {
+	it("sorts what was thrown into something a person can act on", () => {
+		expect(errorKind(new AdminApiError("not_found", 404))).toBe("not_found");
+		expect(errorKind(new AdminApiError("forbidden", 403))).toBe("forbidden");
+		expect(errorKind(new TypeError("Failed to fetch"))).toBe("offline");
+		expect(errorKind(new AdminApiError("internal", 500))).toBe("broken");
+		expect(errorKind(new Error("boom"))).toBe("broken");
+		expect(errorKind(undefined)).toBe("broken");
 	});
 });
 
-describe("org header", () => {
-	it("sends x-org-id only when an org is chosen", async () => {
-		const headers: (string | null)[] = [];
-		let org: string | undefined;
-		const api = httpAdminApi(
-			"https://api.example",
-			async (_url, init) => {
-				headers.push(new Headers(init?.headers).get("x-org-id"));
-				return json(400, { error: { code: "bad_request", message: "x" } });
-			},
-			() => org,
-		);
-		await api.me().catch(() => undefined);
-		org = "0193a1b2-0000-7000-8000-000000000001";
-		await api.me().catch(() => undefined);
-		expect(headers).toEqual([null, org]);
+describe("getting started", () => {
+	const input = {
+		locationId: "loc1",
+		products: 0,
+		withPin: 0,
+		tablets: 0,
+		orders: 0,
+	};
+	it("starts with nothing done and points at the right pages", () => {
+		expect(setupSteps(input)).toEqual([
+			{ key: "menu", done: false, to: "/menu" },
+			{ key: "team", done: false, to: "/staff" },
+			{ key: "tablet", done: false, to: "/locations/loc1/settings" },
+			{ key: "order", done: false, to: "/locations/loc1/settings" },
+		]);
+	});
+	it("ticks each step from what exists", () => {
+		const done = (v: Partial<typeof input>) =>
+			setupSteps({ ...input, ...v })
+				.filter((s) => s.done)
+				.map((s) => s.key);
+		expect(done({ products: 3 })).toEqual(["menu"]);
+		expect(done({ products: 3, withPin: 1, tablets: 2 })).toEqual([
+			"menu",
+			"team",
+			"tablet",
+		]);
+		expect(done({ orders: 1 })).toEqual(["order"]);
+	});
+	it("only shows while no branch took an order all week", () => {
+		const b = (n: number) =>
+			({ week: { orderCount: n } }) as Parameters<
+				typeof noOrdersYet
+			>[0][number];
+		expect(noOrdersYet([b(0), b(0)])).toBe(true);
+		expect(noOrdersYet([b(0), b(4)])).toBe(false);
+		expect(noOrdersYet([])).toBe(true);
 	});
 });

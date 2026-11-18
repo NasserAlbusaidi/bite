@@ -1,5 +1,5 @@
 import { addDays, businessDate } from "@bite/core";
-import type { ReactNode } from "react";
+import { type ReactNode, useState } from "react";
 import { Link } from "react-router";
 import { adminApi } from "../lib/api";
 import {
@@ -10,7 +10,14 @@ import {
 	taken,
 	totals,
 } from "../lib/dashboard";
-import { loc } from "../lib/i18n";
+import {
+	hideSetup,
+	noOrdersYet,
+	type SetupStep,
+	setupHidden,
+	setupSteps,
+} from "../lib/getting-started";
+import { loc, type T } from "../lib/i18n";
 import { toDecimal } from "../lib/money";
 import { loadPlaces } from "../lib/places";
 import { selectedLocationId } from "../lib/selected-location";
@@ -19,9 +26,10 @@ import type { Route } from "./+types/home";
 
 export async function clientLoader() {
 	const api = adminApi();
-	const [places, settings] = await Promise.all([
+	const [places, settings, me] = await Promise.all([
 		loadPlaces(api),
 		api.locations(),
+		api.me(),
 	]);
 	const now = Date.now();
 	const rows = await Promise.all(
@@ -42,7 +50,7 @@ export async function clientLoader() {
 	const branches = rows.filter((r): r is BranchDay => r !== null);
 	const locationId = selectedLocationId(places);
 	const mine = branches.find((b) => b.place.id === locationId);
-	if (!mine) return { branches, attention: [] };
+	if (!mine) return { branches, attention: [], setup: null };
 	// The side panels are extras: one of them failing must not blank the page.
 	const [unpaid, products, menu] = await Promise.all([
 		api
@@ -59,8 +67,25 @@ export async function clientLoader() {
 			.menu()
 			.catch(() => ({ categories: [], products: [], modifierGroups: [] })),
 	]);
+	// A week with no orders anywhere: show the way to the first one. Only the
+	// people who can do every step (owner, admins) get the list.
+	const setup =
+		me.member.orgRole !== "staff" && noOrdersYet(branches)
+			? await Promise.all([api.staff(), api.devices(mine.place.id)])
+					.then(([staff, devices]) =>
+						setupSteps({
+							locationId: mine.place.id,
+							products: menu.products.filter((p) => !p.archivedAt).length,
+							withPin: staff.filter((m) => m.isActive && m.hasPin).length,
+							tablets: devices.filter((d) => !d.revokedAt).length,
+							orders: 0,
+						}),
+					)
+					.catch(() => null)
+			: null;
 	return {
 		branches,
+		setup,
 		attention: attention({
 			locationId: mine.place.id,
 			date: mine.date,
@@ -73,8 +98,9 @@ export async function clientLoader() {
 
 export default function Home({ loaderData }: Route.ComponentProps) {
 	const { branches } = loaderData;
-	const { t, lang, locationId } = useShell();
+	const { t, lang, locationId, me } = useShell();
 	const mine = branches.find((b) => b.place.id === locationId);
+	const [hidden, setHidden] = useState(() => setupHidden(me.org.id));
 
 	if (!mine)
 		return (
@@ -113,6 +139,17 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 				</h1>
 				<Link to="/reports">{t("overview_full_report")}</Link>
 			</div>
+
+			{loaderData.setup && !hidden && (
+				<GettingStarted
+					steps={loaderData.setup}
+					t={t}
+					onHide={() => {
+						hideSetup(me.org.id);
+						setHidden(true);
+					}}
+				/>
+			)}
 
 			<section className="stats">
 				<Stat
@@ -254,6 +291,65 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 				</section>
 			</div>
 		</>
+	);
+}
+
+function GettingStarted({
+	steps,
+	t,
+	onHide,
+}: {
+	steps: SetupStep[];
+	t: T;
+	onHide: () => void;
+}) {
+	const next = steps.find((s) => !s.done);
+	return (
+		<section className="card setup">
+			<div className="card-head">
+				<h2>{t("setup_title")}</h2>
+				<span className="muted small">
+					{t("setup_progress", {
+						done: steps.filter((s) => s.done).length,
+						total: steps.length,
+					})}
+				</span>
+			</div>
+			<ol className="setup__steps">
+				{steps.map((s, i) => (
+					<li
+						key={s.key}
+						className={s.done ? "setup__step setup__step--done" : "setup__step"}
+					>
+						<span className="setup__mark" aria-hidden="true">
+							{s.done ? "✓" : i + 1}
+						</span>
+						<div>
+							<p className="setup__text strong">
+								{t(`setup_${s.key}`)}
+								{s.done && <span className="sr-only"> ({t("done")})</span>}
+							</p>
+							{!s.done && (
+								<p className="setup__text muted small">
+									{t(`setup_${s.key}_hint`)}
+								</p>
+							)}
+						</div>
+						{!s.done && (
+							<Link
+								className={s === next ? "btn btn--primary" : "btn"}
+								to={s.to}
+							>
+								{t(`setup_${s.key}_go`)}
+							</Link>
+						)}
+					</li>
+				))}
+			</ol>
+			<button type="button" className="link-btn small" onClick={onHide}>
+				{t("setup_hide")}
+			</button>
+		</section>
 	);
 }
 
