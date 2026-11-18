@@ -1,4 +1,9 @@
-import { RefundPayment, SyncMutation, VoidLine } from "@bite/contracts";
+import {
+	type Order,
+	RefundPayment,
+	SyncMutation,
+	VoidLine,
+} from "@bite/contracts";
 import type { Minor } from "@bite/core";
 import { beforeEach, describe, expect, it } from "vitest";
 import type { SqlDriver } from "../db/driver.js";
@@ -24,9 +29,12 @@ import { newId } from "./ids.js";
 import { orderPayments } from "./ledger.js";
 import { prepareMenu } from "./menu.js";
 import {
+	cancelOrder,
 	lineGross,
 	listOrders,
+	listToPay,
 	loadOrder,
+	payOrder,
 	refund,
 	voidUnpaidLine,
 } from "./orders.js";
@@ -502,5 +510,177 @@ describe("sync problems", () => {
 		// Still flagged on the order itself, so nobody mistakes it for a clean sale.
 		const [row] = await listOrders(db, "2026-11-17");
 		expect(row?.problem).toBe(true);
+	});
+});
+
+describe("paying an order that already exists (QR order at the counter)", () => {
+	/** A guest order as the pull delivers it: unpaid, version 3, no payments. */
+	async function guestOrder() {
+		const s = await sale([], null);
+		const order: Order = {
+			...s.order,
+			source: "guest",
+			customerName: "Aisha",
+			version: 3,
+			payments: [],
+			paymentStatus: "unpaid",
+			paidTotal: 0,
+		};
+		await db.run("DELETE FROM outbox");
+		await upsertOrders(db, [order]);
+		return order;
+	}
+
+	it("lists unpaid open orders oldest first and drops them once paid", async () => {
+		const d = await drawer();
+		const o = await guestOrder();
+		expect((await listToPay(db)).map((x) => [x.order.id, x.due])).toEqual([
+			[o.id, 3_225],
+		]);
+		const res = await payOrder(db, {
+			orderId: o.id,
+			tenders: [
+				{ method: "cash", amount: 3_225 as Minor, tendered: 5_000 as Minor },
+			],
+			memberId: CASHIER,
+			cashSessionId: d.id,
+			place: PLACE,
+			at: AT + 60_000,
+		});
+		if (!res.ok) throw new Error(res.error);
+		expect(res.change).toBe(1_775);
+		expect(res.settled).toBe(true);
+		expect(res.order.paymentStatus).toBe("paid");
+		expect(await listToPay(db)).toEqual([]);
+
+		const [m] = await listOutbox(db);
+		expect(m?.kind).toBe("order.addPayment");
+		expect(m?.entityId).toBe(o.id);
+		// The server takes payments without a baseVersion.
+		expect(m?.baseVersion).toBeUndefined();
+		expect(SyncMutation.safeParse(m).success).toBe(true);
+		// Cash lands in this tablet's drawer.
+		expect((await sessionReport(db, d.id))?.expectedCash).toBe(10_000 + 3_225);
+	});
+
+	it("splits a bill: cash share plus card share, change only on cash", async () => {
+		const d = await drawer();
+		const o = await guestOrder();
+		const res = await payOrder(db, {
+			orderId: o.id,
+			tenders: [
+				{ method: "cash", amount: 1_613 as Minor, tendered: 2_000 as Minor },
+				{ method: "card", amount: 1_612 as Minor },
+			],
+			memberId: CASHIER,
+			cashSessionId: d.id,
+			place: PLACE,
+		});
+		if (!res.ok) throw new Error(res.error);
+		expect(res.change).toBe(387);
+		expect(res.payments.map((p) => [p.method, p.amount])).toEqual([
+			["cash", 1_613],
+			["card", 1_612],
+		]);
+		expect((await listOutbox(db)).map((m) => m.kind)).toEqual([
+			"order.addPayment",
+			"order.addPayment",
+		]);
+		const after = await loadOrder(db, o.id);
+		expect(after?.summary.status).toBe("paid");
+		expect(after?.refundable).toBe(3_225);
+	});
+
+	it("takes a part payment and leaves the rest on the to-pay list", async () => {
+		const o = await guestOrder();
+		const res = await payOrder(db, {
+			orderId: o.id,
+			tenders: [{ method: "card", amount: 1_000 as Minor }],
+			memberId: CASHIER,
+			cashSessionId: null,
+			place: PLACE,
+		});
+		if (!res.ok) throw new Error(res.error);
+		expect(res.settled).toBe(false);
+		expect(res.order.paymentStatus).toBe("partially_paid");
+		expect((await listToPay(db)).map((x) => x.due)).toEqual([2_225]);
+	});
+
+	it("refuses to overcharge, cash without a drawer, and a cancelled order, writing nothing", async () => {
+		const o = await guestOrder();
+		const pay = (tenders: TenderInput[], cashSessionId: string | null = null) =>
+			payOrder(db, {
+				orderId: o.id,
+				tenders,
+				memberId: CASHIER,
+				cashSessionId,
+				place: PLACE,
+			});
+		expect(
+			await pay([
+				{ method: "card", amount: 3_000 as Minor },
+				{ method: "card", amount: 1_000 as Minor },
+			]),
+		).toEqual({ ok: false, error: "overpayment" });
+		expect(await pay([{ method: "cash", amount: 3_225 as Minor }])).toEqual({
+			ok: false,
+			error: "no_cash_session",
+		});
+		expect(await listOutbox(db)).toEqual([]);
+		expect(await orderPayments(db, o.id)).toEqual([]);
+
+		const c = await cancelOrder(db, {
+			orderId: o.id,
+			reason: "Guest left",
+			memberId: CASHIER,
+		});
+		expect(c).toEqual({ ok: true });
+		expect(await pay([{ method: "card", amount: 3_225 as Minor }])).toEqual({
+			ok: false,
+			error: "order_cancelled",
+		});
+	});
+});
+
+describe("cancelling a whole order", () => {
+	it("cancels an unpaid order against the server's version and takes it off the to-pay list", async () => {
+		const s = await sale([], null);
+		await db.run("DELETE FROM outbox");
+		await upsertOrders(db, [{ ...s.order, source: "guest", version: 2 }]);
+		const res = await cancelOrder(db, {
+			orderId: s.order.id,
+			reason: "Guest left",
+			memberId: CASHIER,
+			at: AT + 1_000,
+		});
+		expect(res).toEqual({ ok: true });
+		const [m] = await listOutbox(db);
+		expect(m?.kind).toBe("order.setFulfillment");
+		expect(m?.baseVersion).toBe(2);
+		expect(m?.payload).toEqual({
+			orderId: s.order.id,
+			to: "cancelled",
+			reason: "Guest left",
+		});
+		expect(SyncMutation.safeParse(m).success).toBe(true);
+		const after = await loadOrder(db, s.order.id);
+		expect(after?.order.fulfillmentStatus).toBe("cancelled");
+		expect(after?.order.cancelReason).toBe("Guest left");
+		expect(await listToPay(db)).toEqual([]);
+	});
+
+	it("won't cancel while the order still holds money", async () => {
+		const d = await drawer();
+		const s = await sale(
+			[{ method: "cash", amount: 3_225 as Minor, tendered: 3_225 as Minor }],
+			d.id,
+		);
+		expect(
+			await cancelOrder(db, {
+				orderId: s.order.id,
+				reason: "x",
+				memberId: MANAGER,
+			}),
+		).toEqual({ ok: false, error: "refund_first" });
 	});
 });
