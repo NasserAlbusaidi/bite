@@ -21,6 +21,17 @@ describe("pairing code", () => {
 		expect(parsePairingCode(encodePairingCode(p))).toEqual(p);
 	});
 
+	it("drops any number of trailing slashes and refuses oversized input", () => {
+		expect(
+			parsePairingCode(`bitepair:${token}@https://api.bite.om///`),
+		).toEqual({ serverUrl: "https://api.bite.om", token });
+		expect(
+			parsePairingCode(
+				`bitepair:${token}@https://api.bite.om/${"/".repeat(5000)}x`,
+			),
+		).toBeNull();
+	});
+
 	it("rejects anything that is not a pairing code", () => {
 		for (const bad of [
 			"",
