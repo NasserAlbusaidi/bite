@@ -15,6 +15,11 @@ export type Deps = {
 	/** Absent in unit tests that don't need it. */
 	realtime?: RealtimeHub;
 	now?: () => Date;
+	/**
+	 * True = plan limits are enforced (PLAN_ENFORCEMENT=on). Off by default:
+	 * every org then gets every feature, unlimited.
+	 */
+	planEnforcement?: boolean;
 };
 
 export type DeviceCtx = {

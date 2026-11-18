@@ -9,6 +9,7 @@ import { eq, sql } from "@bite/db/orm";
 import { Hono } from "hono";
 import { z } from "zod";
 import type { AppEnv } from "../env.js";
+import { loadEntitlements } from "../lib/entitlements.js";
 import { ApiError } from "../lib/errors.js";
 import { slugTx } from "../lib/public-tenant.js";
 import { validate } from "../lib/validate.js";
@@ -55,6 +56,7 @@ export const publicRoutes = new Hono<AppEnv>()
 					now,
 					idempotencyKey: key.data,
 					fingerprint: guestFingerprint(input, slug),
+					deps: c.var.deps,
 				}),
 			);
 			const res: CreateGuestOrderResponse = { order: out.view };
@@ -90,6 +92,7 @@ export const publicRoutes = new Hono<AppEnv>()
 				.where(eq(locations.id, ids.locationId));
 			const menu = await loadMenuSnapshot(tx, ids.locationId, now);
 			if (!row || !menu) throw new ApiError("not_found", "no such location");
+			const plan = await loadEntitlements(tx, c.var.deps, ids.orgId);
 			const theme = row.loc.theme;
 			const accent = str(theme.accent);
 			const logoUrl = str(theme.logoUrl);
@@ -98,7 +101,8 @@ export const publicRoutes = new Hono<AppEnv>()
 					slug: row.loc.slug,
 					name: row.loc.name,
 					orgName: row.orgName,
-					isAcceptingOrders: acceptsOrders(row.loc, now),
+					isAcceptingOrders:
+						acceptsOrders(row.loc, now) && plan.features.qr_ordering,
 					theme: {
 						...(accent ? { accent } : {}),
 						...(logoUrl ? { logoUrl } : {}),

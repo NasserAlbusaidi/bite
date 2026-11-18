@@ -36,6 +36,14 @@ export const orgs = pgTable(
 		slug: text("slug").notNull().unique(),
 		status: orgStatus("status").notNull().default("trial"),
 		trialEndsAt: timestamp("trial_ends_at", { withTimezone: true }),
+		/**
+		 * Hand-set plan exceptions (EntitlementOverrides in @bite/core): founding
+		 * customers, goodwill extensions, custom deals. The app role cannot write
+		 * this, status or trial_ends_at (migration 0014): only the system role.
+		 */
+		entitlementOverrides: jsonb("entitlement_overrides").$type<
+			Record<string, unknown>
+		>(),
 		legacyId: integer("legacy_id"),
 		createdAt: createdAt(),
 		updatedAt: updatedAt(),
