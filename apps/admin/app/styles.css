@@ -1422,6 +1422,99 @@ p.warn {
 	text-align: center;
 }
 
+/* Page rhythm and loading */
+.report,
+.page {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr);
+	gap: var(--space-4);
+	align-content: start;
+}
+.report .stats,
+.page .stats {
+	margin-block: 0;
+}
+.report .grid2 {
+	align-items: stretch;
+	gap: var(--space-4);
+}
+.report .grid2--start {
+	align-items: start;
+}
+.stack {
+	display: grid;
+	gap: var(--space-4);
+	align-content: start;
+}
+.links-list {
+	display: grid;
+	gap: var(--space-3);
+}
+.report .grid2 > .card,
+.report .stats > .card {
+	margin: 0;
+}
+.is-busy > :not(.page-head):not(.range-bar) {
+	opacity: 0.5;
+	transition: opacity 0.2s var(--ease-out) 0.15s;
+	pointer-events: none;
+}
+
+/* Date range bar */
+.range-bar {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--space-3);
+	padding-block: var(--space-3);
+}
+.range-bar__chips {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-2);
+	min-inline-size: 0;
+}
+.range-bar__custom {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+}
+.range-bar__date .input {
+	inline-size: 140px;
+}
+.range-bar__date.is-on .input {
+	border-color: var(--secondary);
+	box-shadow: 0 0 0 1px var(--secondary);
+}
+@media (max-width: 760px) {
+	.range-bar {
+		padding-inline: var(--space-3);
+	}
+	.range-bar__chips {
+		flex-wrap: nowrap;
+		overflow-x: auto;
+		scrollbar-width: none;
+		inline-size: 100%;
+	}
+	.range-bar__chips .chip {
+		flex: none;
+	}
+	.range-bar__custom {
+		inline-size: 100%;
+	}
+	.range-bar__date {
+		flex: 1;
+		min-inline-size: 0;
+	}
+	.range-bar__date .input {
+		inline-size: 100%;
+		min-inline-size: 0;
+		max-inline-size: none;
+		padding-inline: var(--space-2);
+	}
+}
+
 /* Daily chart */
 .chart {
 	position: relative;
@@ -1445,6 +1538,9 @@ p.warn {
 	fill: var(--secondary);
 	opacity: 0.85;
 	transition: opacity var(--dur-fast) var(--ease-out);
+}
+.chart__bar--partial {
+	opacity: 0.45;
 }
 .chart__bar--on {
 	fill: var(--action);
@@ -1778,10 +1874,6 @@ p.warn {
 .drawer__body {
 	padding-block-start: var(--space-3);
 }
-.btn--sm {
-	min-block-size: 32px;
-	padding-inline: var(--space-3);
-}
 .facts {
 	display: grid;
 	grid-template-columns: auto 1fr;
@@ -1870,9 +1962,56 @@ p.warn {
 }
 
 @media (max-width: 760px) {
-	.orders-table th:nth-child(3),
-	.orders-table td:nth-child(3) {
+	/* Orders as stacked cards: ticket and total on top, the rest below. */
+	.orders-table,
+	.orders-table tbody {
+		display: block;
+	}
+	.table-wrap .table.orders-table {
+		min-inline-size: 0;
+	}
+	.orders-table thead {
 		display: none;
+	}
+	.orders-table tbody tr {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) auto;
+		gap: 2px var(--space-3);
+		padding: var(--space-3) var(--space-2);
+		border-block-start: 1px solid var(--line);
+	}
+	.table.orders-table tbody tr td {
+		display: block;
+		padding: 0;
+		border: 0;
+	}
+	.orders-table td:nth-child(1) {
+		grid-column: 1;
+		grid-row: 1;
+	}
+	.orders-table td:nth-child(5) {
+		grid-column: 2;
+		grid-row: 1;
+		font-weight: 700;
+	}
+	.orders-table td:nth-child(2) {
+		grid-column: 2;
+		grid-row: 2;
+		text-align: end;
+	}
+	.table.orders-table tbody tr td:nth-child(3) {
+		display: none;
+	}
+	.orders-table td:nth-child(4) {
+		grid-column: 1;
+		grid-row: 2;
+	}
+	.orders-filters label {
+		min-inline-size: 0;
+		flex: 1 1 40%;
+	}
+	.orders-filters .grow {
+		flex-basis: 100%;
 	}
 	.chart__axis {
 		font-size: 16px;

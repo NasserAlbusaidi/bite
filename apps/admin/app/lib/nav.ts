@@ -10,30 +10,66 @@ export type NavItem = {
 	group: NavGroup;
 	/** Only active on the exact address (the overview at "/"). */
 	end?: boolean;
+	/** Keyboard shortcut: press G, then this key. */
+	go?: string;
 };
 
 /** The sidebar, in order. Branch pages need a branch. */
 export function navItems(locationId: string | undefined): NavItem[] {
 	const items: (NavItem | false)[] = [
-		{ key: "overview", to: "/", icon: "home", group: "main", end: true },
-		{ key: "reports", to: "/reports", icon: "chart", group: "main" },
-		{ key: "orders_title", to: "/orders", icon: "receipt", group: "main" },
-		{ key: "drawers_title", to: "/drawers", icon: "cash", group: "main" },
-		{ key: "menu", to: "/menu", icon: "book", group: "menu", end: true },
+		{
+			key: "overview",
+			to: "/",
+			icon: "home",
+			group: "main",
+			end: true,
+			go: "h",
+		},
+		{ key: "reports", to: "/reports", icon: "chart", group: "main", go: "r" },
+		{
+			key: "orders_title",
+			to: "/orders",
+			icon: "receipt",
+			group: "main",
+			go: "o",
+		},
+		{
+			key: "drawers_title",
+			to: "/drawers",
+			icon: "cash",
+			group: "main",
+			go: "c",
+		},
+		{
+			key: "menu",
+			to: "/menu",
+			icon: "book",
+			group: "menu",
+			end: true,
+			go: "m",
+		},
 		{
 			key: "modifier_groups",
 			to: "/menu/modifiers",
 			icon: "sliders",
 			group: "menu",
+			go: "x",
 		},
 		!!locationId && {
 			key: "prices_availability",
 			to: `/locations/${locationId}/menu`,
 			icon: "tag",
 			group: "menu",
+			go: "p",
 		},
-		{ key: "promotions", to: "/promotions", icon: "percent", group: "menu" },
-		{ key: "staff", to: "/staff", icon: "users", group: "business" },
+		{
+			key: "promotions",
+			to: "/promotions",
+			icon: "percent",
+			group: "menu",
+			go: "d",
+		},
+		{ key: "staff", to: "/staff", icon: "users", group: "business", go: "s" },
 		!!locationId && {
 			key: "floor_nav",
 			to: `/locations/${locationId}/floor`,
@@ -45,8 +81,15 @@ export function navItems(locationId: string | undefined): NavItem[] {
 			to: `/locations/${locationId}/settings`,
 			icon: "store",
 			group: "business",
+			go: "b",
 		},
-		{ key: "setup_guide", to: "/setup", icon: "check", group: "business" },
+		{
+			key: "setup_guide",
+			to: "/setup",
+			icon: "check",
+			group: "business",
+			go: "u",
+		},
 	];
 	return items.filter((x): x is NavItem => x !== false);
 }
@@ -112,3 +155,27 @@ const fold = (s: string) =>
 		.replace(/ة/g, "ه")
 		.replace(/ى/g, "ي")
 		.trim();
+
+/** Account is not in the sidebar but has its own shortcut. */
+export const ACCOUNT_GO = "a";
+
+/** Where G then `key` goes, or undefined. */
+export function goTarget(
+	items: readonly NavItem[],
+	key: string,
+): string | undefined {
+	const k = key.toLowerCase();
+	if (k === ACCOUNT_GO) return "/account";
+	return items.find((i) => i.go === k)?.to;
+}
+
+/** True when a key press belongs to a text field, not to the shortcuts. */
+export function isTyping(target: EventTarget | null): boolean {
+	if (!target || !(target instanceof HTMLElement)) return false;
+	if (target.isContentEditable) return true;
+	const tag = target.tagName;
+	if (tag === "TEXTAREA" || tag === "SELECT") return true;
+	if (tag !== "INPUT") return false;
+	const type = (target as HTMLInputElement).type;
+	return !["checkbox", "radio", "button", "submit", "reset"].includes(type);
+}

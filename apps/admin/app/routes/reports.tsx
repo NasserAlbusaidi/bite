@@ -1,6 +1,6 @@
 import { businessDate } from "@bite/core";
 import type { ReactNode } from "react";
-import { data, Form, Link } from "react-router";
+import { data, Link } from "react-router";
 import {
 	DayChart,
 	DeltaChip,
@@ -8,17 +8,12 @@ import {
 	HourBars,
 	MixList,
 } from "../components/charts";
+import { RangeBar, useBusy } from "../components/range-bar";
 import { adminApi } from "../lib/api";
 import type { SalesReport, TrendsReport } from "../lib/contracts";
 import { taken } from "../lib/dashboard";
 import { loc } from "../lib/i18n";
-import {
-	daysIn,
-	delta,
-	heatGrid,
-	presets,
-	previousPeriod,
-} from "../lib/insights";
+import { daysIn, delta, heatGrid, previousPeriod } from "../lib/insights";
 import { toDecimal } from "../lib/money";
 import { loadPlaces, type Place } from "../lib/places";
 import { selectedLocationId } from "../lib/selected-location";
@@ -96,6 +91,7 @@ export default function Reports({ loaderData }: Route.ComponentProps) {
 	// Today so far against all of yesterday would always read as a drop.
 	const partial = from === today && to === today;
 	const { t, lang, place } = useShell();
+	const busy = useBusy("/reports");
 	const decimals = place?.decimals ?? 3;
 	const currency = place?.currencyCode ?? "OMR";
 	const money = (
@@ -178,7 +174,7 @@ export default function Reports({ loaderData }: Route.ComponentProps) {
 	};
 
 	return (
-		<div className="report">
+		<div className={busy ? "report is-busy" : "report"}>
 			<div className="page-head">
 				<div>
 					<h1>{t("reports_title", { location: place?.name ?? "" })}</h1>
@@ -207,46 +203,7 @@ export default function Reports({ loaderData }: Route.ComponentProps) {
 				</div>
 			</div>
 
-			<div className="card presets no-print">
-				<div className="actions-row">
-					{presets(today).map((p) => (
-						<Link
-							key={p.key}
-							to={`?from=${p.from}&to=${p.to}`}
-							className={`chip${p.from === from && p.to === to ? " chip--on" : ""}`}
-						>
-							{t(p.key as "today")}
-						</Link>
-					))}
-				</div>
-				<Form method="get" className="inline-form">
-					<label>
-						{t("from")}
-						<input
-							type="date"
-							name="from"
-							className="input input--sm"
-							dir="ltr"
-							defaultValue={from}
-							max={today}
-						/>
-					</label>
-					<label>
-						{t("to")}
-						<input
-							type="date"
-							name="to"
-							className="input input--sm"
-							dir="ltr"
-							defaultValue={to}
-							max={today}
-						/>
-					</label>
-					<button type="submit" className="btn">
-						{t("show")}
-					</button>
-				</Form>
-			</div>
+			<RangeBar today={today} from={from} to={to} t={t} />
 
 			<section className="stats stats--kpi">
 				<Kpi
@@ -349,6 +306,7 @@ export default function Reports({ loaderData }: Route.ComponentProps) {
 					<DayChart
 						days={trends.days}
 						prev={prevTrends?.days}
+						partial={to === today ? today : undefined}
 						money={(n) => money(n)}
 						short={short}
 						lang={lang}
@@ -504,43 +462,45 @@ export default function Reports({ loaderData }: Route.ComponentProps) {
 						empty={t("no_sales")}
 					/>
 				</section>
-				<section className="card">
-					<h2>{t("by_category")}</h2>
-					<MixList
-						rows={trends.byCategory.map((c, i) => ({
-							key: c.categoryId ?? String(i),
-							label: loc(c.name, lang),
-							value: c.revenue,
-							shown: money(c.revenue),
-							sub: <bdi dir="ltr">×{c.quantity}</bdi>,
-						}))}
-						empty={t("no_sales")}
-					/>
-				</section>
+				<div className="stack">
+					<section className="card">
+						<h2>{t("by_category")}</h2>
+						<MixList
+							rows={trends.byCategory.map((c, i) => ({
+								key: c.categoryId ?? String(i),
+								label: loc(c.name, lang),
+								value: c.revenue,
+								shown: money(c.revenue),
+								sub: <bdi dir="ltr">×{c.quantity}</bdi>,
+							}))}
+							empty={t("no_sales")}
+						/>
+					</section>
+					<section className="card">
+						<h2>{t("by_method")}</h2>
+						<MixList
+							rows={[...report.byMethod]
+								.sort((a, b) => b.amount - a.amount)
+								.map((m) => ({
+									key: m.method,
+									label: t(`method_${m.method}`),
+									value: m.amount,
+									shown: money(m.amount),
+									sub: t("n_payments", { count: m.count }),
+								}))}
+							empty={t("no_sales")}
+						/>
+						{report.refundCount > 0 && (
+							<p className="muted small">
+								{t("refunds_given")}: <bdi dir="ltr">{report.refundCount}</bdi>{" "}
+								· {money(-report.refunds)}
+							</p>
+						)}
+					</section>
+				</div>
 			</div>
 
-			<div className="grid2">
-				<section className="card">
-					<h2>{t("by_method")}</h2>
-					<MixList
-						rows={[...report.byMethod]
-							.sort((a, b) => b.amount - a.amount)
-							.map((m) => ({
-								key: m.method,
-								label: t(`method_${m.method}`),
-								value: m.amount,
-								shown: money(m.amount),
-								sub: t("n_payments", { count: m.count }),
-							}))}
-						empty={t("no_sales")}
-					/>
-					{report.refundCount > 0 && (
-						<p className="muted small">
-							{t("refunds_given")}: <bdi dir="ltr">{report.refundCount}</bdi> ·{" "}
-							{money(-report.refunds)}
-						</p>
-					)}
-				</section>
+			<div className="grid2 grid2--start">
 				<section className="card">
 					<h2>{t("money_summary")}</h2>
 					<table className="table summary">
@@ -555,15 +515,26 @@ export default function Reports({ loaderData }: Route.ComponentProps) {
 						</tbody>
 					</table>
 				</section>
-			</div>
-
-			<div className="actions-row no-print">
-				<Link className="btn" to={`/orders?from=${from}&to=${to}`}>
-					{t("see_orders")}
-				</Link>
-				<Link className="btn" to={`/drawers?from=${from}&to=${to}`}>
-					{t("see_drawers")}
-				</Link>
+				<section className="card no-print">
+					<h2>{t("dig_deeper")}</h2>
+					<ul className="plain-list links-list">
+						<li>
+							<Link to={`/orders?from=${from}&to=${to}`}>
+								{t("see_orders")} →
+							</Link>
+						</li>
+						<li>
+							<Link to={`/drawers?from=${from}&to=${to}`}>
+								{t("see_drawers")} →
+							</Link>
+						</li>
+						<li>
+							<button type="button" className="link-btn" onClick={summaryCsv}>
+								{t("download_csv")}
+							</button>
+						</li>
+					</ul>
+				</section>
 			</div>
 		</div>
 	);
