@@ -8,7 +8,8 @@ export type PaymentMethod =
 	| "softpos"
 	| "thawani"
 	| "stripe"
-	| "other";
+	| "other"
+	| "loyalty";
 export type PaymentState = "pending" | "succeeded" | "failed";
 
 /** One row of the append-only payments ledger (the subset core needs). */

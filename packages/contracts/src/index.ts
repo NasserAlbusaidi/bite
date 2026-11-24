@@ -6,6 +6,7 @@ export * from "./cash.js";
 export * from "./common.js";
 export * from "./errors.js";
 export * from "./group-carts.js";
+export * from "./loyalty.js";
 export * from "./menu.js";
 export * from "./orders.js";
 export * from "./pairing.js";

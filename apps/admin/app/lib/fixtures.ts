@@ -3,7 +3,7 @@
  * State persists in localStorage so edits survive a refresh. Validation is
  * the same schema validation the API does; tenancy and auth are not modelled.
  */
-import { resolveEntitlements } from "@bite/core";
+import { addDays, resolveEntitlements } from "@bite/core";
 import { type AdminApi, AdminApiError } from "./api-types";
 import {
 	type AdminCategory,
@@ -36,7 +36,14 @@ import {
 	UpdatePromotion,
 	UpdateStaff,
 } from "./contracts";
-import { demoOrders, demoReport, ordersCsv } from "./demo-orders";
+import {
+	demoCashSessions,
+	demoOrderDetail,
+	demoOrders,
+	demoReport,
+	demoTrends,
+	ordersCsv,
+} from "./demo-orders";
 import { uuidv7 } from "./uuid";
 
 const id = (n: number) =>
@@ -720,7 +727,11 @@ export function fixtureAdminApi(
 					(r) =>
 						(!q.paymentStatus || r.paymentStatus === q.paymentStatus) &&
 						(!q.fulfillmentStatus ||
-							r.fulfillmentStatus === q.fulfillmentStatus),
+							r.fulfillmentStatus === q.fulfillmentStatus) &&
+						(!q.search ||
+							[r.ticketNumber, r.customerName ?? "", r.tableLabel ?? ""].some(
+								(v) => v.toLowerCase().includes(q.search?.toLowerCase() ?? ""),
+							)),
 				)
 				.sort((a, b) => b.placedAt.localeCompare(a.placedAt));
 			const start = q.cursor ? Number.parseInt(q.cursor, 10) : 0;
@@ -730,6 +741,30 @@ export function fixtureAdminApi(
 			return next < rows.length
 				? { items, nextCursor: String(next) }
 				: { items };
+		},
+		async trends(q) {
+			if (!state.locations.some((x) => x.id === q.locationId))
+				throw new AdminApiError("not_found", 404);
+			const orders = demoOrders(q.locationId, state.menu, q.from, q.to);
+			return demoTrends(q.locationId, q.from, q.to, orders, state.menu);
+		},
+		async order(id) {
+			// Demo ids aren't indexed: look through the last 90 days per branch.
+			const to = new Date().toISOString().slice(0, 10);
+			for (const l of state.locations) {
+				const o = demoOrders(l.id, state.menu, addDays(to, -90), to).find(
+					(x) => x.row.id === id,
+				);
+				if (o) return demoOrderDetail(l.id, o, state.menu);
+			}
+			throw new AdminApiError("not_found", 404);
+		},
+		async cashSessions(q) {
+			if (!state.locations.some((x) => x.id === q.locationId))
+				throw new AdminApiError("not_found", 404);
+			const orders = demoOrders(q.locationId, state.menu, q.from, q.to);
+			const today = new Date().toISOString().slice(0, 10);
+			return demoCashSessions(q.locationId, q.from, q.to, today, orders);
 		},
 		async ordersCsv(q) {
 			const { items } = await this.orders({ ...q, limit: 100_000 });

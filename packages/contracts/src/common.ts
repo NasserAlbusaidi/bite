@@ -56,6 +56,7 @@ export const PaymentMethod = z.enum([
 	"thawani",
 	"stripe",
 	"other",
+	"loyalty",
 ]);
 export const PaymentState = z.enum(["pending", "succeeded", "failed"]);
 export const DeviceKind = z.enum(["pos", "kds", "kiosk"]);

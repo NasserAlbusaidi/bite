@@ -6,7 +6,7 @@ import type { SessionCtx } from "../env.js";
 export const UUID_RE =
 	/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-/** platform_admins is readable by the system role only (migration 0016). */
+/** platform_admins is readable by the system role only (migration 0017). */
 export async function isPlatformAdmin(sys: Db, userId: string) {
 	const rows = (await sys.execute(
 		sql`select 1 as ok from platform_admins where user_id = ${userId}`,

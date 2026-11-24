@@ -25,6 +25,7 @@ import { currentNav, type NavGroup, navItems } from "../lib/nav";
 import { catalogPowers, staffPowers } from "../lib/permissions";
 import { loadPlaces } from "../lib/places";
 import { rememberLocation, selectedLocationId } from "../lib/selected-location";
+import { ShellPrefsContext } from "../lib/shell-prefs";
 import { initials } from "../lib/staff-list";
 import { applyTheme, nextTheme, savedTheme, type Theme } from "../lib/theme";
 import type { Route } from "./+types/shell";
@@ -262,6 +263,10 @@ export default function Shell({ loaderData }: Route.ComponentProps) {
 		signOut,
 	]);
 
+	const prefs = useMemo(
+		() => ({ theme, setTheme, toggleLang }),
+		[theme, toggleLang],
+	);
 	const role = me.member.orgRole;
 	const mac =
 		typeof navigator !== "undefined" && /Mac|iP/.test(navigator.platform);
@@ -439,7 +444,9 @@ export default function Shell({ loaderData }: Route.ComponentProps) {
 							/>
 						)}
 						<main className="content">
-							<Outlet />
+							<ShellPrefsContext value={prefs}>
+								<Outlet />
+							</ShellPrefsContext>
 						</main>
 					</div>
 					<CommandPalette

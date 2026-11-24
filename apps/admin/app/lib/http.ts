@@ -2,11 +2,13 @@ import { ErrorBody, ORG_HEADER } from "@bite/contracts";
 import { z } from "zod";
 import { type AdminApi, AdminApiError } from "./api-types";
 import {
+	AdminCashSession,
 	AdminCategory,
 	AdminDevice,
 	AdminLocationSettings,
 	AdminMe,
 	AdminModifierGroup,
+	AdminOrderDetail,
 	AdminOrderRow,
 	AdminProduct,
 	AdminPromotion,
@@ -16,6 +18,7 @@ import {
 	Page,
 	RegisterDeviceResponse,
 	SalesReport,
+	TrendsReport,
 } from "./contracts";
 
 /** Back office over HTTP, under /v1/admin. Auth is the Better Auth session cookie. */
@@ -175,6 +178,10 @@ export function httpAdminApi(
 			call(RegisterDeviceResponse, "/devices", send("POST", d)),
 		salesReport: (q) => call(SalesReport, `/reports/sales${qs(q)}`),
 		orders: (q) => call(Page(AdminOrderRow), `/orders${qs(q)}`),
+		trends: (q) => call(TrendsReport, `/reports/trends${qs(q)}`),
+		order: (id) => call(AdminOrderDetail, `/orders/${enc(id)}`),
+		cashSessions: (q) =>
+			call(z.array(AdminCashSession), `/cash-sessions${qs(q)}`),
 		ordersCsv: async (q) => {
 			const res = await fetchImpl(
 				new URL(`/v1/admin/orders.csv${qs(q)}`, baseUrl),

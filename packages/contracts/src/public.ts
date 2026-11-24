@@ -40,6 +40,8 @@ export const GuestOrderRejectReason = z.enum([
 	"total_too_high",
 	"cart_not_open",
 	"cart_empty",
+	/** The reward can't be used: no remembered guest, too few points, or loyalty is off. */
+	"reward_unavailable",
 ]);
 export const GuestOrderRejectDetails = z.object({
 	reason: GuestOrderRejectReason,

@@ -161,6 +161,13 @@ const en = {
 	group_not_open: "This group order is no longer open for changes.",
 	group_empty: "Add at least one item before checking out.",
 	place_group_order: "Place group order",
+	clear_search: "Clear search",
+	search_results: "{count} found",
+	added_toast: "Added {name}",
+	undo: "Undo",
+	placed_now: "Placed just now",
+	placed_ago: "Placed {min} min ago",
+	options_chosen: "{count} chosen",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -284,6 +291,13 @@ const ar: Record<MessageKey, string> = {
 	group_not_open: "هذا الطلب الجماعي لم يعد مفتوحاً للتعديل.",
 	group_empty: "أضف عنصراً واحداً على الأقل قبل الإتمام.",
 	place_group_order: "إرسال الطلب الجماعي",
+	clear_search: "مسح البحث",
+	search_results: "{count} نتيجة",
+	added_toast: "تمت إضافة {name}",
+	undo: "تراجع",
+	placed_now: "تم الطلب الآن",
+	placed_ago: "تم الطلب قبل {min} دقيقة",
+	options_chosen: "تم اختيار {count}",
 };
 
 export const messages: Record<Lang, Record<MessageKey, string>> = { en, ar };

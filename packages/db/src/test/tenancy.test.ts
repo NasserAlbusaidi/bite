@@ -360,7 +360,7 @@ describe.runIf(ownerUrl)("tenancy (RLS + composite FKs)", () => {
 			"auth_users",
 			"auth_verifications",
 			// Bite's own operators (platform console). Not tenant data; no
-			// grants to bite_app at all, bite_system only (migration 0016).
+			// grants to bite_app at all, bite_system only (migration 0017).
 			"platform_admins",
 			// Provider webhooks land before a tenant is known; bite_system only.
 			"webhook_events",

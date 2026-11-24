@@ -44,6 +44,7 @@ export function ProductSheet({
 	const [note, setNote] = useState("");
 	const [qty, setQty] = useState(1);
 	const [error, setError] = useState<string | null>(null);
+	const [badGroup, setBadGroup] = useState<string | null>(null);
 
 	useEffect(() => {
 		const d = ref.current;
@@ -53,6 +54,7 @@ export function ProductSheet({
 			setNote("");
 			setQty(1);
 			setError(null);
+			setBadGroup(null);
 			if (!d.open) d.showModal();
 		} else if (d.open) {
 			d.close();
@@ -68,6 +70,7 @@ export function ProductSheet({
 
 	const toggle = (groupId: string, optionId: string, single: boolean) => {
 		setError(null);
+		setBadGroup(null);
 		setSelected((cur) => {
 			if (cur.includes(optionId)) return cur.filter((x) => x !== optionId);
 			const others = single
@@ -83,6 +86,10 @@ export function ProductSheet({
 			if (err.kind === "invalid") return setError(t("invalid_modifiers"));
 			const g = idx.groups.get(err.groupId);
 			const name = g ? loc(g.name, lang) : "";
+			setBadGroup(err.groupId);
+			ref.current
+				?.querySelector(`[data-group="${err.groupId}"]`)
+				?.scrollIntoView({ behavior: "smooth", block: "center" });
 			return setError(
 				t(err.kind === "min" ? "select_at_least" : "select_at_most", {
 					count: err.count,
@@ -121,7 +128,7 @@ export function ProductSheet({
 						src={product.imageUrl}
 						alt=""
 						width={640}
-						height={400}
+						height={360}
 						decoding="async"
 					/>
 				)}
@@ -129,7 +136,7 @@ export function ProductSheet({
 					<h2 id={`${noteId}-title`}>{loc(product.name, lang)}</h2>
 					<button
 						type="button"
-						className="icon-btn"
+						className={`icon-btn${product.imageUrl ? " sheet__close" : ""}`}
 						onClick={onClose}
 						aria-label={ui.t("close")}
 					>
@@ -142,14 +149,23 @@ export function ProductSheet({
 
 				{groups.map((g) => {
 					const single = g.maxSelect === 1;
+					const chosen = g.options.filter((o) =>
+						selected.includes(o.id),
+					).length;
+					const met = g.minSelect > 0 && chosen >= g.minSelect;
 					return (
-						<fieldset key={g.id} className="modgroup">
+						<fieldset
+							key={g.id}
+							data-group={g.id}
+							className={`modgroup${badGroup === g.id ? " is-bad" : ""}`}
+						>
 							<legend>
 								{loc(g.name, lang)}{" "}
-								<span className="chip">
+								<span className={`chip${met ? " chip--met" : ""}`}>
+									{met && <Icon name="check" />}
 									{g.minSelect > 0 ? t("required") : t("optional")}
 									{g.maxSelect > 1
-										? ` · ${t("up_to", { count: g.maxSelect })}`
+										? ` · ${chosen > 0 ? t("options_chosen", { count: `${chosen}/${g.maxSelect}` }) : t("up_to", { count: g.maxSelect })}`
 										: ""}
 								</span>
 							</legend>
