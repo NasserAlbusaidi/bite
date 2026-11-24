@@ -38,6 +38,7 @@ export function navItems(locationId: string | undefined): NavItem[] {
 			icon: "store",
 			group: "business",
 		},
+		{ key: "setup_guide", to: "/setup", icon: "check", group: "business" },
 	];
 	return items.filter((x): x is NavItem => x !== false);
 }
