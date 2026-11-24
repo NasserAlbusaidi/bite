@@ -590,3 +590,36 @@ a.menu-item__name:hover {
 		grid-template-columns: minmax(0, 1fr);
 	}
 }
+
+/* prices & availability rows */
+.menu-item.avail-item {
+	grid-template-columns: 52px minmax(0, 1fr) auto 140px;
+}
+.avail-item.is-sold-out {
+	background: color-mix(in srgb, var(--danger-bg) 60%, var(--surface));
+}
+.avail-item.is-sold-out .menu-item__name {
+	text-decoration: line-through;
+	color: var(--text-muted);
+}
+.avail-price {
+	display: grid;
+	gap: 2px;
+	justify-items: end;
+}
+.avail-price .input--sm {
+	inline-size: 120px;
+	text-align: end;
+}
+.avail-price .is-custom {
+	border-color: var(--secondary);
+	font-weight: 700;
+}
+@media (max-width: 760px) {
+	.menu-item.avail-item {
+		grid-template-columns: 44px minmax(0, 1fr) auto;
+	}
+	.avail-item .toggle {
+		grid-column: 2 / -1;
+	}
+}
