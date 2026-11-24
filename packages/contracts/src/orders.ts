@@ -42,6 +42,8 @@ export const CreateGuestOrderRequest = z.object({
 	tableLabel: TableLabel.optional(),
 	note: z.string().max(500).optional(),
 	lines: z.array(OrderLineInput).min(1).max(100),
+	/** Spend points on this loyalty reward. Needs the guest token header. */
+	rewardId: z.string().min(1).max(40).optional(),
 });
 
 /**
@@ -168,6 +170,23 @@ export const GuestOrderView = Order.pick({
 
 export const CreateGuestOrderResponse = z.object({
 	order: GuestOrderView,
+	/**
+	 * Set when the order carried a phone and the org runs loyalty. `token` is
+	 * only issued to the device that first used a number (or already holds
+	 * one); keep it and send it as the guest token header from then on.
+	 */
+	guest: z
+		.object({
+			token: z.string().optional(),
+			points: z.int(),
+			/** Points this order will add once it is paid. */
+			pointsPending: z.int(),
+			/** Reward taken off this order, if any. */
+			redeemed: z
+				.object({ rewardId: z.string(), amount: NonNegMinor })
+				.optional(),
+		})
+		.optional(),
 });
 
 export const SetFulfillment = z.object({

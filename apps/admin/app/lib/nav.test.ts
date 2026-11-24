@@ -18,6 +18,8 @@ describe("currentNav", () => {
 		expect(currentNav(items, "/menu/products/p1")?.key).toBe("menu");
 		expect(currentNav(items, "/")?.key).toBe("overview");
 		expect(currentNav(items, "/staff/s1")?.key).toBe("staff");
+		expect(currentNav(items, "/orders")?.key).toBe("orders_title");
+		expect(currentNav(items, "/drawers")?.key).toBe("drawers_title");
 	});
 	it("matches branch pages for any branch in the address", () => {
 		expect(currentNav(items, "/locations/other/settings")?.key).toBe(

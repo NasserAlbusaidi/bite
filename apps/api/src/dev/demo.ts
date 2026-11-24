@@ -1185,6 +1185,7 @@ async function history(b: Built, tabs: Tablet[]) {
 				if (!priced.ok) throw new Error(JSON.stringify(priced.errors));
 				const v = priced.value;
 				const id = uuidv7();
+				const guest = pickGuest();
 				const bd = businessDate(t, loc.timezone, loc.dayCutoffMinutes);
 				ticket += 1;
 				mut(
@@ -1196,6 +1197,9 @@ async function history(b: Built, tabs: Tablet[]) {
 						businessDate: bd,
 						source: "counter",
 						type: rint(100) < 62 ? "dine_in" : "takeaway",
+						...(guest
+							? { customerName: guest[0], customerPhone: guest[1] }
+							: {}),
 						placedAt: new Date(t).toISOString(),
 						pricesIncludeTax: v.pricesIncludeTax,
 						lines: v.lines.map((l: any) => ({
@@ -1272,6 +1276,132 @@ async function history(b: Built, tabs: Tablet[]) {
 	}
 }
 
+// ------------------------------------------------------------------ loyalty
+/** Regulars: [name, local number, how often they come]. */
+const GUESTS: [string, string, number][] = [
+	["Sara Al Balushi", "91234567", 14],
+	["Ahmed Al Harthy", "92345678", 12],
+	["Fatma Al Rawahi", "93456789", 10],
+	["Yousuf Al Hinai", "94567890", 9],
+	["Maha Al Lawati", "95678901", 8],
+	["Omar Al Busaidi", "96789012", 8],
+	["Noor Al Kindi", "97890123", 7],
+	["Hilal Al Maskari", "98901234", 6],
+	["Aisha Al Zadjali", "99012345", 6],
+	["Salim Al Abri", "91122334", 5],
+	["Laila Al Riyami", "92233445", 5],
+	["James Carter", "93344556", 4],
+	["Priya Nair", "94455667", 4],
+	["Badr Al Shukaili", "95566778", 3],
+	["Reem Al Siyabi", "96677889", 3],
+	["Talal Al Farsi", "97788990", 3],
+	["Muna Al Habsi", "98899001", 2],
+	["Khalfan Al Ghafri", "99900112", 2],
+	["Elena Petrova", "91357924", 2],
+	["Zahra Al Jabri", "92468013", 2],
+	["Ali Al Mamari", "93579124", 1],
+	["Hana Al Saadi", "94680235", 1],
+	["Marwan Al Wahaibi", "95791346", 1],
+	["Shaikha Al Amri", "96802457", 1],
+];
+const REWARDS = [
+	{
+		id: "coffee",
+		name: { en: "Free coffee", ar: "قهوة مجانية" },
+		points: 60,
+		value: 1600,
+	},
+	{
+		id: "dessert",
+		name: { en: "Free dessert", ar: "حلى مجاني" },
+		points: 120,
+		value: 2500,
+	},
+	{
+		id: "two-off",
+		name: { en: "5 OMR off", ar: "خصم ٥ ريال" },
+		points: 250,
+		value: 5000,
+	},
+];
+/** Separate stream, so adding guests didn't change the sales story. */
+let gseed = 968;
+function grand() {
+	gseed = (gseed * 1103515245 + 12345) & 0x7fffffff;
+	return gseed / 0x7fffffff;
+}
+function pickGuest(): [string, string] | null {
+	if (grand() * 100 > 34) return null;
+	const total = GUESTS.reduce((a, g) => a + g[2], 0);
+	let r = grand() * total;
+	for (const g of GUESTS) {
+		r -= g[2];
+		if (r <= 0) return [g[0], g[1]];
+	}
+	return null;
+}
+
+/**
+ * Loyalty program, regulars and their history. Idempotent: the program is
+ * created once, and a database seeded before loyalty existed gets its paid
+ * history spread over the regulars (orders linked, points as earn rows).
+ */
+async function loyalty(orgId: string) {
+	const conn = createDb(OWNER_URL, { max: 1, onnotice: () => {} });
+	const db = conn.client;
+	try {
+		await db`insert into loyalty_programs (org_id, enabled, points_per_rial, rewards)
+			values (${orgId}, true, 10, ${JSON.stringify(REWARDS)}::jsonb)
+			on conflict (org_id) do nothing`;
+		const [linked] = await db<{ n: number }[]>`
+			select count(*)::int as n from orders where org_id = ${orgId} and customer_id is not null`;
+		if ((linked?.n ?? 0) > 0) return;
+		const ids = new Map<string, string>();
+		for (const [name, local] of GUESTS) {
+			const [c] = await db<{ id: string }[]>`
+				insert into customers (id, org_id, phone, name)
+				values (${uuidv7()}, ${orgId}, ${`+968${local}`}, ${name})
+				on conflict (org_id, phone) do update set name = excluded.name
+				returning id`;
+			if (c) ids.set(local, c.id);
+		}
+		const paid = await db<{ id: string; paid: number; placed_at: Date }[]>`
+			select id, paid_total::int as paid, placed_at from orders
+			where org_id = ${orgId} and payment_status = 'paid' order by placed_at`;
+		let n = 0;
+		for (const o of paid) {
+			const g = pickGuest();
+			if (!g) continue;
+			const cid = ids.get(g[1]);
+			if (!cid) continue;
+			await db`update orders set customer_id = ${cid}, customer_name = ${g[0]},
+				customer_phone = ${`+968${g[1]}`} where id = ${o.id}`;
+			const pts = Math.floor((o.paid * 10) / 1000);
+			if (pts > 0)
+				await db`insert into loyalty_ledger (id, org_id, customer_id, order_id, kind, points, created_at)
+					values (${uuidv7()}, ${orgId}, ${cid}, ${o.id}, 'earn', ${pts}, ${o.placed_at})`;
+			n += 1;
+		}
+		// A couple of goodwill bonuses, so the ledger shows more than earns.
+		for (const local of ["91234567", "93456789"]) {
+			const cid = ids.get(local);
+			if (cid)
+				await db`insert into loyalty_ledger (id, org_id, customer_id, kind, points, reason)
+					values (${uuidv7()}, ${orgId}, ${cid}, 'adjust', 50, 'Birthday treat')`;
+		}
+		await db`update customers c set
+			points = coalesce((select sum(points) from loyalty_ledger l where l.customer_id = c.id), 0),
+			visit_count = (select count(*) from orders o where o.customer_id = c.id),
+			last_visit_at = (select max(placed_at) from orders o where o.customer_id = c.id)
+			where c.org_id = ${orgId}`;
+		console.log(
+			`seed   loyalty: ${GUESTS.length} regulars, ${n} past orders linked`,
+		);
+	} finally {
+		await conn.client.end();
+	}
+}
+
 // ------------------------------------------------------------------ report
 function report(tabs: Tablet[]) {
 	const t = (br: string, k: string) =>
@@ -1303,5 +1433,6 @@ DEMO_NEW_TOKENS=1 issues new ones (re-pair the tablets after that).
 
 const built = await build();
 const tabs = await tablets(built);
+await loyalty(built.orgId);
 await history(built, tabs);
 report(tabs);

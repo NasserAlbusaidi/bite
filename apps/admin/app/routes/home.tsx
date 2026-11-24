@@ -1,7 +1,9 @@
 import { addDays, businessDate } from "@bite/core";
-import { type ReactNode, useState } from "react";
-import { Link } from "react-router";
+import { type ReactNode, useEffect, useState } from "react";
+import { Link, useRevalidator } from "react-router";
+import { DeltaChip, HourBars } from "../components/charts";
 import { adminApi } from "../lib/api";
+import type { AdminOrderRow } from "../lib/contracts";
 import {
 	attention,
 	averageOrder,
@@ -18,6 +20,7 @@ import {
 	setupSteps,
 } from "../lib/getting-started";
 import { loc, type T } from "../lib/i18n";
+import { delta, hourly } from "../lib/insights";
 import { toDecimal } from "../lib/money";
 import { loadPlaces } from "../lib/places";
 import { selectedLocationId } from "../lib/selected-location";
@@ -50,8 +53,55 @@ export async function clientLoader() {
 	const branches = rows.filter((r): r is BranchDay => r !== null);
 	const locationId = selectedLocationId(places);
 	const mine = branches.find((b) => b.place.id === locationId);
-	if (!mine) return { branches, attention: [], setup: null };
+	if (!mine)
+		return {
+			branches,
+			attention: [],
+			setup: null,
+			pulse: null,
+		};
 	// The side panels are extras: one of them failing must not blank the page.
+	const tz = settings.find((l) => l.id === mine.place.id)?.timezone ?? "UTC";
+	const lastWeek = addDays(mine.date, -7);
+	const allOf = async (date: string) => {
+		const out: AdminOrderRow[] = [];
+		let cursor: string | undefined;
+		// A busy day is a few hundred orders; stop at 1000 to stay quick.
+		for (let i = 0; i < 5; i++) {
+			const page = await api.orders({
+				locationId: mine.place.id,
+				from: date,
+				to: date,
+				limit: 200,
+				...(cursor ? { cursor } : {}),
+			});
+			out.push(...page.items);
+			cursor = page.nextCursor;
+			if (!cursor) break;
+		}
+		return out.filter((o) => o.fulfillmentStatus !== "cancelled");
+	};
+	const pulse = await Promise.all([allOf(mine.date), allOf(lastWeek)])
+		.then(([todays, before]) => ({
+			timeZone: tz,
+			today: hourly(
+				todays.map((o) => o.placedAt),
+				tz,
+			),
+			lastWeek: hourly(
+				before.map((o) => o.placedAt),
+				tz,
+			),
+			latest: todays.slice(0, 6),
+			nowHour: Number(
+				new Intl.DateTimeFormat("en-GB", {
+					hour: "2-digit",
+					hourCycle: "h23",
+					timeZone: tz,
+				}).format(new Date()),
+			),
+		}))
+		.catch(() => null);
 	const [unpaid, products, menu] = await Promise.all([
 		api
 			.orders({
@@ -86,6 +136,7 @@ export async function clientLoader() {
 	return {
 		branches,
 		setup,
+		pulse,
 		attention: attention({
 			locationId: mine.place.id,
 			date: mine.date,
@@ -101,6 +152,18 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 	const { t, lang, locationId, me } = useShell();
 	const mine = branches.find((b) => b.place.id === locationId);
 	const [hidden, setHidden] = useState(() => setupHidden(me.org.id));
+	const revalidator = useRevalidator();
+	// The overview is often left open on a back-office screen: keep it fresh.
+	useEffect(() => {
+		const id = window.setInterval(() => {
+			if (
+				document.visibilityState === "visible" &&
+				revalidator.state === "idle"
+			)
+				revalidator.revalidate();
+		}, 30_000);
+		return () => window.clearInterval(id);
+	}, [revalidator]);
 
 	if (!mine)
 		return (
@@ -177,6 +240,83 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 					hint={t("overview_taken_hint")}
 				/>
 			</section>
+
+			{loaderData.pulse && (
+				<div className="grid2 grid2--wide">
+					<section className="card">
+						<div className="card-head">
+							<h2>{t("overview_pulse")}</h2>
+							<span className="muted small">
+								{t("overview_pulse_vs")}{" "}
+								<DeltaChip
+									d={delta(
+										sumTo(loaderData.pulse.today, loaderData.pulse.nowHour),
+										sumTo(loaderData.pulse.lastWeek, loaderData.pulse.nowHour),
+									)}
+									t={t}
+								/>
+							</span>
+						</div>
+						<HourBars
+							today={loaderData.pulse.today}
+							ref={loaderData.pulse.lastWeek}
+							nowHour={loaderData.pulse.nowHour}
+							t={t}
+						/>
+						<div className="chart__legend muted small">
+							<span>
+								<i className="swatch swatch--bar" /> {t("today")}
+							</span>
+							<span>
+								<i className="swatch swatch--ref" />{" "}
+								{t("overview_same_day_last_week")}
+							</span>
+						</div>
+					</section>
+					<section className="card">
+						<div className="card-head">
+							<h2>
+								<span className="live-dot live-dot--on" aria-hidden="true" />{" "}
+								{t("overview_latest")}
+							</h2>
+							<Link to="/orders" className="small">
+								{t("overview_all_orders")}
+							</Link>
+						</div>
+						{loaderData.pulse.latest.length === 0 ? (
+							<p className="muted">{t("overview_no_sales")}</p>
+						) : (
+							<ul className="feed">
+								{loaderData.pulse.latest.map((o) => (
+									<li key={o.id}>
+										<Link to={`/orders?order=${o.id}`} className="feed__row">
+											<span className="feed__ticket">
+												<bdi dir="ltr">{o.ticketNumber}</bdi>
+											</span>
+											<span className="feed__meta muted small">
+												<bdi dir="ltr">
+													{new Intl.DateTimeFormat("en-GB", {
+														timeStyle: "short",
+														timeZone: loaderData.pulse?.timeZone ?? "UTC",
+													}).format(new Date(o.placedAt))}
+												</bdi>{" "}
+												· {t(`source_${o.source as "counter"}`)}
+												{o.tableLabel && (
+													<> · {t("table_n", { n: o.tableLabel })}</>
+												)}
+											</span>
+											<span className={`pill pill--${o.fulfillmentStatus}`}>
+												{t(`ful_${o.fulfillmentStatus}`)}
+											</span>
+											<span className="num">{money(o.total)}</span>
+										</Link>
+									</li>
+								))}
+							</ul>
+						)}
+					</section>
+				</div>
+			)}
 
 			{branches.length > 1 && (
 				<section className="card">
@@ -369,4 +509,9 @@ function Stat({
 			{hint && <span className="muted small">{hint}</span>}
 		</div>
 	);
+}
+
+/** Orders up to and including this hour. */
+function sumTo(hours: readonly number[], h: number) {
+	return hours.slice(0, h + 1).reduce((s, v) => s + v, 0);
 }
