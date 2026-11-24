@@ -23,7 +23,7 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { buildCatalog, businessDate, localClock, priceCart } from "@bite/core";
 import { createDb, schema as s } from "@bite/db";
-import { and, eq } from "@bite/db/orm";
+import { and, eq, sql } from "@bite/db/orm";
 import { hash } from "@node-rs/argon2";
 import { v7 as uuidv7 } from "uuid";
 import { createAuth } from "../auth/better-auth.js";
@@ -141,6 +141,42 @@ const GROUPS: Record<
 		],
 	},
 };
+
+/**
+ * Product photos (Unsplash License, hotlinked as Unsplash asks). Keyed by
+ * menu item key; balaleet and kunafa have no honest free match yet. Re-running the seed re-applies these to an existing org.
+ */
+const PHOTO_IDS: Record<string, string> = {
+	karak: "1559275117-d096eb5d85b2",
+	kahwa: "1774791500971-ddaafd214520",
+	spanish: "1559496417-e7f25cb247f3",
+	saffron: "1684084373817-e51c7f7ab041",
+	flatwhite: "1620052087057-bfd8235f5874",
+	v60: "1587955245893-389f2215c6eb",
+	iced: "1764298490445-6add12301888",
+	omani: "1786799445505-77b51a75ee1f",
+	shakshuka: "1582492710145-d723e0a219f8",
+	avotoast: "1783307525039-b92506474dc8",
+	croissant: "1639667852145-466e29aa49fd",
+	machboos: "1708184528306-f75a0a5118ee",
+	shuwa: "1696950169170-a433c9eefac4",
+	mishkak: "1708597521669-f7312f312b29",
+	shawarma: "1676300187013-7540d4e9440d",
+	salad: "1786502870203-6fa112102b43",
+	fries: "1684815495679-f6e6bc0634ec",
+	datecake: "1724116380693-52da975b9bf6",
+	halwa: "1635327173758-85badf17f995",
+	orange: "1689066117649-0ca9762fc92c",
+	lemonmint: "1722663160036-b584469b3577",
+	mango: "1623065422902-30a2d299bbe4",
+	water: "1781510350868-b81dfa490295",
+};
+const PHOTOS: Record<string, string> = Object.fromEntries(
+	Object.entries(PHOTO_IDS).map(([k, id]) => [
+		k,
+		`https://images.unsplash.com/photo-${id}?w=800&h=600&fit=crop&q=70&auto=format`,
+	]),
+);
 
 const MENU: { cat: L; items: Item[] }[] = [
 	{
@@ -486,6 +522,29 @@ type Built = {
 	created: boolean;
 };
 
+/** Sets image_url on an existing Luban menu from PHOTOS (matched by English name). */
+async function applyPhotos(o: any, orgId: string) {
+	let n = 0;
+	for (const { items } of MENU) {
+		for (const it of items) {
+			const url = PHOTOS[it.key];
+			if (!url) continue;
+			const done = await o
+				.update(s.products)
+				.set({ imageUrl: url })
+				.where(
+					and(
+						eq(s.products.orgId, orgId),
+						sql`${s.products.name}->>'en' = ${it.name.en}`,
+					),
+				)
+				.returning({ id: s.products.id });
+			n += done.length;
+		}
+	}
+	if (n) console.log(`seed   ${n} product photos set`);
+}
+
 async function build(): Promise<Built> {
 	const ownerConn = createDb(OWNER_URL, { max: 1, onnotice: () => {} });
 	const o = ownerConn.db;
@@ -520,6 +579,7 @@ async function build(): Promise<Built> {
 					ml.find((m) => m.locationId === id && m.role === "manager")
 						?.memberId ?? "";
 			}
+			await applyPhotos(o, existing.id);
 			console.log("seed   Luban org already there");
 			return {
 				orgId: existing.id,
@@ -682,6 +742,7 @@ async function build(): Promise<Built> {
 						name: it.name,
 						description: it.desc,
 						price: it.price,
+						imageUrl: PHOTOS[it.key] ?? null,
 						sortOrder: pi,
 					});
 					for (const [gi, g] of (it.groups ?? []).entries()) {
