@@ -747,3 +747,37 @@ label.switch-mini {
 		animation: none;
 	}
 }
+
+/* Keyboard shortcuts dialog */
+.keys {
+	display: grid;
+	gap: var(--space-5);
+	min-inline-size: min(420px, 80vw);
+}
+.keys__head {
+	margin: 0 0 var(--space-2);
+	font-size: var(--fs-sm);
+	color: var(--text-muted);
+	font-weight: 600;
+}
+.keys__list {
+	margin: 0;
+	display: grid;
+	gap: var(--space-2) var(--space-6);
+	grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+}
+.keys__list > div {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--space-3);
+}
+.keys__list dt {
+	order: 2;
+	display: flex;
+	gap: 4px;
+	direction: ltr;
+}
+.keys__list dd {
+	margin: 0;
+}

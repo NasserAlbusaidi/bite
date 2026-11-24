@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { currentNav, matchScore, navItems } from "./nav";
+import { currentNav, goTarget, matchScore, navItems } from "./nav";
 
 describe("navItems", () => {
 	it("hides branch pages until there is a branch", () => {
@@ -46,5 +46,21 @@ describe("matchScore", () => {
 	});
 	it("an empty query matches everything", () => {
 		expect(matchScore("  ", "anything")).toBe(1);
+	});
+});
+
+describe("goTarget", () => {
+	it("every page has its own key", () => {
+		const keys = navItems("loc1").map((i) => i.go);
+		expect(keys.every(Boolean)).toBe(true);
+		expect(new Set([...keys, "a"]).size).toBe(keys.length + 1);
+	});
+	it("maps G then a key to a page", () => {
+		const items = navItems("loc1");
+		expect(goTarget(items, "s")).toBe("/staff");
+		expect(goTarget(items, "B")).toBe("/locations/loc1/settings");
+		expect(goTarget(items, "a")).toBe("/account");
+		expect(goTarget(items, "z")).toBeUndefined();
+		expect(goTarget(navItems(undefined), "b")).toBeUndefined();
 	});
 });

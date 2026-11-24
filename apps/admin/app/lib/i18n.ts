@@ -121,6 +121,9 @@ const en = {
 	leave_body: "Your changes to this branch will be lost.",
 	leave_stay: "Keep editing",
 	leave_go: "Leave",
+	keys_title: "Keyboard shortcuts",
+	keys_general: "Anywhere",
+	keys_go: "Go to a page",
 	// Staff list and roles.
 	staff_search: "Search by name or email",
 	staff_filter_all: "Everyone",
@@ -881,6 +884,9 @@ const ar: Record<MessageKey, string> = {
 	leave_body: "ستضيع تغييراتك على هذا الفرع.",
 	leave_stay: "متابعة التعديل",
 	leave_go: "مغادرة",
+	keys_title: "اختصارات لوحة المفاتيح",
+	keys_general: "في أي مكان",
+	keys_go: "الانتقال إلى صفحة",
 	// Staff list and roles.
 	staff_search: "ابحث بالاسم أو البريد",
 	staff_filter_all: "الجميع",
