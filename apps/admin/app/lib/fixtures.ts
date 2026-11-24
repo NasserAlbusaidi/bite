@@ -94,14 +94,25 @@ const settings = (l: typeof azaiba): AdminLocationSettings => ({
 	currencyCode: "OMR",
 	pricesIncludeTax: true,
 	taxBps: 500,
-	vatNumber: null,
+	vatNumber: "OM1100234567",
 	dayCutoffMinutes: 240,
-	address: null,
-	phone: null,
+	address:
+		l.name === "Azaiba"
+			? "Way 3025, Al Azaiba, Muscat"
+			: "The Walk, Al Mouj, Muscat",
+	phone: l.name === "Azaiba" ? "+968 2400 1122" : "+968 2400 3344",
 	whatsappNumber: null,
-	businessHours: null,
+	businessHours: {
+		sun: [{ open: "06:30", close: "22:00" }],
+		mon: [{ open: "06:30", close: "22:00" }],
+		tue: [{ open: "06:30", close: "22:00" }],
+		wed: [{ open: "06:30", close: "22:00" }],
+		thu: [{ open: "06:30", close: "23:00" }],
+		fri: [{ open: "08:00", close: "23:00" }],
+		sat: [{ open: "07:00", close: "22:00" }],
+	},
 	theme: {},
-	receiptHeader: null,
+	receiptHeader: "Baked fresh every morning",
 	ordersPausedUntil: null,
 });
 export const DEMO_LOCATIONS: AdminLocationSettings[] = [
