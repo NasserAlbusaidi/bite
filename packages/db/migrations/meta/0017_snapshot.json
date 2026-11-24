@@ -1,6 +1,6 @@
 {
-	"id": "8af75f9b-aad2-4bc1-b731-b88de94be878",
-	"prevId": "73e8aab6-ee8b-4160-acab-a3a037090e42",
+	"id": "337d8bb0-be7d-43d8-bba5-e31d38b13a85",
+	"prevId": "419c648b-4656-4a58-aea1-74a816d83bfc",
 	"version": "7",
 	"dialect": "postgresql",
 	"tables": {
@@ -657,6 +657,97 @@
 			},
 			"isRLSEnabled": false
 		},
+		"public.customer_devices": {
+			"name": "customer_devices",
+			"schema": "",
+			"columns": {
+				"id": {
+					"name": "id",
+					"type": "uuid",
+					"primaryKey": true,
+					"notNull": true
+				},
+				"org_id": {
+					"name": "org_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"customer_id": {
+					"name": "customer_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"token_hash": {
+					"name": "token_hash",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"created_at": {
+					"name": "created_at",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "now()"
+				},
+				"last_seen_at": {
+					"name": "last_seen_at",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": false
+				}
+			},
+			"indexes": {
+				"customer_devices_token_uq": {
+					"name": "customer_devices_token_uq",
+					"columns": [
+						{
+							"expression": "org_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						},
+						{
+							"expression": "token_hash",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": true,
+					"with": {},
+					"method": "btree",
+					"concurrently": false
+				}
+			},
+			"foreignKeys": {
+				"customer_devices_org_id_customer_id_customers_org_id_id_fk": {
+					"name": "customer_devices_org_id_customer_id_customers_org_id_id_fk",
+					"tableFrom": "customer_devices",
+					"columnsFrom": ["org_id", "customer_id"],
+					"tableTo": "customers",
+					"columnsTo": ["org_id", "id"],
+					"onUpdate": "no action",
+					"onDelete": "cascade"
+				}
+			},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"policies": {
+				"tenant_isolation": {
+					"name": "tenant_isolation",
+					"as": "PERMISSIVE",
+					"for": "ALL",
+					"to": ["bite_app"],
+					"using": "org_id = app_org_id()",
+					"withCheck": "org_id = app_org_id()"
+				}
+			},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
 		"public.customers": {
 			"name": "customers",
 			"schema": "",
@@ -781,6 +872,235 @@
 				"customers_points_nonneg": {
 					"name": "customers_points_nonneg",
 					"value": "\"customers\".\"points\" >= 0"
+				}
+			},
+			"isRLSEnabled": false
+		},
+		"public.loyalty_ledger": {
+			"name": "loyalty_ledger",
+			"schema": "",
+			"columns": {
+				"id": {
+					"name": "id",
+					"type": "uuid",
+					"primaryKey": true,
+					"notNull": true
+				},
+				"org_id": {
+					"name": "org_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"customer_id": {
+					"name": "customer_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"order_id": {
+					"name": "order_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"kind": {
+					"name": "kind",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"points": {
+					"name": "points",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"reward_id": {
+					"name": "reward_id",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"reason": {
+					"name": "reason",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"created_by": {
+					"name": "created_by",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"created_at": {
+					"name": "created_at",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "now()"
+				}
+			},
+			"indexes": {
+				"loyalty_ledger_customer_idx": {
+					"name": "loyalty_ledger_customer_idx",
+					"columns": [
+						{
+							"expression": "org_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						},
+						{
+							"expression": "customer_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						},
+						{
+							"expression": "created_at",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"with": {},
+					"method": "btree",
+					"concurrently": false
+				},
+				"loyalty_ledger_earn_once": {
+					"name": "loyalty_ledger_earn_once",
+					"columns": [
+						{
+							"expression": "org_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						},
+						{
+							"expression": "order_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": true,
+					"with": {},
+					"method": "btree",
+					"where": "\"loyalty_ledger\".\"kind\" = 'earn'",
+					"concurrently": false
+				}
+			},
+			"foreignKeys": {
+				"loyalty_ledger_org_id_customer_id_customers_org_id_id_fk": {
+					"name": "loyalty_ledger_org_id_customer_id_customers_org_id_id_fk",
+					"tableFrom": "loyalty_ledger",
+					"columnsFrom": ["org_id", "customer_id"],
+					"tableTo": "customers",
+					"columnsTo": ["org_id", "id"],
+					"onUpdate": "no action",
+					"onDelete": "restrict"
+				}
+			},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"policies": {
+				"tenant_select": {
+					"name": "tenant_select",
+					"as": "PERMISSIVE",
+					"for": "SELECT",
+					"to": ["bite_app"],
+					"using": "org_id = app_org_id()"
+				},
+				"tenant_insert": {
+					"name": "tenant_insert",
+					"as": "PERMISSIVE",
+					"for": "INSERT",
+					"to": ["bite_app"],
+					"withCheck": "org_id = app_org_id()"
+				}
+			},
+			"checkConstraints": {
+				"loyalty_ledger_kind": {
+					"name": "loyalty_ledger_kind",
+					"value": "\"loyalty_ledger\".\"kind\" in ('earn', 'redeem', 'adjust')"
+				},
+				"loyalty_ledger_nonzero": {
+					"name": "loyalty_ledger_nonzero",
+					"value": "\"loyalty_ledger\".\"points\" <> 0"
+				}
+			},
+			"isRLSEnabled": false
+		},
+		"public.loyalty_programs": {
+			"name": "loyalty_programs",
+			"schema": "",
+			"columns": {
+				"org_id": {
+					"name": "org_id",
+					"type": "uuid",
+					"primaryKey": true,
+					"notNull": true
+				},
+				"enabled": {
+					"name": "enabled",
+					"type": "boolean",
+					"primaryKey": false,
+					"notNull": true,
+					"default": false
+				},
+				"points_per_rial": {
+					"name": "points_per_rial",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"default": 10
+				},
+				"rewards": {
+					"name": "rewards",
+					"type": "jsonb",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "'[]'::jsonb"
+				},
+				"updated_at": {
+					"name": "updated_at",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "now()"
+				}
+			},
+			"indexes": {},
+			"foreignKeys": {
+				"loyalty_programs_org_id_orgs_id_fk": {
+					"name": "loyalty_programs_org_id_orgs_id_fk",
+					"tableFrom": "loyalty_programs",
+					"columnsFrom": ["org_id"],
+					"tableTo": "orgs",
+					"columnsTo": ["id"],
+					"onUpdate": "no action",
+					"onDelete": "restrict"
+				}
+			},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"policies": {
+				"tenant_isolation": {
+					"name": "tenant_isolation",
+					"as": "PERMISSIVE",
+					"for": "ALL",
+					"to": ["bite_app"],
+					"using": "org_id = app_org_id()",
+					"withCheck": "org_id = app_org_id()"
+				}
+			},
+			"checkConstraints": {
+				"loyalty_points_per_rial_range": {
+					"name": "loyalty_points_per_rial_range",
+					"value": "points_per_rial between 0 and 1000"
 				}
 			},
 			"isRLSEnabled": false
@@ -4295,7 +4615,15 @@
 		"public.payment_method": {
 			"name": "payment_method",
 			"schema": "public",
-			"values": ["cash", "card", "softpos", "thawani", "stripe", "other"]
+			"values": [
+				"cash",
+				"card",
+				"softpos",
+				"thawani",
+				"stripe",
+				"other",
+				"loyalty"
+			]
 		},
 		"public.payment_state": {
 			"name": "payment_state",
