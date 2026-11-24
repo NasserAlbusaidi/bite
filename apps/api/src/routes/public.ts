@@ -48,8 +48,16 @@ export const publicRoutes = new Hono<AppEnv>()
 					"locationSlug does not match the URL",
 				);
 			const now = c.var.deps.now?.() ?? new Date();
-			const { lines, type, customerName, customerPhone, note } = body;
-			const input = { lines, type, customerName, customerPhone, note };
+			const { lines, type, customerName, customerPhone, tableLabel, note } =
+				body;
+			const input = {
+				lines,
+				type,
+				customerName,
+				customerPhone,
+				tableLabel,
+				note,
+			};
 			const out = await slugTx(c, slug, (tx, ids) =>
 				placeGuestOrder(tx, ids, input, {
 					source: "guest",

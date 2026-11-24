@@ -172,6 +172,7 @@ export async function groupAction(
 							type,
 							...s("customerName", 80),
 							...s("customerPhone", 20),
+							...(type === "dine_in" ? s("tableLabel", 20) : {}),
 							...s("note", 500),
 						},
 						a,

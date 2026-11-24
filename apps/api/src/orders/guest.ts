@@ -43,6 +43,8 @@ export type GuestOrderInput = {
 	type: OrderType;
 	customerName?: string | undefined;
 	customerPhone?: string | undefined;
+	/** Kept for dine-in only. */
+	tableLabel?: string | undefined;
 	note?: string | undefined;
 	lines: readonly GuestLine[];
 };
@@ -84,6 +86,7 @@ export function toGuestView(
 	return {
 		ticketNumber: o.ticketNumber,
 		type: o.type,
+		tableLabel: o.tableLabel,
 		paymentStatus: o.paymentStatus,
 		fulfillmentStatus: o.fulfillmentStatus,
 		subtotal: o.subtotal,
@@ -256,6 +259,8 @@ export async function placeGuestOrder(
 				paymentStatus: paymentStatusFor(p.total, minor(0), minor(0)),
 				customerName: input.customerName ?? null,
 				customerPhone: input.customerPhone ?? null,
+				tableLabel:
+					input.type === "dine_in" ? (input.tableLabel ?? null) : null,
 				note: input.note ?? null,
 				pricesIncludeTax: p.pricesIncludeTax,
 				subtotal: p.subtotal,

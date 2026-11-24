@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { Id, Instant, OrderType, Version } from "./common.js";
+import { TableLabel } from "./orders.js";
 
 /**
  * Group carts, under /v1/public. The cart `token` is the share link secret.
@@ -80,6 +81,7 @@ export const SubmitGroupCartRequest = z.object({
 	type: OrderType,
 	customerName: z.string().max(80).optional(),
 	customerPhone: z.string().max(20).optional(),
+	tableLabel: TableLabel.optional(),
 	note: z.string().max(500).optional(),
 });
 

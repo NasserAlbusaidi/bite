@@ -116,11 +116,17 @@ export function KdsShell() {
 									<article key={o.id} className={`ticket ${late}`}>
 										<header className="row">
 											<strong className="ticket-no">{o.ticketNumber}</strong>
-											<span className="muted">
-												{o.type === "dine_in"
-													? t("order.dineIn")
-													: t("order.takeaway")}
-											</span>
+											{o.tableLabel ? (
+												<span className="table-tag">
+													{t("order.tableNo", { table: o.tableLabel })}
+												</span>
+											) : (
+												<span className="muted">
+													{o.type === "dine_in"
+														? t("order.dineIn")
+														: t("order.takeaway")}
+												</span>
+											)}
 											<span className="spacer" />
 											<span className="age">
 												{t("kds.minutes", { count: mins })}

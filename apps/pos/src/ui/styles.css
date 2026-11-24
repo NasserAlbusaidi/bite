@@ -876,3 +876,25 @@ p.strong {
 	box-shadow: 0 0 0 100vmax var(--overlay);
 	pointer-events: none;
 }
+
+/* Where a dine-in order goes: loud on the kitchen ticket, a tag in lists. */
+.table-tag {
+	font-weight: 700;
+	padding-block: 2px;
+	padding-inline: var(--space-2);
+	border-radius: var(--radius-pill);
+	background: var(--action);
+	color: var(--on-action);
+	white-space: nowrap;
+}
+.ticket .table-tag {
+	font-size: var(--fs-lg);
+}
+.table-field {
+	gap: var(--space-2);
+	margin-block: var(--space-2);
+}
+.table-field .input {
+	flex: 1;
+	min-inline-size: 0;
+}

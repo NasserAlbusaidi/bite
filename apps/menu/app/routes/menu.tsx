@@ -19,6 +19,7 @@ import {
 	reorderable,
 	useRemembered,
 } from "../lib/recent";
+import { useTable } from "../lib/table";
 import type { Route } from "./+types/menu";
 
 export async function loader({ params }: Route.LoaderArgs) {
@@ -44,6 +45,7 @@ export default function Menu({ loaderData }: Route.ComponentProps) {
 		decimals: menu.location.currencyDecimals,
 	};
 	const [cart, dispatch] = useCart(location.slug);
+	const table = useTable(location.slug);
 	const [open, setOpen] = useState<MenuProduct | null>(null);
 	const canOrder = location.isAcceptingOrders;
 
@@ -74,6 +76,7 @@ export default function Menu({ loaderData }: Route.ComponentProps) {
 				t={t}
 				pricesIncludeTax={menu.location.pricesIncludeTax}
 				switchTo={`/${location.slug}`}
+				table={table}
 			>
 				{active && (
 					<Link

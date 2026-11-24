@@ -680,6 +680,15 @@ p.warn {
 .table-card {
 	display: none;
 }
+.table-count {
+	display: grid;
+	gap: var(--space-1);
+	max-inline-size: 28rem;
+	margin-block-start: var(--space-4);
+}
+.table-count .input {
+	max-inline-size: 8rem;
+}
 @media print {
 	@page {
 		margin: 12mm;
@@ -714,6 +723,12 @@ p.warn {
 	.table-card__name {
 		font-size: 22pt;
 		line-height: 1.15;
+	}
+	.table-card + .table-card {
+		break-before: page;
+	}
+	.table-card__table {
+		font-size: 18pt;
 	}
 	.table-card__cta {
 		font-size: 14pt;

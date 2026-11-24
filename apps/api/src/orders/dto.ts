@@ -25,6 +25,7 @@ export function toOrderDto(
 		paymentStatus: o.paymentStatus,
 		fulfillmentStatus: o.fulfillmentStatus,
 		customerName: o.customerName,
+		tableLabel: o.tableLabel,
 		note: o.note,
 		pricesIncludeTax: o.pricesIncludeTax,
 		subtotal: o.subtotal,

@@ -31,6 +31,7 @@ function base(order: Order, timeZone: string, lang: Lang): TicketOrderInput {
 		timeZone,
 		note: order.note,
 		customerName: order.customerName,
+		tableLabel: order.tableLabel ?? null,
 		lines: order.lines.map((l) => ({
 			quantity: l.quantity,
 			name: loc(l.name, lang),

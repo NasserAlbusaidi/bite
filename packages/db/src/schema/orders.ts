@@ -92,6 +92,8 @@ export const orders = pgTable(
 		customerId: uuid("customer_id"),
 		customerName: text("customer_name"),
 		customerPhone: text("customer_phone"),
+		/** Where to bring a dine-in order: "7", "T12", "Terrace 3". From the table QR or the till. */
+		tableLabel: text("table_label"),
 		note: text("note"),
 		/** Snapshot of the location's tax mode when the order was priced. */
 		pricesIncludeTax: boolean("prices_include_tax").notNull(),

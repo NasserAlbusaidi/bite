@@ -400,6 +400,7 @@ export const AdminOrderRow = z.object({
 	total: Minor,
 	paidTotal: Minor,
 	customerName: z.string().nullable(),
+	tableLabel: z.string().nullable().optional(),
 });
 
 export type AdminMe = z.infer<typeof AdminMe>;

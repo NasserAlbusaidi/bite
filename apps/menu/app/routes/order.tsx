@@ -163,6 +163,11 @@ export default function OrderPage({ loaderData }: Route.ComponentProps) {
 				<p className="ticket__no">
 					<bdi dir="ltr">{order.ticketNumber}</bdi>
 				</p>
+				{order.tableLabel && (
+					<p className="ticket__table">
+						<bdi>{t("table_chip", { table: order.tableLabel })}</bdi>
+					</p>
+				)}
 				<p className="ticket__status">{t(statusKey(order))}</p>
 				{order.fulfillmentStatus !== "cancelled" && (
 					<ol className="steps">

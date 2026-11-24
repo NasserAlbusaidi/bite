@@ -23,6 +23,7 @@ import { loadMenu, MENU_CACHE } from "../lib/guest.server";
 import { isLang, translator } from "../lib/i18n";
 import { isNetworkError, isOffline, OFFLINE } from "../lib/offline";
 import { menuPricing, quoteCart, usePricingClock } from "../lib/pricing";
+import { useTable } from "../lib/table";
 import { uuidv7 } from "../lib/uuid";
 import type { Route } from "./+types/checkout";
 
@@ -116,6 +117,7 @@ export default function Checkout({ loaderData }: Route.ComponentProps) {
 		decimals: menu.location.currencyDecimals,
 	};
 	const [cart, dispatch] = useCart(location.slug);
+	const table = useTable(location.slug);
 	const fetcher = useFetcher<typeof action>();
 	// One idempotency key per distinct payload: a retry of the same order reuses it.
 	const attempt = useRef<
@@ -224,6 +226,7 @@ export default function Checkout({ loaderData }: Route.ComponentProps) {
 							: t(errorMessageKey(result.code, result.reason))
 				}
 				submitLabel={t("place_order")}
+				defaultTable={table}
 				onSubmit={submit}
 			/>
 		</main>
