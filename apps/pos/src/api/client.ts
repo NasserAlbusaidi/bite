@@ -1,6 +1,7 @@
 import type {
 	DeviceMe,
 	PinLoginResponse,
+	ServiceRequestList,
 	StaffListResponse,
 	SyncPullResponse,
 	SyncPushRequest,
@@ -48,6 +49,20 @@ export class ApiClient {
 
 	me() {
 		return this.call<DeviceMe>("/v1/device/me");
+	}
+
+	/** Guests calling a waiter or asking for the bill at this location. */
+	serviceRequests() {
+		return this.call<ServiceRequestList>("/v1/device/service-requests", {
+			timeoutMs: 8_000,
+		});
+	}
+
+	closeServiceRequest(id: string) {
+		return this.call<{ ok: true }>(
+			`/v1/device/service-requests/${encodeURIComponent(id)}/done`,
+			{ method: "POST" },
+		);
 	}
 
 	staff() {

@@ -17,6 +17,9 @@ import {
 	JoinGroupCartResponse,
 	PARTICIPANT_SECRET_HEADER,
 	PublicMenuResponse,
+	type ServiceRequest,
+	type ServiceRequestKind,
+	ServiceRequestResponse,
 	type SubmitGroupCartRequest,
 	type UpsertGroupCartItem,
 } from "./contracts";
@@ -43,6 +46,12 @@ export interface GuestApi {
 		idempotencyKey: string,
 	): Promise<GuestOrderView>;
 	getOrder(trackingToken: string): Promise<GuestOrderView | null>;
+	/** Call a waiter or ask for the bill at a table. */
+	callService(
+		slug: string,
+		kind: ServiceRequestKind,
+		tableLabel: string,
+	): Promise<ServiceRequest>;
 
 	createGroupCart(
 		slug: string,
@@ -140,6 +149,14 @@ export function httpApi(
 			call(PublicMenuResponse, `/v1/public/locations/${enc(slug)}/menu`),
 		getOrder: (token) =>
 			call(GuestOrderView, `/v1/public/orders/${enc(token)}`),
+		callService: async (slug, kind, tableLabel) => {
+			const res = await must(
+				ServiceRequestResponse,
+				`/v1/public/locations/${enc(slug)}/service-requests`,
+				json({ kind, tableLabel }),
+			);
+			return res.request;
+		},
 		placeOrder: async (req, key) => {
 			const path = `/v1/public/locations/${enc(req.locationSlug)}/orders`;
 			const res = await must(
