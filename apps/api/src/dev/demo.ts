@@ -437,8 +437,9 @@ const BRANCHES = [
 		name: "Luban Café Qurum",
 		address: "Shatti Al Qurum, Way 2601, Muscat",
 		phone: "+968 2400 1122",
-		posPrefix: "Q",
-		kdsPrefix: "QK",
+		posPrefix: "A",
+		kdsPrefix: "KQ",
+		// Guest QR orders use Q- and group orders G- (orders/guest.ts), so tills avoid those.
 		/** Orders on a normal weekday. */
 		volume: 70,
 		staff: [
@@ -454,7 +455,7 @@ const BRANCHES = [
 		address: "The Walk, Al Mouj, Muscat",
 		phone: "+968 2400 3344",
 		posPrefix: "M",
-		kdsPrefix: "MK",
+		kdsPrefix: "KM",
 		volume: 48,
 		staff: [
 			{ name: "Aisha", role: "cashier", pin: "4444" },
