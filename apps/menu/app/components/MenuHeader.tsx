@@ -16,6 +16,7 @@ export function MenuHeader({
 	t,
 	pricesIncludeTax,
 	switchTo,
+	table = null,
 	children,
 }: {
 	location: GuestLocation;
@@ -24,6 +25,8 @@ export function MenuHeader({
 	pricesIncludeTax: boolean;
 	/** Path (without the language prefix) for the language switch. */
 	switchTo: string;
+	/** The guest's table, from the table QR. */
+	table?: string | null;
 	children?: ReactNode;
 }) {
 	return (
@@ -55,6 +58,11 @@ export function MenuHeader({
 				>
 					{location.isAcceptingOrders ? t("status_open") : t("status_closed")}
 				</span>
+				{table && (
+					<span className="chip chip--table">
+						<bdi>{t("table_chip", { table })}</bdi>
+					</span>
+				)}
 				{pricesIncludeTax && <span className="chip">{t("tax_included")}</span>}
 			</div>
 			{children}

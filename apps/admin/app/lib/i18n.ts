@@ -281,6 +281,11 @@ const en = {
 	guest_qr_unset:
 		"The guest menu's address isn't configured for this back office yet (VITE_MENU_URL), so there is no code to show.",
 	print_table_card: "Print table card",
+	print_table_cards: "Print {count} table cards",
+	table_count: "Numbered tables",
+	table_count_hint:
+		"Give each table its own card: orders from it arrive at the till and kitchen with the table number. Leave at 0 for one card without numbers.",
+	table_n: "Table {n}",
 	download_svg: "Download QR",
 	copy_link: "Copy link",
 	copy: "Copy",
@@ -708,6 +713,11 @@ const ar: Record<MessageKey, string> = {
 	guest_qr_unset:
 		"عنوان قائمة الزبائن غير مضبوط لهذه اللوحة بعد (VITE_MENU_URL)، لذا لا يوجد رمز لعرضه.",
 	print_table_card: "طباعة بطاقة الطاولة",
+	print_table_cards: "طباعة {count} بطاقات طاولات",
+	table_count: "طاولات مرقمة",
+	table_count_hint:
+		"لكل طاولة بطاقتها: تصل طلباتها إلى الكاشير والمطبخ برقم الطاولة. اتركها 0 لبطاقة واحدة بدون أرقام.",
+	table_n: "طاولة {n}",
 	download_svg: "تنزيل رمز QR",
 	copy_link: "نسخ الرابط",
 	copy: "نسخ",

@@ -28,6 +28,7 @@ import { loadMenu } from "../lib/guest.server";
 import { translator } from "../lib/i18n";
 import { isNetworkError, isOffline } from "../lib/offline";
 import { menuPricing, quoteCart, usePricingClock } from "../lib/pricing";
+import { useTable } from "../lib/table";
 import { uuidv7 } from "../lib/uuid";
 import type { Route } from "./+types/group";
 
@@ -120,6 +121,7 @@ export default function GroupOrder({ loaderData }: Route.ComponentProps) {
 	// failed fetcher load (wifi blip) replaces the whole page with an error.
 	const [polled, setPolled] = useState<GroupCartView>();
 	const writer = useFetcher<GroupWrite>();
+	const table = useTable(location.slug);
 	const joiner = useFetcher<GroupWrite>();
 	const candidates = [
 		loaderData.cart,
@@ -436,6 +438,7 @@ export default function GroupOrder({ loaderData }: Route.ComponentProps) {
 								error={null}
 								submitLabel={t("place_group_order")}
 								defaultName={me?.displayName}
+								defaultTable={table}
 								onSubmit={submit}
 							/>
 							<button

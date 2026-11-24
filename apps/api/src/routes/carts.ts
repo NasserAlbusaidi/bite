@@ -304,6 +304,7 @@ export const cartRoutes = new Hono<AppEnv>()
 					type: body.type,
 					customerName: body.customerName,
 					customerPhone: body.customerPhone,
+					tableLabel: body.tableLabel,
 					note: body.note,
 					lines: items.map((i) => ({
 						id: i.id,

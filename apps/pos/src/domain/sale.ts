@@ -69,6 +69,8 @@ export type SaleInput = {
 	type: "dine_in" | "takeaway";
 	note?: string;
 	customerName?: string;
+	/** Dine-in only: where to bring it. */
+	tableLabel?: string;
 	ticketPrefix: string;
 	memberId: string;
 	tenders: TenderInput[];
@@ -129,6 +131,8 @@ export async function commitSale(
 			source: "counter",
 			type: input.type,
 			...(input.customerName && { customerName: input.customerName }),
+			...(input.type === "dine_in" &&
+				input.tableLabel && { tableLabel: input.tableLabel }),
 			...(input.note && { note: input.note }),
 			placedAt,
 			pricesIncludeTax: priced.pricesIncludeTax,
@@ -216,6 +220,7 @@ export async function commitSale(
 				paid >= priced.total ? "paid" : paid > 0 ? "partially_paid" : "unpaid",
 			fulfillmentStatus: "pending",
 			customerName: input.customerName ?? null,
+			tableLabel: input.type === "dine_in" ? (input.tableLabel ?? null) : null,
 			note: input.note ?? null,
 			pricesIncludeTax: priced.pricesIncludeTax,
 			subtotal: priced.subtotal,

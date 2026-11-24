@@ -25,6 +25,12 @@ export const OrderLineInput = z.object({
 });
 
 /**
+ * Where a dine-in order goes: "7", "T12", "Terrace 3". Printed on the table
+ * QR (`?table=7`) or typed at the till. Free text, trimmed, 1-20 chars.
+ */
+export const TableLabel = z.string().trim().min(1).max(20);
+
+/**
  * Guest/QR order. Always priced server-side from the live menu.
  * Idempotency-Key header is required.
  */
@@ -33,6 +39,7 @@ export const CreateGuestOrderRequest = z.object({
 	type: OrderType,
 	customerName: z.string().max(80).optional(),
 	customerPhone: z.string().max(20).optional(),
+	tableLabel: TableLabel.optional(),
 	note: z.string().max(500).optional(),
 	lines: z.array(OrderLineInput).min(1).max(100),
 });
@@ -69,6 +76,7 @@ export const CreatePosOrder = z.object({
 	type: OrderType,
 	customerName: z.string().max(80).optional(),
 	customerPhone: z.string().max(20).optional(),
+	tableLabel: TableLabel.optional(),
 	note: z.string().max(500).optional(),
 	placedAt: Instant,
 	pricesIncludeTax: z.boolean(),
@@ -117,6 +125,8 @@ export const Order = z.object({
 	paymentStatus: PaymentStatus,
 	fulfillmentStatus: FulfillmentStatus,
 	customerName: z.string().nullable(),
+	/** Optional so tablet docs stored before tables existed still parse. */
+	tableLabel: z.string().nullable().optional(),
 	note: z.string().nullable(),
 	pricesIncludeTax: z.boolean(),
 	subtotal: NonNegMinor,
@@ -144,6 +154,7 @@ export type Order = z.infer<typeof Order>;
 export const GuestOrderView = Order.pick({
 	ticketNumber: true,
 	type: true,
+	tableLabel: true,
 	paymentStatus: true,
 	fulfillmentStatus: true,
 	subtotal: true,

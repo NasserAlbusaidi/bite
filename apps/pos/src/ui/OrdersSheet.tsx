@@ -339,6 +339,11 @@ export function OrdersSheet(props: {
 								<span className="muted small">
 									{timeOf(order, place?.timeZone)}
 								</span>
+								{order.tableLabel && (
+									<span className="table-tag small">
+										{t("order.tableNo", { table: order.tableLabel })}
+									</span>
+								)}
 								{order.customerName && (
 									<span className="small order-row__who">
 										{order.customerName}
@@ -366,6 +371,9 @@ export function OrdersSheet(props: {
 										{t(
 											o.type === "dine_in" ? "order.dineIn" : "order.takeaway",
 										)}
+										{o.tableLabel
+											? ` · ${t("order.tableNo", { table: o.tableLabel })}`
+											: ""}
 										{o.source !== "counter" ? ` · ${t("orders.qr")}` : ""}
 										{o.customerName ? ` · ${o.customerName}` : ""}
 									</span>

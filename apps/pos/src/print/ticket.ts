@@ -43,6 +43,7 @@ export type TicketOrderInput = {
 	lines: TicketLineInput[];
 	note?: string | null;
 	customerName?: string | null;
+	tableLabel?: string | null;
 };
 
 export type TicketLabels = {
@@ -93,7 +94,12 @@ export function kitchenTicket(
 		},
 		{
 			kind: "text",
-			text: order.type === "dine_in" ? l.dineIn : l.takeaway,
+			text:
+				order.type === "dine_in"
+					? order.tableLabel
+						? `${l.dineIn} · ${order.tableLabel}`
+						: l.dineIn
+					: l.takeaway,
 			align: "center",
 			bold: true,
 		},

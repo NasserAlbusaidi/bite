@@ -91,6 +91,7 @@ const orderRow = (o: OrderRow): AdminOrderRow => ({
 	total: o.total,
 	paidTotal: o.paidTotal,
 	customerName: o.customerName,
+	tableLabel: o.tableLabel,
 });
 
 const csvCell = (v: string | number | null) => {
@@ -290,6 +291,7 @@ export const adminReportRoutes = new Hono<AppEnv>()
 				"payment_status",
 				"fulfillment_status",
 				"customer",
+				"table",
 				`subtotal_${currency}`,
 				`discount_${currency}`,
 				`tax_${currency}`,
@@ -307,6 +309,7 @@ export const adminReportRoutes = new Hono<AppEnv>()
 					o.paymentStatus,
 					o.fulfillmentStatus,
 					o.customerName,
+					o.tableLabel,
 					money(o.subtotal),
 					money(o.discountTotal),
 					money(o.taxTotal),

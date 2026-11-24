@@ -310,6 +310,8 @@ export default function LocationSettings({
 	);
 }
 
+const MAX_TABLES = 99;
+
 /**
  * The QR code guests scan to open this location's menu, with a printable
  * table card. The address never carries a language, so one sticker serves
@@ -318,6 +320,7 @@ export default function LocationSettings({
 function GuestQr({ name, slug }: { name: string; slug: string }) {
 	const { t } = useShell();
 	const [copied, setCopied] = useState(false);
+	const [tables, setTables] = useState(0);
 	// Demo data has no real menu behind it: show a sample address.
 	const url =
 		guestMenuUrl(slug) ?? (isDemo() ? `https://menu.example/${slug}` : null);
@@ -351,7 +354,9 @@ function GuestQr({ name, slug }: { name: string; slug: string }) {
 							className="btn btn--primary"
 							onClick={() => window.print()}
 						>
-							{t("print_table_card")}
+							{tables > 0
+								? t("print_table_cards", { count: tables })
+								: t("print_table_card")}
 						</button>
 						<button type="button" className="btn" onClick={download}>
 							{t("download_svg")}
@@ -371,19 +376,59 @@ function GuestQr({ name, slug }: { name: string; slug: string }) {
 					</div>
 				</div>
 			</div>
-			{/* Only this card prints (see @media print in styles.css). Both languages on one card. */}
-			<div className="table-card" aria-hidden="true">
-				<strong className="table-card__name">{name}</strong>
-				<span className="table-card__cta">Scan to order</span>
-				<span className="table-card__cta" lang="ar" dir="rtl">
-					امسح الرمز للطلب
-				</span>
-				<QrCode value={url} size={260} label="" className="table-card__qr" />
-				<span className="table-card__url" dir="ltr">
-					{url.replace(/^https?:\/\//, "")}
-				</span>
-				<Logo height={18} />
-			</div>
+			<label className="table-count">
+				{t("table_count")}
+				<input
+					className="input"
+					type="number"
+					inputMode="numeric"
+					min={0}
+					max={MAX_TABLES}
+					value={tables}
+					onChange={(e) =>
+						setTables(
+							Math.max(0, Math.min(MAX_TABLES, Number(e.target.value) || 0)),
+						)
+					}
+				/>
+				<span className="muted small">{t("table_count_hint")}</span>
+			</label>
+			{/* Only these cards print (see @media print in styles.css), one per page. Both languages on each. */}
+			{(tables > 0
+				? Array.from({ length: tables }, (_, i) => String(i + 1))
+				: [null]
+			).map((table) => {
+				const cardUrl = table
+					? `${url}?table=${encodeURIComponent(table)}`
+					: url;
+				return (
+					<div className="table-card" aria-hidden="true" key={table ?? "one"}>
+						<strong className="table-card__name">{name}</strong>
+						{table && (
+							<strong className="table-card__table">
+								Table {table} ·{" "}
+								<span lang="ar" dir="rtl">
+									طاولة {table}
+								</span>
+							</strong>
+						)}
+						<span className="table-card__cta">Scan to order</span>
+						<span className="table-card__cta" lang="ar" dir="rtl">
+							امسح الرمز للطلب
+						</span>
+						<QrCode
+							value={cardUrl}
+							size={260}
+							label=""
+							className="table-card__qr"
+						/>
+						<span className="table-card__url" dir="ltr">
+							{cardUrl.replace(/^https?:\/\//, "")}
+						</span>
+						<Logo height={18} />
+					</div>
+				);
+			})}
 		</section>
 	);
 }

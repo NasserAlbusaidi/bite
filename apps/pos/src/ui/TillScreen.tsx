@@ -50,6 +50,7 @@ export function TillScreen() {
 		printError: string | null;
 	} | null>(null);
 	const [type, setType] = useState<"dine_in" | "takeaway">("takeaway");
+	const [table, setTable] = useState("");
 	const [sheet, setSheet] = useState<"orders" | "drawer" | null>(null);
 	const [ordersView, setOrdersView] = useState<OrdersView>("today");
 	/** Orders waiting to be paid at this counter (QR and group orders). */
@@ -131,6 +132,9 @@ export function TillScreen() {
 			lines,
 			at: paying.at,
 			type,
+			...(type === "dine_in" && table.trim()
+				? { tableLabel: table.trim().slice(0, 20) }
+				: {}),
 			ticketPrefix: device.ticketPrefix,
 			memberId: member.memberId,
 			tenders,
@@ -140,6 +144,7 @@ export function TillScreen() {
 		sync.kick();
 		setPaying(null);
 		setLines([]);
+		setTable("");
 
 		// Print after the sale is safely stored. Failures are shown, never block.
 		const tz = snap.location.timezone;
@@ -264,6 +269,19 @@ export function TillScreen() {
 						</button>
 					</div>
 				</div>
+				{type === "dine_in" && (
+					<label className="row table-field">
+						<span>{t("order.table")}</span>
+						<input
+							className="input"
+							value={table}
+							maxLength={20}
+							inputMode="text"
+							placeholder={t("order.tablePlaceholder")}
+							onChange={(e) => setTable(e.target.value)}
+						/>
+					</label>
+				)}
 				<div className="cart-lines">
 					{lines.length === 0 && <p className="muted">{t("till.empty")}</p>}
 					{lines.map((l, i) => {

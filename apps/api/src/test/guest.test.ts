@@ -159,4 +159,38 @@ describe.runIf(ownerUrl)("guest QR orders", () => {
 			orders.find((o) => o.ticketNumber === placed.order.ticketNumber)?.source,
 		).toBe("guest");
 	});
+
+	it("carries the table from the QR to the tablet, dine-in only", async () => {
+		const place = (type: string, tableLabel: string) =>
+			h.app.request(
+				"/v1/public/locations/a-main/orders",
+				json(
+					{
+						locationSlug: "a-main",
+						type,
+						tableLabel,
+						lines: [line({ quantity: 1, modifierOptionIds: [] })],
+					},
+					{ "idempotency-key": uuidv7() },
+				),
+			);
+		const dine = (await (await place("dine_in", "  7 ")).json()) as {
+			order: { ticketNumber: string; tableLabel: string | null };
+		};
+		expect(dine.order.tableLabel).toBe("7");
+		const away = (await (await place("takeaway", "9")).json()) as {
+			order: { tableLabel: string | null };
+		};
+		expect(away.order.tableLabel).toBeNull();
+		expect((await place("dine_in", "x".repeat(21))).status).toBe(400);
+
+		const pull = await h.app.request("/v1/sync/pull", { headers: bearer(h.A) });
+		const { orders } = (await pull.json()) as {
+			orders: { ticketNumber: string; tableLabel: string | null }[];
+		};
+		expect(
+			orders.find((o) => o.ticketNumber === dine.order.ticketNumber)
+				?.tableLabel,
+		).toBe("7");
+	});
 });

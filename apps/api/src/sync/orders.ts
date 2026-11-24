@@ -215,6 +215,7 @@ export async function createPosOrder(
 			paymentStatus: paymentStatusFor(minor(total), minor(0), minor(0)),
 			customerName: p.customerName ?? null,
 			customerPhone: p.customerPhone ?? null,
+			tableLabel: p.type === "dine_in" ? (p.tableLabel ?? null) : null,
 			note: p.note ?? null,
 			pricesIncludeTax: p.pricesIncludeTax,
 			...computed,

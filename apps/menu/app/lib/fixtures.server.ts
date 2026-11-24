@@ -302,6 +302,7 @@ export function fixtureApi(
 			const order: GuestOrderView = {
 				ticketNumber: `Q-${String(orders.size + 1).padStart(3, "0")}`,
 				type: req.type,
+				tableLabel: req.type === "dine_in" ? (req.tableLabel ?? null) : null,
 				paymentStatus: "unpaid",
 				fulfillmentStatus: "pending",
 				subtotal: p.subtotal,

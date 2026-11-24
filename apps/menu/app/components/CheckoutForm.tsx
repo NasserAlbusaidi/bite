@@ -1,11 +1,13 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { T } from "../lib/i18n";
 import { toE164 } from "../lib/phone";
+import { cleanTable } from "../lib/table";
 
 export type CheckoutFields = {
 	type: "dine_in" | "takeaway";
 	customerName: string;
 	customerPhone?: string;
+	tableLabel?: string;
 	note?: string;
 };
 
@@ -18,6 +20,8 @@ type Props = {
 	submitLabel: string;
 	/** Prefill, e.g. the name the host already gave when starting a group. */
 	defaultName?: string;
+	/** From the table QR. Dine-in shows it, editable; blank means no table. */
+	defaultTable?: string | null;
 	onSubmit: (f: CheckoutFields) => void;
 };
 
@@ -29,9 +33,15 @@ export function CheckoutForm({
 	error,
 	submitLabel,
 	defaultName = "",
+	defaultTable = null,
 	onSubmit,
 }: Props) {
 	const [name, setName] = useState(defaultName);
+	const [table, setTable] = useState(defaultTable ?? "");
+	// The QR's table arrives after hydration; take it unless the guest typed one.
+	useEffect(() => {
+		if (defaultTable) setTable((v) => v || defaultTable);
+	}, [defaultTable]);
 	const [phone, setPhone] = useState("");
 	const [note, setNote] = useState("");
 	const [type, setType] = useState<CheckoutFields["type"]>("dine_in");
@@ -43,9 +53,11 @@ export function CheckoutForm({
 		if (!name.trim()) return setFormError(t("name_required"));
 		const e164 = phone.trim() ? toE164(phone) : undefined;
 		if (e164 === null) return setFormError(t("invalid_phone"));
+		const tableLabel = type === "dine_in" ? cleanTable(table) : null;
 		onSubmit({
 			type,
 			customerName: name.trim(),
+			...(tableLabel ? { tableLabel } : {}),
 			...(e164 ? { customerPhone: e164 } : {}),
 			...(note.trim() ? { note: note.trim() } : {}),
 		});
@@ -69,6 +81,25 @@ export function CheckoutForm({
 					</label>
 				))}
 			</fieldset>
+
+			{type === "dine_in" && (
+				<>
+					<label className="field-label" htmlFor="table">
+						{t("table_label")}
+					</label>
+					<input
+						id="table"
+						className="input input--table"
+						inputMode="text"
+						autoComplete="off"
+						dir="auto"
+						maxLength={20}
+						placeholder={t("table_placeholder")}
+						value={table}
+						onChange={(e) => setTable(e.target.value)}
+					/>
+				</>
+			)}
 
 			<label className="field-label" htmlFor="name">
 				{t("your_name")}
