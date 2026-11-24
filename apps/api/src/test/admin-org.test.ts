@@ -247,6 +247,17 @@ describe.runIf(ownerUrl)("admin staff, locations, devices", () => {
 			);
 			expect(res.status).toBe(401);
 			await expect(staffLogin(h, h.A, s.id)).rejects.toThrow();
+
+			// Reactivating restores them with the same roles and PIN.
+			const back = await ok<Staff>(
+				call("manager", "POST", `/staff/${s.id}/reactivate`),
+			);
+			expect(back.isActive).toBe(true);
+			expect(back.hasPin).toBe(true);
+			expect(back.locations).toEqual([
+				{ locationId: h.A.loc, role: "cashier" },
+			]);
+			await staffLogin(h, h.A, s.id);
 		});
 	});
 

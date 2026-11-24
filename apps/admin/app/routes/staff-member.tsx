@@ -83,6 +83,11 @@ export async function clientAction({
 			flash(t("staff_deactivated", { name }), "neutral");
 			return redirect("/staff");
 		}
+		if (intent === "reactivate") {
+			await api.reactivateStaff(id);
+			flash(t("staff_reactivated", { name }));
+			return redirect(`/staff/${id}`);
+		}
 		if (intent === "reissue") {
 			try {
 				return invited(await api.reissueInvite(id));
@@ -220,6 +225,19 @@ export default function StaffMember({
 				</p>
 			)}
 			{!editable && <p className="card muted">{t("cant_edit_member")}</p>}
+			{editable && member && !member.isActive && (
+				<Form method="post" className="card notice-row">
+					<input type="hidden" name="intent" value="reactivate" />
+					<input type="hidden" name="displayName" value={member.displayName} />
+					<span>
+						<strong>{t("staff_off_title")}</strong>
+						<span className="muted small">{t("staff_off_hint")}</span>
+					</span>
+					<button type="submit" className="btn btn--primary" disabled={busy}>
+						{t("reactivate")}
+					</button>
+				</Form>
+			)}
 			{editable && (
 				<Form method="post" className="card form" key={member?.id ?? kind}>
 					<input type="hidden" name="kind" value={kind} />

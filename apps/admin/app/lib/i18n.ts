@@ -73,6 +73,8 @@ const en = {
 	shortcuts_title: "Keyboard shortcuts",
 	shortcut_palette: "Search pages, staff, products and actions",
 	shortcut_close: "Close a dialog or the search",
+	shortcut_go: "G, then a letter, jumps to a page (G S is Staff)",
+	shortcut_all: "Every shortcut",
 	// Branch settings.
 	unsaved_changes: "Unsaved changes",
 	discard: "Discard",
@@ -122,6 +124,11 @@ const en = {
 	leave_body: "Your changes to this branch will be lost.",
 	leave_stay: "Keep editing",
 	leave_go: "Leave",
+	reactivate: "Reactivate",
+	staff_reactivated: "{name} can sign in again.",
+	staff_off_title: "Deactivated",
+	staff_off_hint:
+		"They can't sign in anywhere. Reactivate to restore their roles and PIN.",
 	no_access_desc: "Can't sign in at {place}.",
 	reissue_title: "Sign-in invite",
 	tablet_pin_title: "Tablet PIN",
@@ -902,6 +909,8 @@ const ar: Record<MessageKey, string> = {
 	shortcuts_title: "اختصارات لوحة المفاتيح",
 	shortcut_palette: "ابحث في الصفحات والموظفين والمنتجات والإجراءات",
 	shortcut_close: "أغلق نافذة أو البحث",
+	shortcut_go: "اضغط G ثم حرفًا للانتقال إلى صفحة (G S للموظفين)",
+	shortcut_all: "كل الاختصارات",
 	// Branch settings.
 	unsaved_changes: "تغييرات غير محفوظة",
 	discard: "تجاهل التغييرات",
@@ -951,6 +960,11 @@ const ar: Record<MessageKey, string> = {
 	leave_body: "ستضيع تغييراتك على هذا الفرع.",
 	leave_stay: "متابعة التعديل",
 	leave_go: "مغادرة",
+	reactivate: "إعادة التفعيل",
+	staff_reactivated: "يمكن لـ {name} تسجيل الدخول مجددًا.",
+	staff_off_title: "موقوف",
+	staff_off_hint:
+		"لا يمكنه تسجيل الدخول في أي مكان. أعد التفعيل لاستعادة أدواره ورمزه السري.",
 	no_access_desc: "لا يمكنه تسجيل الدخول في {place}.",
 	reissue_title: "دعوة تسجيل الدخول",
 	tablet_pin_title: "الرمز السري للجهاز اللوحي",

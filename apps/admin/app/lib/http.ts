@@ -180,6 +180,11 @@ export function httpAdminApi(
 				method: "POST",
 			});
 		},
+		reactivateStaff: async (id) => {
+			await call(z.unknown(), `/staff/${enc(id)}/reactivate`, {
+				method: "POST",
+			});
+		},
 		updateLocation: (id, l) =>
 			call(AdminLocationSettings, `/locations/${enc(id)}`, send("PATCH", l)),
 		floor: (locationId) => call(Floor, `/locations/${enc(locationId)}/floor`),

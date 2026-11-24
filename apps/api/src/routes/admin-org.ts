@@ -425,6 +425,20 @@ export const adminOrgRoutes = new Hono<AppEnv>()
 		});
 		return c.json(dto);
 	})
+	.post("/staff/:id/reactivate", validate("param", idParam), async (c) => {
+		// Undo a deactivation. Roles and PIN were kept, so they can sign in again
+		// at once; a lost invite is re-issued separately.
+		const { id } = c.req.valid("param");
+		const dto = await adminTx(c, async (tx) => {
+			await managedTarget(c, tx, id);
+			await tx
+				.update(members)
+				.set({ isActive: true, updatedAt: new Date() })
+				.where(eq(members.id, id));
+			return staffDto(tx, c.var.admin, id);
+		});
+		return c.json(dto);
+	})
 	.post("/staff/:id/invite", validate("param", idParam), async (c) => {
 		// Re-issue a lost or expired invite. The old link stops working.
 		const a = c.var.admin;
