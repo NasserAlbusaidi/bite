@@ -40,6 +40,14 @@ const auth = createAuth(db, {
  */
 const planEnforcement = process.env.PLAN_ENFORCEMENT === "on";
 
+/**
+ * Platform console (/v1/platform) and support view: a bite_system login
+ * (BYPASSRLS). PLATFORM_DATABASE_URL, else the worker's login. Neither set:
+ * the console is off.
+ */
+const systemUrl =
+	process.env.PLATFORM_DATABASE_URL ?? process.env.WORKER_DATABASE_URL;
+const systemDb = systemUrl ? createDb(systemUrl, { max: 3 }).db : undefined;
 /** Product photos on local disk. One API server (the demo box) needs nothing else. */
 const uploads = diskStore(process.env.UPLOAD_DIR ?? "./uploads");
 
@@ -55,6 +63,7 @@ const app = createApp({
 	auth,
 	adminOrigins,
 	planEnforcement,
+	...(systemDb ? { systemDb } : {}),
 	uploads,
 	publicApiUrl: required("PUBLIC_API_URL"),
 });

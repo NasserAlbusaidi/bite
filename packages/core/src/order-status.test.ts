@@ -3,7 +3,9 @@ import {
 	canTransition,
 	checkFulfillmentTransition,
 	FULFILLMENT_STATUSES,
+	fulfillmentPolicyFor,
 	fulfillmentTransitions,
+	isTab,
 	paymentStatusFor,
 } from "./order-status.js";
 import { m } from "./test-helpers.js";
@@ -88,5 +90,47 @@ describe("paymentStatusFor", () => {
 
 	it("rejects impossible ledgers", () => {
 		expect(() => paymentStatusFor(m(1000), m(100), m(200))).toThrow(RangeError);
+	});
+});
+
+describe("tabs", () => {
+	it("a staff dine-in order at a table goes to the kitchen unpaid", () => {
+		const tab = { source: "counter", type: "dine_in", tableLabel: "7" };
+		expect(isTab(tab)).toBe(true);
+		expect(
+			checkFulfillmentTransition(
+				"pending",
+				"preparing",
+				"unpaid",
+				fulfillmentPolicyFor(tab),
+			),
+		).toEqual({ ok: true });
+		// Serving it for good still needs the bill paid.
+		expect(
+			checkFulfillmentTransition(
+				"ready",
+				"completed",
+				"unpaid",
+				fulfillmentPolicyFor(tab),
+			),
+		).toEqual({ ok: false, error: "unpaid" });
+	});
+
+	it("guest, takeaway and table-less orders still pay first", () => {
+		for (const o of [
+			{ source: "guest", type: "dine_in", tableLabel: "7" },
+			{ source: "counter", type: "takeaway", tableLabel: null },
+			{ source: "counter", type: "dine_in", tableLabel: null },
+		]) {
+			expect(isTab(o)).toBe(false);
+			expect(
+				checkFulfillmentTransition(
+					"pending",
+					"preparing",
+					"unpaid",
+					fulfillmentPolicyFor(o),
+				),
+			).toEqual({ ok: false, error: "unpaid" });
+		}
 	});
 });

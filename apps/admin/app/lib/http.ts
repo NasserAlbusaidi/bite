@@ -15,6 +15,7 @@ import {
 	AdminProduct,
 	AdminPromotion,
 	AdminStaff,
+	Floor,
 	InviteStaffResponse,
 	LocationProduct,
 	LoyaltyProgram,
@@ -184,6 +185,9 @@ export function httpAdminApi(
 		},
 		updateLocation: (id, l) =>
 			call(AdminLocationSettings, `/locations/${enc(id)}`, send("PATCH", l)),
+		floor: (locationId) => call(Floor, `/locations/${enc(locationId)}/floor`),
+		saveFloor: (locationId, f) =>
+			call(Floor, `/locations/${enc(locationId)}/floor`, send("PUT", f)),
 		devices: (locationId) =>
 			all(AdminDevice, `/locations/${enc(locationId)}/devices`),
 		registerDevice: (d) =>

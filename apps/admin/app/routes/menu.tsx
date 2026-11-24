@@ -842,6 +842,11 @@ function ProductRow({
 					{!p.name.ar && (
 						<span className="tag tag--soft">{t("filter_no_arabic")}</span>
 					)}
+					{(p.dietaryTags ?? []).map((tag) => (
+						<span key={tag} className="tag tag--diet">
+							{t(`diet_${tag}`)}
+						</span>
+					))}
 					{groupNames.length > 0 && (
 						<span className="muted small">{groupNames.join(" · ")}</span>
 					)}

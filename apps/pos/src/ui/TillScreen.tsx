@@ -23,6 +23,7 @@ import {
 } from "../domain/sale.js";
 import { useI18n } from "../i18n/I18nProvider.js";
 import { DrawerSheet } from "./DrawerSheet.js";
+import { FloorSheet } from "./FloorSheet.js";
 import { ModifierSheet } from "./ModifierSheet.js";
 import { fmt, OMR } from "./money.js";
 import { OrdersSheet, type OrdersView } from "./OrdersSheet.js";
@@ -48,10 +49,14 @@ export function TillScreen() {
 		ticket: string;
 		change: number;
 		printError: string | null;
+		/** Sent to a table unpaid (a tab). */
+		table?: string;
 	} | null>(null);
 	const [type, setType] = useState<"dine_in" | "takeaway">("takeaway");
 	const [table, setTable] = useState("");
-	const [sheet, setSheet] = useState<"orders" | "drawer" | null>(null);
+	const [sheet, setSheet] = useState<"orders" | "drawer" | "floor" | null>(
+		null,
+	);
 	const [ordersView, setOrdersView] = useState<OrdersView>("today");
 	/** Orders waiting to be paid at this counter (QR and group orders). */
 	const [waiting, setWaiting] = useState(0);
@@ -175,6 +180,39 @@ export function TillScreen() {
 		return null;
 	}
 
+	/** Dine-in at a table, paid at the end: straight to the kitchen, no tender. */
+	async function sendTab() {
+		if (!q?.ok || !menu) return;
+		const label = table.trim().slice(0, 20);
+		if (type !== "dine_in" || !label) return;
+		const res = await commitSale(db, {
+			menu,
+			lines,
+			at: q.at,
+			type,
+			tableLabel: label,
+			ticketPrefix: device.ticketPrefix,
+			memberId: member.memberId,
+			tenders: [],
+			cashSessionId: drawer?.id ?? null,
+		});
+		if (!res.ok) return;
+		sync.kick();
+		setLines([]);
+		setTable("");
+		const printed = await print.print(
+			"kitchen",
+			kitchenFor(res.order, snap.location.timezone, lang, dir),
+		);
+		const failed = printed.find((r) => !r.ok);
+		setDone({
+			ticket: res.order.ticketNumber,
+			change: 0,
+			printError: failed && !failed.ok ? failed.error : null,
+			table: label,
+		});
+	}
+
 	return (
 		<div className="till">
 			<section className="menu-pane">
@@ -229,6 +267,9 @@ export function TillScreen() {
 						}}
 					>
 						{t("orders.title")}
+					</button>
+					<button type="button" onClick={() => setSheet("floor")}>
+						{t("floor.open")}
 					</button>
 					{canDrawer && (
 						<button type="button" onClick={() => setSheet("drawer")}>
@@ -335,6 +376,17 @@ export function TillScreen() {
 						</div>
 					</div>
 				)}
+				{type === "dine_in" && table.trim() && q?.ok && (
+					<button
+						type="button"
+						className="big tab-send"
+						onClick={() => void sendTab()}
+						title={t("till.tabHint")}
+					>
+						{t("till.sendTab")}
+						<span className="muted small">{t("till.tabHint")}</span>
+					</button>
+				)}
 				<div className="row">
 					<button
 						type="button"
@@ -422,6 +474,19 @@ export function TillScreen() {
 					}}
 				/>
 			)}
+			{sheet === "floor" && (
+				<FloorSheet
+					onClose={() => {
+						setSheet(null);
+						void listToPay(db).then((w) => setWaiting(w.length));
+					}}
+					onNewOrder={(label) => {
+						setType("dine_in");
+						setTable(label);
+						setSheet(null);
+					}}
+				/>
+			)}
 			{sheet === "drawer" && (
 				<DrawerSheet
 					onClose={() => {
@@ -434,7 +499,11 @@ export function TillScreen() {
 			{done && (
 				<div className="sheet-backdrop">
 					<div className="sheet narrow center">
-						<h2>{t("pay.done", { ticket: done.ticket })}</h2>
+						<h2>
+							{done.table
+								? t("till.tabSent", { table: done.table })
+								: t("pay.done", { ticket: done.ticket })}
+						</h2>
 						{done.change > 0 && (
 							<p className="huge">
 								{t("pay.change", { amount: fmt(done.change, lang) })}

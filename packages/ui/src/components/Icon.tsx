@@ -8,6 +8,8 @@ import { cx } from "./cx";
  */
 const paths = {
 	plus: "M12 5v14M5 12h14",
+	layout:
+		"M4 5h7v6H4zM15.5 8a2.5 2.5 0 1 0 0 .01M4 15h16v4H4zM6.5 3v2M8.5 3v2M6.5 11v2M8.5 11v2",
 	minus: "M5 12h14",
 	close: "M6 6l12 12M18 6L6 18",
 	check: "M5 12.5l4.5 4.5L19 7",

@@ -61,6 +61,31 @@ export const DEFAULT_FULFILLMENT_POLICY: FulfillmentPolicy = {
 	kitchenRequiresPayment: true,
 };
 
+/**
+ * Which policy applies to one order. A tab is a dine-in order a member of
+ * staff rang up for a table, to be paid at the end: the kitchen starts it
+ * unpaid. Guest QR and group orders, takeaway and counter orders without a
+ * table keep the default (paid first), so nobody can send food out from a
+ * phone without paying. Completing still needs the bill settled.
+ */
+export function isTab(o: {
+	source: string;
+	type: string;
+	tableLabel?: string | null | undefined;
+}): boolean {
+	return o.source === "counter" && o.type === "dine_in" && !!o.tableLabel;
+}
+
+export function fulfillmentPolicyFor(o: {
+	source: string;
+	type: string;
+	tableLabel?: string | null | undefined;
+}): FulfillmentPolicy {
+	return isTab(o)
+		? { kitchenRequiresPayment: false }
+		: DEFAULT_FULFILLMENT_POLICY;
+}
+
 export type TransitionError =
 	| "not_allowed" // not an edge in the graph
 	| "unpaid" // needs paid (completed, or kitchen start under kitchenRequiresPayment)

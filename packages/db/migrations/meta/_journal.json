@@ -127,6 +127,20 @@
 			"when": 1795505934746,
 			"tag": "0017_product_dietary_tags",
 			"breakpoints": true
+		},
+		{
+			"idx": 18,
+			"version": "7",
+			"when": 1795506405553,
+			"tag": "0018_platform_admins",
+			"breakpoints": true
+		},
+		{
+			"idx": 19,
+			"version": "7",
+			"when": 1795506866279,
+			"tag": "0019_floor_plan",
+			"breakpoints": true
 		}
 	]
 }
