@@ -133,7 +133,10 @@ function PairedApp(props: {
 		device: paired.device,
 		print: print.service,
 		member,
-		lock: () => setMember(null),
+		lock: () => {
+			api.clearStaff();
+			setMember(null);
+		},
 	};
 	return (
 		<ServicesCtx.Provider value={services}>
@@ -158,7 +161,7 @@ function PairedApp(props: {
 					<button type="button" onClick={() => setSettings(true)}>
 						{t("settings.title")}
 					</button>
-					<button type="button" onClick={() => setMember(null)}>
+					<button type="button" onClick={services.lock}>
 						{t("lock.lock")}
 					</button>
 				</header>

@@ -296,4 +296,34 @@ describe.runIf(ownerUrl)("returning guests and loyalty", () => {
 		);
 		expect(again.status).toBe(409);
 	});
+
+	it("a reward that finishes the bill earns points on the money paid before it", async () => {
+		const staff = await staffLogin(h, h.A, h.A.cashier);
+		const before = await h.app.request("/v1/device/customers?phone=91234567", {
+			headers: staff,
+		});
+		const { points } = (await before.json()) as { points: number };
+		const { body } = await place();
+		const o = await orderId(body.order.trackingToken);
+		await payAtTill(o.id, o.total - 1000);
+		const res = await h.app.request(
+			`/v1/device/orders/${o.id}/redeem`,
+			json({ rewardId: "coffee", customerId }, staff),
+		);
+		expect(res.status).toBe(200);
+		const [row] = await h.owner<{ payment_status: string; earned: number }[]>`
+			select o.payment_status, coalesce((
+				select sum(points)::int from loyalty_ledger
+				where order_id = o.id and kind = 'earn'), 0) as earned
+			from orders o where o.id = ${o.id}`;
+		const earned = Math.floor(((o.total - 1000) * 10) / 1000);
+		expect(earned).toBeGreaterThan(0);
+		expect(row).toEqual({ payment_status: "paid", earned });
+		const after = await h.app.request("/v1/device/customers?phone=91234567", {
+			headers: staff,
+		});
+		expect(await after.json()).toMatchObject({
+			points: points - 20 + earned,
+		});
+	});
 });

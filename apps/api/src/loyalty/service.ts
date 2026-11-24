@@ -316,6 +316,8 @@ export async function redeemReward(
 			version: sql`${orders.version} + 1`,
 		})
 		.where(eq(orders.id, o.id));
+	// The reward finished the bill: the money paid before it earns now.
+	if (after.status === "paid") await awardIfPaid(tx, o.id);
 	return { paymentId: pay.id, amount: r.amount, points: r.reward.points };
 }
 

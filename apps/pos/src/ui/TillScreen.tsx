@@ -1,4 +1,4 @@
-import type { MenuProduct } from "@bite/contracts";
+import type { MenuProduct, PaymentMethod } from "@bite/contracts";
 import type { PricedOrder } from "@bite/core";
 import { Money, QuantityStepper } from "@bite/ui";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -8,6 +8,7 @@ import {
 	openSession,
 } from "../domain/cash.js";
 import { newId } from "../domain/ids.js";
+import { pointsFor, rewardOff, type TillGuest } from "../domain/loyalty.js";
 import {
 	loadMenu,
 	type PricedMenu,
@@ -24,6 +25,7 @@ import {
 import { useI18n } from "../i18n/I18nProvider.js";
 import { DrawerSheet } from "./DrawerSheet.js";
 import { FloorSheet } from "./FloorSheet.js";
+import { GuestSheet } from "./GuestSheet.js";
 import { ModifierSheet } from "./ModifierSheet.js";
 import { fmt, OMR } from "./money.js";
 import { OrdersSheet, type OrdersView } from "./OrdersSheet.js";
@@ -32,7 +34,7 @@ import { kitchenFor, loc, receiptFor } from "./receipts.js";
 import { useServices } from "./services.js";
 
 export function TillScreen() {
-	const { db, sync, device, member, print } = useServices();
+	const { db, api, sync, device, member, print } = useServices();
 	const { t, lang, dir } = useI18n();
 	const [menu, setMenu] = useState<PricedMenu | null>(null);
 	const [category, setCategory] = useState<string | null>(null);
@@ -51,12 +53,17 @@ export function TillScreen() {
 		printError: string | null;
 		/** Sent to a table unpaid (a tab). */
 		table?: string;
+		/** Loyalty: reward taken off, points this bill earns, or why the reward failed. */
+		rewardAmount?: number;
+		points?: number;
+		rewardError?: { error: string; left: number };
 	} | null>(null);
+	const [guest, setGuest] = useState<TillGuest | null>(null);
 	const [type, setType] = useState<"dine_in" | "takeaway">("takeaway");
 	const [table, setTable] = useState("");
-	const [sheet, setSheet] = useState<"orders" | "drawer" | "floor" | null>(
-		null,
-	);
+	const [sheet, setSheet] = useState<
+		"orders" | "drawer" | "floor" | "guest" | null
+	>(null);
 	const [ordersView, setOrdersView] = useState<OrdersView>("today");
 	/** Orders waiting to be paid at this counter (QR and group orders). */
 	const [waiting, setWaiting] = useState(0);
@@ -89,6 +96,11 @@ export function TillScreen() {
 		() => (menu && lines.length ? quote(menu, lines, now) : null),
 		[menu, lines, now],
 	);
+
+	const total = q?.ok ? q.priced.total : 0;
+	const off = rewardOff(guest, total);
+	/** What the till collects: the bill less the reward. */
+	const due = total - (off?.amount ?? 0);
 
 	if (!menu) return <p className="empty">{t("pos.empty")}</p>;
 	const snap = menu.snapshot;
@@ -130,13 +142,16 @@ export function TillScreen() {
 		);
 	}
 
-	async function charge(tenders: TenderInput[]) {
-		if (!paying || !menu) return;
+	async function charge(tenders: TenderInput[], sale = paying) {
+		if (!sale || !menu) return;
+		const reward = rewardOff(guest, sale.priced.total);
 		const res = await commitSale(db, {
 			menu,
 			lines,
-			at: paying.at,
+			at: sale.at,
 			type,
+			...(guest && { customerPhone: guest.phone }),
+			...(guest?.name && { customerName: guest.name }),
 			...(type === "dine_in" && table.trim()
 				? { tableLabel: table.trim().slice(0, 20) }
 				: {}),
@@ -146,10 +161,39 @@ export function TillScreen() {
 			cashSessionId: drawer?.id ?? null,
 		});
 		if (!res.ok) return res.error;
-		sync.kick();
 		setPaying(null);
 		setLines([]);
 		setTable("");
+		const attached = guest;
+		setGuest(null);
+
+		// The reward is spent on the server (points are shared across branches),
+		// so the order has to get there first. If that fails the sale still
+		// stands, partly paid, and the rest is taken from Orders -> To pay.
+		const receiptPayments: { method: PaymentMethod; amount: number }[] = [
+			...res.payments,
+		];
+		let rewardError: { error: string; left: number } | undefined;
+		if (reward && attached?.customer) {
+			const body = {
+				rewardId: reward.rewardId,
+				customerId: attached.customer.id,
+			};
+			try {
+				await sync.syncNow();
+				const r = await api.redeem(res.order.id, body).catch(async (err) => {
+					// A sync already in flight may have started before this sale was
+					// queued: push once more, then try again.
+					if ((err as { status?: number }).status !== 404) throw err;
+					await sync.syncNow();
+					return api.redeem(res.order.id, body);
+				});
+				receiptPayments.push({ method: "loyalty", amount: r.amount });
+			} catch (err) {
+				rewardError = { error: (err as Error).message, left: reward.amount };
+			}
+		}
+		sync.kick();
 
 		// Print after the sale is safely stored. Failures are shown, never block.
 		const tz = snap.location.timezone;
@@ -162,7 +206,7 @@ export function TillScreen() {
 					lang,
 					dir,
 					locationName: device.name,
-					payments: res.payments,
+					payments: receiptPayments,
 					change: res.change,
 					openDrawer: res.payments.some((p) => p.method === "cash"),
 				}),
@@ -176,8 +220,22 @@ export function TillScreen() {
 			ticket: res.order.ticketNumber,
 			change: last?.tendered !== undefined ? last.tendered - last.amount : 0,
 			printError: failed && !failed.ok ? failed.error : null,
+			...(reward && !rewardError && { rewardAmount: reward.amount }),
+			...(attached && {
+				points: pointsFor(
+					attached,
+					res.payments.reduce((s, p) => s + p.amount, 0),
+				),
+			}),
+			...(rewardError && { rewardError }),
 		});
 		return null;
+	}
+
+	/** The reward covers the whole bill: nothing to take, store it and spend the points. */
+	async function chargeReward() {
+		if (!q?.ok) return;
+		await charge([], { priced: q.priced, at: q.at });
 	}
 
 	/** Dine-in at a table, paid at the end: straight to the kitchen, no tender. */
@@ -360,8 +418,44 @@ export function TillScreen() {
 						})}
 					</p>
 				)}
+				<button
+					type="button"
+					className={guest ? "guest-chip attached" : "guest-chip"}
+					onClick={() => setSheet("guest")}
+				>
+					<span aria-hidden="true">★</span>
+					{guest ? (
+						<span className="grow">
+							{guest.name ?? <bdi dir="ltr">{guest.phone}</bdi>}
+							{guest.customer && (
+								<span className="muted small">
+									{" · "}
+									{t("guest.points", { points: guest.customer.points })}
+								</span>
+							)}
+						</span>
+					) : (
+						<span className="grow">{t("guest.add")}</span>
+					)}
+				</button>
 				{q?.ok && (
 					<div className="totals">
+						{off && guest?.customer && (
+							<div className="row guest-off">
+								<span>
+									{t("guest.reward", {
+										name: loc(
+											guest.customer.program.rewards.find(
+												(r) => r.id === off.rewardId,
+											)?.name ?? { en: "" },
+											lang,
+										),
+									})}
+								</span>
+								<span className="spacer" />
+								<Money amount={-off.amount} currency={OMR} />
+							</div>
+						)}
 						{q.priced.discountTotal > 0 && (
 							<div className="row">
 								<span>{t("money.discount")}</span>
@@ -390,8 +484,11 @@ export function TillScreen() {
 				<div className="row">
 					<button
 						type="button"
-						onClick={() => setLines([])}
-						disabled={lines.length === 0}
+						onClick={() => {
+							setLines([]);
+							setGuest(null);
+						}}
+						disabled={lines.length === 0 && !guest}
 					>
 						{t("till.clear")}
 					</button>
@@ -399,9 +496,15 @@ export function TillScreen() {
 						type="button"
 						className="primary grow big"
 						disabled={!q?.ok}
-						onClick={() => q?.ok && setPaying({ priced: q.priced, at: q.at })}
+						onClick={() =>
+							off && due === 0
+								? void chargeReward()
+								: q?.ok && setPaying({ priced: q.priced, at: q.at })
+						}
 					>
-						{t("till.pay", { amount: q?.ok ? fmt(q.priced.total, lang) : "" })}
+						{off && due === 0
+							? t("guest.payWithReward")
+							: t("till.pay", { amount: q?.ok ? fmt(due, lang) : "" })}
 					</button>
 				</div>
 			</aside>
@@ -445,7 +548,10 @@ export function TillScreen() {
 			)}
 			{paying && (
 				<PaySheet
-					total={paying.priced.total}
+					total={
+						paying.priced.total -
+						(rewardOff(guest, paying.priced.total)?.amount ?? 0)
+					}
 					drawer={drawer}
 					canOpenDrawer={canDrawer}
 					onOpenDrawer={async (float) => {
@@ -487,6 +593,21 @@ export function TillScreen() {
 					}}
 				/>
 			)}
+			{sheet === "guest" && (
+				<GuestSheet
+					guest={guest}
+					total={total}
+					onAttach={(g) => {
+						setGuest(g);
+						setSheet(null);
+					}}
+					onRemove={() => {
+						setGuest(null);
+						setSheet(null);
+					}}
+					onClose={() => setSheet(null)}
+				/>
+			)}
 			{sheet === "drawer" && (
 				<DrawerSheet
 					onClose={() => {
@@ -507,6 +628,27 @@ export function TillScreen() {
 						{done.change > 0 && (
 							<p className="huge">
 								{t("pay.change", { amount: fmt(done.change, lang) })}
+							</p>
+						)}
+						{done.rewardAmount !== undefined && (
+							<p className="notice guest-done">
+								★{" "}
+								{t("guest.rewardApplied", {
+									amount: fmt(done.rewardAmount, lang),
+								})}
+							</p>
+						)}
+						{done.points !== undefined && done.points > 0 && (
+							<p className="muted">
+								{t("guest.earned", { points: done.points })}
+							</p>
+						)}
+						{done.rewardError && (
+							<p className="error">
+								{t("guest.rewardFailed", {
+									error: done.rewardError.error,
+									amount: fmt(done.rewardError.left, lang),
+								})}
 							</p>
 						)}
 						{done.printError && (

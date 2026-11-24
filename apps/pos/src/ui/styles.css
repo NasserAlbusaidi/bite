@@ -1355,3 +1355,74 @@ p.strong {
 		opacity: 0;
 	}
 }
+
+/* ---- loyalty guest (till) ---- */
+.guest-chip {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+	inline-size: 100%;
+	text-align: start;
+	border-style: dashed;
+	color: var(--text-muted);
+}
+.guest-chip.attached {
+	border-style: solid;
+	border-color: var(--action);
+	color: var(--text-strong);
+	background: var(--surface-sunken);
+}
+.guest-off {
+	color: var(--success);
+	font-weight: 600;
+}
+.guest-sheet__find {
+	align-self: flex-end;
+}
+.guest-card {
+	padding: var(--space-3) var(--space-4);
+	border-radius: var(--radius-md);
+	background: var(--surface-sunken);
+}
+.guest-card p {
+	margin: var(--space-1) 0 0;
+}
+.guest-card__name {
+	color: var(--text-strong);
+	font-size: var(--fs-lg);
+}
+.guest-card__points {
+	font-weight: 700;
+	color: var(--action);
+}
+.guest-rewards {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-2);
+	margin: 0;
+	padding: 0;
+	border: 0;
+	min-inline-size: 0;
+}
+.guest-rewards legend {
+	padding: 0;
+	margin-block-end: var(--space-2);
+	font-weight: 600;
+}
+.guest-reward {
+	display: flex;
+	align-items: center;
+	gap: var(--space-3);
+	text-align: start;
+}
+.guest-reward.active {
+	border-color: var(--action);
+	box-shadow: 0 0 0 1px var(--action);
+}
+.guest-reward__pts {
+	display: block;
+}
+.guest-done {
+	color: var(--success);
+	font-weight: 600;
+}
