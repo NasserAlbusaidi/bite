@@ -13,6 +13,7 @@ export default [
 		layout("routes/shell-pages.tsx", [
 			index("routes/home.tsx"),
 			route("menu", "routes/menu.tsx"),
+			route("menu/create", "routes/menu-create.tsx"),
 			route("menu/products/:productId", "routes/product.tsx"),
 			route("menu/modifiers", "routes/modifiers.tsx"),
 			route("menu/modifiers/:groupId", "routes/modifier-group.tsx"),

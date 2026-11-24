@@ -23,6 +23,7 @@ export {
 	Page,
 	RegisterDeviceRequest,
 	RegisterDeviceResponse,
+	Reorder,
 	ResetPin,
 	SalesReport,
 	SalesReportQuery,

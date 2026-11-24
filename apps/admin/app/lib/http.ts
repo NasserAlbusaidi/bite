@@ -111,6 +111,12 @@ export function httpAdminApi(
 		createCategory: (c) => call(AdminCategory, "/categories", send("POST", c)),
 		updateCategory: (id, c) =>
 			call(AdminCategory, `/categories/${enc(id)}`, send("PATCH", c)),
+		reorderCategories: async (items) => {
+			await call(z.unknown(), "/categories/order", send("PATCH", items));
+		},
+		reorderProducts: async (items) => {
+			await call(z.unknown(), "/products/order", send("PATCH", items));
+		},
 		createModifierGroup: (g) =>
 			call(AdminModifierGroup, "/modifier-groups", send("POST", g)),
 		updateModifierGroup: (id, g) =>
