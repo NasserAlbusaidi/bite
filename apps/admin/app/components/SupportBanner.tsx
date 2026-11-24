@@ -1,3 +1,4 @@
+import { Icon } from "@bite/ui";
 import { useNavigate } from "react-router";
 import { saveOrg } from "../lib/account";
 import type { Lang } from "../lib/i18n";
@@ -21,7 +22,10 @@ export function SupportBanner({
 	const navigate = useNavigate();
 	return (
 		<p className="pf-support" role="status">
-			<span>{t("support_banner", { name: orgName })}</span>
+			<span className="pf-support__text">
+				<Icon name="eye" />
+				{t("support_banner", { name: orgName })}
+			</span>
 			<button
 				type="button"
 				onClick={() => {
@@ -29,6 +33,7 @@ export function SupportBanner({
 					navigate(`/platform/orgs/${orgId}`);
 				}}
 			>
+				<Icon name="arrow-back" />
 				{t("support_exit")}
 			</button>
 		</p>
