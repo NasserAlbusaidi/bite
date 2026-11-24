@@ -22,6 +22,8 @@ export default [
 			route("promotions", "routes/promotions.tsx"),
 			route("promotions/:promotionId", "routes/promotion.tsx"),
 			route("reports", "routes/reports.tsx"),
+			route("orders", "routes/orders.tsx"),
+			route("drawers", "routes/drawers.tsx"),
 			route("staff", "routes/staff.tsx"),
 			route("staff/:staffId", "routes/staff-member.tsx"),
 			route("account", "routes/account.tsx"),

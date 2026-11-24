@@ -17,6 +17,8 @@ export function navItems(locationId: string | undefined): NavItem[] {
 	const items: (NavItem | false)[] = [
 		{ key: "overview", to: "/", icon: "home", group: "main", end: true },
 		{ key: "reports", to: "/reports", icon: "chart", group: "main" },
+		{ key: "orders_title", to: "/orders", icon: "receipt", group: "main" },
+		{ key: "drawers_title", to: "/drawers", icon: "cash", group: "main" },
 		{ key: "menu", to: "/menu", icon: "book", group: "menu", end: true },
 		{
 			key: "modifier_groups",
