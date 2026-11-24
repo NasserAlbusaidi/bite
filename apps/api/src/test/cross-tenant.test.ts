@@ -28,8 +28,59 @@ const PUBLIC_ROUTES = new Set([
 	"POST /v1/auth/*",
 ]);
 
+/**
+ * Platform console: cross-tenant by design, for platform admins only. B's
+ * owner (not a platform admin) aims at A's org and gets a bare 404, with the
+ * system connection wired in so the console is really on.
+ */
+const platformCase =
+	(method: string, path: (h: Harness) => string, body?: unknown): Case =>
+	async (h) => {
+		const app = createApp({ ...h.deps, systemDb: h.systemDb });
+		const res = await app.request(path(h), {
+			method,
+			headers: { ...h.logins.B.owner, "content-type": "application/json" },
+			...(body === undefined ? {} : { body: JSON.stringify(body) }),
+		});
+		expect(res.status).toBe(404);
+		const text = await res.text();
+		for (const id of [h.A.org, h.A.loc]) expect(text).not.toContain(id);
+	};
+const platformCases: Record<string, Case> = {
+	"GET /v1/platform/me": platformCase("GET", () => "/v1/platform/me"),
+	"GET /v1/platform/orgs": platformCase("GET", () => "/v1/platform/orgs"),
+	"GET /v1/platform/orgs/:id": platformCase(
+		"GET",
+		(h) => `/v1/platform/orgs/${h.A.org}`,
+	),
+	"POST /v1/platform/orgs": platformCase("POST", () => "/v1/platform/orgs", {
+		orgName: "x",
+		orgSlug: "xxx-cross",
+		locationName: "x",
+		locationSlug: "xxx-cross-loc",
+		ownerName: "x",
+		ownerEmail: "x@x.test",
+	}),
+	"POST /v1/platform/orgs/:id/status": platformCase(
+		"POST",
+		(h) => `/v1/platform/orgs/${h.A.org}/status`,
+		{ status: "suspended" },
+	),
+	"POST /v1/platform/orgs/:id/plan": platformCase(
+		"POST",
+		(h) => `/v1/platform/orgs/${h.A.org}/plan`,
+		{ plan: "pro" },
+	),
+	"POST /v1/platform/orgs/:id/trial": platformCase(
+		"POST",
+		(h) => `/v1/platform/orgs/${h.A.org}/trial`,
+		{ days: 30 },
+	),
+};
+
 const cases: Record<string, Case> = {
 	...adminCases,
+	...platformCases,
 	"GET /v1/admin/me": async (h) => {
 		// B's owner aims at A's org: refused, and nothing of A comes back.
 		const res = await h.app.request("/v1/admin/me", {
