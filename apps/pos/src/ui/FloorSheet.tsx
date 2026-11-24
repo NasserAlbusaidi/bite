@@ -6,13 +6,14 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { listCachedStaff, type StaffMember } from "../auth/staff.js";
 import {
 	assignServer,
+	atTable,
 	loadFloor,
 	moveTable,
+	needsCheck,
 	type TableState,
 	type TableStatus,
 	tableStates,
 } from "../domain/floor.js";
-import { moveTicket } from "../domain/kitchen.js";
 import { useI18n } from "../i18n/I18nProvider.js";
 import type { MessageKey } from "../i18n/messages.js";
 import { OMR } from "./money.js";
@@ -26,6 +27,8 @@ const STATUSES: TableStatus[] = [
 	"cooking",
 	"ready",
 	"to_pay",
+	"eating",
+	"paid",
 ];
 
 /**
@@ -131,13 +134,31 @@ export function FloorSheet(props: {
 	}
 
 	async function served(orderId: string) {
-		const res = await moveTicket(db, {
-			orderId,
-			to: "completed",
+		const res = await atTable(db, {
+			orderIds: [orderId],
+			step: "served",
 			memberId: member.memberId,
 		});
-		if (!res.ok) return setNotice(t("floor.payFirst"));
+		if (!res.ok) return setNotice(t("floor.moveFailed"));
 		sync.kick();
+		await reload();
+	}
+
+	async function clearTable() {
+		if (!sel) return;
+		const res = await atTable(db, {
+			orderIds: sel.orders.map((o) => o.order.id),
+			step: "cleared",
+			memberId: member.memberId,
+		});
+		if (!res.ok)
+			return setNotice(
+				t(
+					res.error === "unpaid" ? "floor.clearPayFirst" : "floor.clearCooking",
+				),
+			);
+		sync.kick();
+		setNotice(t("floor.cleared", { label: sel.table.label }));
 		await reload();
 	}
 
@@ -327,6 +348,11 @@ export function FloorSheet(props: {
 														<Money amount={s.due} currency={OMR} />
 													</span>
 												)}
+												{needsCheck(s, now) && (
+													<span className="floor-table__check">
+														{t("floor.checkOn")}
+													</span>
+												)}
 												{callsAt(s.table.label).length > 0 && (
 													<span className="floor-table__call">
 														{callsAt(s.table.label).some(
@@ -363,8 +389,16 @@ export function FloorSheet(props: {
 										</div>
 										<p className="muted small">
 											{t("floor.seats", { n: sel.table.seats })}
-											{sel.since && ` · ${since(sel.since)}`}
+											{sel.since &&
+												` · ${t("floor.seatedFor", { time: since(sel.since) })}`}
+											{sel.servedAt &&
+												` · ${t("floor.servedAgo", { time: since(sel.servedAt) })}`}
 										</p>
+										{needsCheck(sel, now) && (
+											<p className="floor-callrow">
+												<span>{t("floor.checkOnHint")}</span>
+											</p>
+										)}
 
 										{callsAt(sel.table.label).map((r) => (
 											<div key={r.id} className="floor-callrow">
@@ -423,10 +457,14 @@ export function FloorSheet(props: {
 														<span className="row small">
 															<span
 																className="pill"
-																data-fs={order.fulfillmentStatus}
+																data-fs={
+																	order.servedAt
+																		? "completed"
+																		: order.fulfillmentStatus
+																}
 															>
 																{t(
-																	`floor.fs.${order.fulfillmentStatus}` as MessageKey,
+																	`floor.fs.${order.servedAt ? "completed" : order.fulfillmentStatus}` as MessageKey,
 																)}
 															</span>
 															{isTab(order) && (
@@ -442,14 +480,15 @@ export function FloorSheet(props: {
 															)}
 														</span>
 													</button>
-													{order.fulfillmentStatus === "ready" && due === 0 && (
-														<button
-															type="button"
-															onClick={() => void served(order.id)}
-														>
-															{t("floor.served")}
-														</button>
-													)}
+													{order.fulfillmentStatus === "ready" &&
+														!order.servedAt && (
+															<button
+																type="button"
+																onClick={() => void served(order.id)}
+															>
+																{t("floor.served")}
+															</button>
+														)}
 												</div>
 											))}
 										</div>
@@ -459,6 +498,21 @@ export function FloorSheet(props: {
 												<span>{t("floor.due")}</span>
 												<span className="spacer" />
 												<Money amount={sel.due} currency={OMR} />
+											</div>
+										)}
+										{sel.status === "paid" && (
+											<div className="floor-clear">
+												<strong>{t("floor.allPaid")}</strong>
+												<span className="muted small">
+													{t("floor.clearHint")}
+												</span>
+												<button
+													type="button"
+													className="primary big"
+													onClick={() => void clearTable()}
+												>
+													{t("floor.clear")}
+												</button>
 											</div>
 										)}
 										<div className="floor-actions">

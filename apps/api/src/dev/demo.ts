@@ -1474,11 +1474,12 @@ async function liveTables(b: Built, tabs: Tablet[]) {
 				(p: any) => p.modifierGroupIds.length === 0,
 			);
 			if (simple.length < 3) continue;
-			// [table, items, then: unpaid | paid (kitchen pending) | preparing | ready]
+			// [table, items, then: unpaid | paid (kitchen pending) | preparing |
+			// ready | served (eaten, paid, guests still seated)]
 			const plan: [
 				string,
 				number,
-				"unpaid" | "paid" | "preparing" | "ready",
+				"unpaid" | "paid" | "preparing" | "ready" | "served",
 			][] =
 				br.key === "qurum"
 					? [
@@ -1486,6 +1487,7 @@ async function liveTables(b: Built, tabs: Tablet[]) {
 							["4", 3, "unpaid"],
 							["5", 4, "preparing"],
 							["8", 5, "paid"],
+							["9", 4, "served"],
 							["11", 3, "unpaid"],
 							["12", 2, "preparing"],
 							["15", 6, "preparing"],
@@ -1554,14 +1556,16 @@ async function liveTables(b: Built, tabs: Tablet[]) {
 						businessDate: row.bd,
 					}),
 				];
-				if (then === "preparing" || then === "ready")
+				if (then !== "paid")
 					muts.push(
 						m("order.setFulfillment", { orderId: row.id, to: "preparing" }),
 					);
-				if (then === "ready")
+				if (then === "ready" || then === "served")
 					muts.push(
 						m("order.setFulfillment", { orderId: row.id, to: "ready" }),
 					);
+				if (then === "served")
+					muts.push(m("order.atTable", { orderId: row.id, step: "served" }));
 				await http("POST", "/v1/sync/push", pos.token, {
 					deviceId: pos.deviceId,
 					mutations: muts,
@@ -1642,7 +1646,8 @@ async function finish(b: Built) {
 						ticket_number = ${`Q-${seq}`},
 						customer_name = coalesce(customer_name, ${GUEST_NAMES[h % GUEST_NAMES.length]}),
 						customer_phone = coalesce(customer_phone, ${`+9689${String(1_000_000 + (h % 8_999_999)).padStart(7, "0")}`}),
-						table_label = ${r.type === "dine_in" ? String(1 + (h % 12)) : null}
+						table_label = ${r.type === "dine_in" ? String(1 + (h % 12)) : null},
+						table_cleared_at = completed_at
 					where id = ${r.id}`);
 			}
 		});

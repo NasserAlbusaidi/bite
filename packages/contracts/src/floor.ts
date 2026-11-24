@@ -116,3 +116,14 @@ export const AssignTable = z.object({
 	memberId: Id.nullable(),
 });
 export type AssignTable = z.infer<typeof AssignTable>;
+
+/**
+ * Sync kind "order.atTable": what happened at the table. "served" = the food
+ * reached the guests (an unpaid tab stays open for the bill). "cleared" =
+ * the guests left and staff cleared the table, so it is free again.
+ */
+export const OrderAtTable = z.object({
+	orderId: Id,
+	step: z.enum(["served", "cleared"]),
+});
+export type OrderAtTable = z.infer<typeof OrderAtTable>;

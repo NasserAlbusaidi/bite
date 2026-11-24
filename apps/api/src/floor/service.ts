@@ -1,9 +1,11 @@
 import type {
 	AssignTable,
 	Floor,
+	OrderAtTable,
 	PutFloorRequest,
 	SetOrderTable,
 } from "@bite/contracts";
+import { checkAtTable } from "@bite/core";
 import { schema, type Tx } from "@bite/db";
 import { and, asc, eq, inArray, notInArray, sql } from "@bite/db/orm";
 import { ApiError } from "../lib/errors.js";
@@ -171,10 +173,8 @@ export async function setOrderTable(
 	const o = await lockOrder(ctx.tx, p.orderId, ctx.device.locationId);
 	checkBaseVersion(ctx, o);
 	if (o.tableLabel === p.tableLabel) return { entityVersion: o.version };
-	if (
-		o.fulfillmentStatus === "completed" ||
-		o.fulfillmentStatus === "cancelled"
-	) {
+	// A served order still holds its table until it's cleared, so it can move.
+	if (o.fulfillmentStatus === "cancelled" || o.tableClearedAt) {
 		throw reject("order_closed", "order is closed");
 	}
 	if (o.type !== "dine_in" && p.tableLabel !== null) {
@@ -232,4 +232,34 @@ export async function assignTable(
 		.where(eq(floorTables.id, t.id))
 		.returning({ version: floorTables.version });
 	return { entityVersion: u?.version ?? t.version + 1 };
+}
+
+/**
+ * Served / cleared at the table. No base-version check: both are facts about
+ * the room, not edits to the bill, and replaying one is a no-op.
+ */
+export async function orderAtTable(
+	ctx: MutationCtx,
+	p: OrderAtTable,
+): Promise<MutationOutcome> {
+	const o = await lockOrder(ctx.tx, p.orderId, ctx.device.locationId);
+	const done = p.step === "served" ? o.servedAt : o.tableClearedAt;
+	if (done) return { entityVersion: o.version };
+	const check = checkAtTable(o, p.step);
+	if (!check.ok) throw reject(check.error, `cannot mark ${p.step}`);
+	const now = ctx.now;
+	const [u] = await ctx.tx
+		.update(orders)
+		.set({
+			version: sql`${orders.version} + 1`,
+			...(p.step === "served"
+				? { servedAt: now }
+				: { tableClearedAt: now, servedAt: o.servedAt ?? now }),
+			...(check.complete
+				? { fulfillmentStatus: "completed" as const, completedAt: now }
+				: {}),
+		})
+		.where(eq(orders.id, o.id))
+		.returning({ version: orders.version });
+	return { entityVersion: u?.version ?? o.version + 1 };
 }

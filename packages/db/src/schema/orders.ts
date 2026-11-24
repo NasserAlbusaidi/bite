@@ -120,6 +120,10 @@ export const orders = pgTable(
 		completedAt: timestamp("completed_at", { withTimezone: true }),
 		cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
 		cancelReason: text("cancel_reason"),
+		/** Staff took the food to the table (a tab can be served before it's paid). */
+		servedAt: timestamp("served_at", { withTimezone: true }),
+		/** Staff cleared the table: the order no longer holds it on the floor. */
+		tableClearedAt: timestamp("table_cleared_at", { withTimezone: true }),
 		/** Bumped on every write; the sync protocol uses it for conflict checks. */
 		version: integer("version").notNull().default(1),
 		changeXid: xid8("change_xid").notNull().default(sql`pg_current_xact_id()`),

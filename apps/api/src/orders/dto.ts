@@ -38,6 +38,8 @@ export function toOrderDto(
 		completedAt: iso(o.completedAt),
 		cancelledAt: iso(o.cancelledAt),
 		cancelReason: o.cancelReason,
+		servedAt: iso(o.servedAt),
+		tableClearedAt: iso(o.tableClearedAt),
 		version: o.version,
 		updatedAt: o.updatedAt.toISOString(),
 		lines: lines.map((l) => ({
