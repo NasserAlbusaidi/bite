@@ -174,6 +174,15 @@ const en = {
 	service_waiter_sent: "Waiter coming",
 	service_bill_sent: "Bill coming",
 	service_error: "Couldn't reach the staff. Try again or wave us over.",
+	diet_filters: "Dietary filters",
+	diet_vegetarian: "Vegetarian",
+	diet_vegan: "Vegan",
+	diet_gluten_free: "Gluten free",
+	diet_dairy_free: "Dairy free",
+	diet_nut_free: "Nut free",
+	diet_spicy: "Spicy",
+	no_filter_results: "Nothing matches these filters.",
+	clear_filters: "Clear filters",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -310,6 +319,15 @@ const ar: Record<MessageKey, string> = {
 	service_waiter_sent: "النادل في الطريق",
 	service_bill_sent: "الفاتورة في الطريق",
 	service_error: "تعذّر الوصول إلى الطاقم. حاول مجدداً أو لوّح لنا.",
+	diet_filters: "فلاتر النظام الغذائي",
+	diet_vegetarian: "نباتي",
+	diet_vegan: "نباتي صرف",
+	diet_gluten_free: "خالٍ من الغلوتين",
+	diet_dairy_free: "خالٍ من الألبان",
+	diet_nut_free: "خالٍ من المكسرات",
+	diet_spicy: "حار",
+	no_filter_results: "لا توجد عناصر تطابق هذه الفلاتر.",
+	clear_filters: "مسح الفلاتر",
 };
 
 export const messages: Record<Lang, Record<MessageKey, string>> = { en, ar };

@@ -21,7 +21,8 @@ export async function action({
 	try {
 		const r = await guestApi().callService(params.slug, kind, table);
 		return { ok: true, kind, at: r.createdAt };
-	} catch {
+	} catch (e) {
+		console.error("service call failed", e);
 		return { ok: false };
 	}
 }

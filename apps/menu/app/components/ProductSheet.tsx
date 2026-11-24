@@ -146,6 +146,15 @@ export function ProductSheet({
 				{product.description && (
 					<p className="muted">{loc(product.description, lang)}</p>
 				)}
+				{product.dietaryTags && product.dietaryTags.length > 0 && (
+					<p className="item__tags">
+						{product.dietaryTags.map((tag) => (
+							<span key={tag} className={`tag tag--${tag}`}>
+								{t(`diet_${tag}`)}
+							</span>
+						))}
+					</p>
+				)}
 
 				{groups.map((g) => {
 					const single = g.maxSelect === 1;

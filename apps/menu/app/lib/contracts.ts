@@ -2,6 +2,7 @@
 export {
 	CreateGuestOrderRequest,
 	CreateGuestOrderResponse,
+	type DietaryTag,
 	ErrorBody,
 	type ErrorCode,
 	type GroupCartItem,
