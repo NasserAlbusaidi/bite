@@ -9,6 +9,7 @@ import {
 import { schema, type Tx } from "@bite/db";
 import { and, eq, sql } from "@bite/db/orm";
 import { ApiError } from "../lib/errors.js";
+import { awardIfPaid } from "../loyalty/service.js";
 import type { MutationCtx, MutationOutcome } from "./context.js";
 import { isUniqueViolation, lockOrder, reject } from "./orders.js";
 
@@ -62,6 +63,8 @@ async function settle(tx: Tx, orderId: string, total: number) {
 		})
 		.where(eq(orders.id, orderId))
 		.returning({ version: orders.version });
+	// Loyalty: a linked guest earns points the moment the bill is fully paid.
+	if (s.status === "paid") await awardIfPaid(tx, orderId);
 	return u?.version;
 }
 

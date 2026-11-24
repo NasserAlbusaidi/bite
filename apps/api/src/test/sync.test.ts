@@ -252,6 +252,26 @@ describe.runIf(ownerUrl)("sync push/pull", () => {
 		expect((await getOrder(h.A, o.id)).total).toBe(1400);
 	});
 
+	it("links a returning guest from a phone typed at the till", async () => {
+		const o = {
+			...posOrder(h.A),
+			customerPhone: "9555 0101",
+			customerName: "Huda",
+		};
+		const [c] = await push(h.A, [mut(h.A, "order.create", o.id, o)]);
+		expect(c?.status).toBe("applied");
+		const [row] = await h.owner<
+			{ phone: string; name: string; visit_count: number }[]
+		>`
+			select c.phone, c.name, c.visit_count from orders o join customers c on c.id = o.customer_id
+			where o.id = ${o.id}`;
+		expect(row).toEqual({
+			phone: "+96895550101",
+			name: "Huda",
+			visit_count: 1,
+		});
+	});
+
 	it("takes a split bill (cash + card), refuses overpayment, then completes", async () => {
 		const o = posOrder(h.A);
 		const [c] = await push(h.A, [mut(h.A, "order.create", o.id, o)]);

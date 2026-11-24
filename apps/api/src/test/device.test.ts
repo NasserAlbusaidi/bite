@@ -43,6 +43,22 @@ describe.runIf(ownerUrl)("device + PIN auth", () => {
 		});
 	});
 
+	it("records when the device last called in, for its own org only", async () => {
+		await h.owner.unsafe(
+			"update devices set last_seen_at = null where id in ($1, $2)",
+			[h.A.device, h.B.device],
+		);
+		const res = await h.app.request("/v1/device/me", { headers: bearer(h.A) });
+		expect(res.status).toBe(200);
+		const rows = (await h.owner.unsafe(
+			"select id, last_seen_at from devices where id in ($1, $2)",
+			[h.A.device, h.B.device],
+		)) as unknown as { id: string; last_seen_at: string | null }[];
+		const seen = new Map(rows.map((r) => [r.id, r.last_seen_at]));
+		expect(seen.get(h.A.device)).toBeTruthy();
+		expect(seen.get(h.B.device)).toBeNull();
+	});
+
 	it("lists only active staff at the device's location", async () => {
 		const res = await h.app.request("/v1/device/staff", {
 			headers: bearer(h.A),
