@@ -147,3 +147,43 @@ export function paymentStatusFor(
 	if (net >= total) return "paid";
 	return net === 0 ? "unpaid" : "partially_paid";
 }
+
+export type AtTableStep = "served" | "cleared";
+export type AtTableError =
+	| "not_dine_in"
+	| "order_closed"
+	| "not_served"
+	| "unpaid";
+
+/**
+ * A dine-in order's life at the table, after the kitchen:
+ * - served: the food reached the guests. A settled order completes; an
+ *   unpaid tab only records it (the bill stays open while they eat).
+ * - cleared: the guests left and the table is free again. Needs the bill
+ *   settled (or the order cancelled) and the food out; a served order that
+ *   isn't completed yet completes here.
+ * `complete` says whether the step also moves fulfillment to completed.
+ */
+export function checkAtTable(
+	o: {
+		type: string;
+		fulfillmentStatus: FulfillmentStatus;
+		paymentStatus: PaymentStatus;
+	},
+	step: AtTableStep,
+): { ok: true; complete: boolean } | { ok: false; error: AtTableError } {
+	if (o.type !== "dine_in") return { ok: false, error: "not_dine_in" };
+	const settled = SETTLED.includes(o.paymentStatus);
+	const open =
+		o.fulfillmentStatus !== "completed" && o.fulfillmentStatus !== "cancelled";
+	if (step === "served") {
+		if (o.fulfillmentStatus === "cancelled")
+			return { ok: false, error: "order_closed" };
+		return { ok: true, complete: open && settled };
+	}
+	if (o.fulfillmentStatus === "cancelled") return { ok: true, complete: false };
+	if (o.fulfillmentStatus === "pending" || o.fulfillmentStatus === "preparing")
+		return { ok: false, error: "not_served" };
+	if (!settled) return { ok: false, error: "unpaid" };
+	return { ok: true, complete: open };
+}

@@ -21,6 +21,8 @@ export async function kitchenOrders(db: SqlDriver): Promise<Order[]> {
 	);
 	return rows.flatMap((r) => {
 		const o = JSON.parse(r.doc) as Order;
+		// Served at the table: the pass is done with it, paid or not.
+		if (o.servedAt) return [];
 		if (
 			r.payment_status === "paid" ||
 			r.payment_status === "partially_refunded"

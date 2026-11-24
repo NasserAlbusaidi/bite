@@ -11,7 +11,7 @@ import {
 	Version,
 } from "./common.js";
 import { ErrorBody } from "./errors.js";
-import { AssignTable, Floor, SetOrderTable } from "./floor.js";
+import { AssignTable, Floor, OrderAtTable, SetOrderTable } from "./floor.js";
 import { MenuSnapshot } from "./menu.js";
 import { CreatePosOrder, Order, SetFulfillment, VoidLine } from "./orders.js";
 import { AddPayment, RefundPayment } from "./payments.js";
@@ -73,6 +73,11 @@ export const SyncMutation = z.discriminatedUnion("kind", [
 		...base,
 		kind: z.literal("table.assign"),
 		payload: AssignTable,
+	}),
+	z.object({
+		...base,
+		kind: z.literal("order.atTable"),
+		payload: OrderAtTable,
 	}),
 	z.object({ ...base, kind: z.literal("cash.open"), payload: OpenCashSession }),
 	z.object({

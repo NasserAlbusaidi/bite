@@ -6,10 +6,14 @@ import { openSqlJs } from "../db/sqljs-driver.js";
 import { listOutbox } from "../sync/outbox.js";
 import {
 	assignServer,
+	atTable,
+	HOLD_HOURS,
 	loadFloor,
 	moveTable,
+	needsCheck,
 	saveFloor,
 	statusOf,
+	type TableState,
 	tableStates,
 } from "./floor.js";
 import { kitchenOrders, moveTicket } from "./kitchen.js";
@@ -89,6 +93,7 @@ const floor: Floor = {
 	})),
 };
 
+const NOW = Date.parse("2026-11-24T10:30:00Z");
 let db: SqlDriver;
 beforeEach(async () => {
 	db = await openSqlJs();
@@ -102,12 +107,12 @@ describe("floor", () => {
 			order(1, { tableLabel: "1", fulfillmentStatus: "preparing" }),
 			order(2, { tableLabel: "1", fulfillmentStatus: "ready" }),
 			order(3, { tableLabel: "2", ...unpaid }),
-			// Paid and served: the table is free again.
+			// Paid and served: guests are still sitting there.
 			order(4, { tableLabel: "3", fulfillmentStatus: "completed" }),
 			order(5, { tableLabel: "99" }),
 		]);
-		const s = await tableStates(db, floor);
-		expect(s.tables.map((x) => x.status)).toEqual(["ready", "to_pay", "free"]);
+		const s = await tableStates(db, floor, NOW);
+		expect(s.tables.map((x) => x.status)).toEqual(["ready", "to_pay", "paid"]);
 		expect(s.tables[1]?.due).toBe(1000);
 		expect(s.unplaced).toHaveLength(1);
 	});
@@ -118,12 +123,11 @@ describe("floor", () => {
 			fulfillmentStatus: "preparing",
 			...unpaid,
 		});
-		expect(statusOf([{ order: tab, due: 1000 as never }])).toBe("cooking");
-		expect(
-			statusOf([
-				{ order: { ...tab, fulfillmentStatus: "pending" }, due: 1000 as never },
-			]),
-		).toBe("ordered");
+		const row = (o: Order) => ({ order: o, due: 1000 as never, served: false });
+		expect(statusOf([row(tab)])).toBe("cooking");
+		expect(statusOf([row({ ...tab, fulfillmentStatus: "pending" })])).toBe(
+			"ordered",
+		);
 		expect(statusOf([])).toBe("free");
 	});
 
@@ -135,7 +139,7 @@ describe("floor", () => {
 			memberId: M,
 		});
 		expect(r).toEqual({ ok: true, moved: 2 });
-		const s = await tableStates(db, floor);
+		const s = await tableStates(db, floor, NOW);
 		expect(s.tables.find((x) => x.table.label === "3")?.orders).toHaveLength(2);
 		const out = await listOutbox(db);
 		expect(out.map((m) => m.kind)).toEqual([
@@ -165,5 +169,62 @@ describe("floor", () => {
 		// Ready tabs leave the kitchen screen; the floor shows them.
 		await moveTicket(db, { orderId: id(1), to: "ready", memberId: M });
 		expect(await kitchenOrders(db)).toHaveLength(0);
+	});
+	it("holds the table from served to paid until staff clear it", async () => {
+		await upsertOrders(db, [
+			order(1, {
+				source: "counter",
+				fulfillmentStatus: "ready",
+				...unpaid,
+			}),
+		]);
+		const at = async (when = NOW) =>
+			(await tableStates(db, floor, when)).tables[0];
+		expect((await at())?.status).toBe("ready");
+		// Served unpaid: eating, the bill stays open, the pass lets go.
+		expect(
+			await atTable(db, {
+				orderIds: [id(1)],
+				step: "served",
+				memberId: M,
+				at: NOW,
+			}),
+		).toEqual({ ok: true });
+		const eating = await at();
+		expect(eating?.status).toBe("eating");
+		expect(eating?.due).toBe(1000);
+		expect(await kitchenOrders(db)).toHaveLength(0);
+		// A while later: worth checking on them.
+		expect(needsCheck(eating as TableState, NOW + 5 * 60_000)).toBe(false);
+		expect(needsCheck(eating as TableState, NOW + 25 * 60_000)).toBe(true);
+		// Can't clear an unpaid table; nothing changes.
+		expect(
+			await atTable(db, { orderIds: [id(1)], step: "cleared", memberId: M }),
+		).toEqual({ ok: false, error: "unpaid" });
+		expect((await at())?.status).toBe("eating");
+	});
+
+	it("a paid table stays until cleared, then frees", async () => {
+		await upsertOrders(db, [order(1, { fulfillmentStatus: "ready" })]);
+		await atTable(db, { orderIds: [id(1)], step: "served", memberId: M });
+		const s = (await tableStates(db, floor, NOW)).tables[0];
+		expect(s?.status).toBe("paid");
+		expect(s?.orders[0]?.order.fulfillmentStatus).toBe("completed");
+		expect(
+			await atTable(db, { orderIds: [id(1)], step: "cleared", memberId: M }),
+		).toEqual({ ok: true });
+		expect((await tableStates(db, floor, NOW)).tables[0]?.status).toBe("free");
+		expect((await listOutbox(db)).map((m) => m.payload)).toEqual([
+			{ orderId: id(1), step: "served" },
+			{ orderId: id(1), step: "cleared" },
+		]);
+	});
+
+	it("an old served table nobody cleared lets go on its own", async () => {
+		await upsertOrders(db, [order(1, { fulfillmentStatus: "completed" })]);
+		const later = NOW + (HOLD_HOURS + 1) * 3_600_000;
+		expect((await tableStates(db, floor, later)).tables[0]?.status).toBe(
+			"free",
+		);
 	});
 });

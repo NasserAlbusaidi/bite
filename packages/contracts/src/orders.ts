@@ -141,6 +141,10 @@ export const Order = z.object({
 	completedAt: Instant.nullable(),
 	cancelledAt: Instant.nullable(),
 	cancelReason: z.string().nullable(),
+	/** Food is at the table (a tab can be served before it's paid). */
+	servedAt: Instant.nullable().optional(),
+	/** Staff cleared the table: the order stops holding it on the floor. */
+	tableClearedAt: Instant.nullable().optional(),
 	version: Version,
 	updatedAt: Instant,
 	lines: z.array(OrderLine),

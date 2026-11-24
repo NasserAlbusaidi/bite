@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
 	canTransition,
+	checkAtTable,
 	checkFulfillmentTransition,
 	FULFILLMENT_STATUSES,
+	type FulfillmentStatus,
 	fulfillmentPolicyFor,
 	fulfillmentTransitions,
 	isTab,
+	type PaymentStatus,
 	paymentStatusFor,
 } from "./order-status.js";
 import { m } from "./test-helpers.js";
@@ -132,5 +135,57 @@ describe("tabs", () => {
 				),
 			).toEqual({ ok: false, error: "unpaid" });
 		}
+	});
+});
+
+describe("checkAtTable", () => {
+	const o = (
+		fulfillmentStatus: FulfillmentStatus,
+		paymentStatus: PaymentStatus,
+		type = "dine_in",
+	) => ({ type, fulfillmentStatus, paymentStatus });
+	it("serving an unpaid tab keeps it open", () => {
+		expect(checkAtTable(o("ready", "unpaid"), "served")).toEqual({
+			ok: true,
+			complete: false,
+		});
+	});
+	it("serving a paid order completes it", () => {
+		expect(checkAtTable(o("ready", "paid"), "served")).toEqual({
+			ok: true,
+			complete: true,
+		});
+		expect(checkAtTable(o("completed", "paid"), "served")).toEqual({
+			ok: true,
+			complete: false,
+		});
+	});
+	it("clearing needs the bill settled and the food out", () => {
+		expect(checkAtTable(o("ready", "unpaid"), "cleared")).toEqual({
+			ok: false,
+			error: "unpaid",
+		});
+		expect(checkAtTable(o("preparing", "paid"), "cleared")).toEqual({
+			ok: false,
+			error: "not_served",
+		});
+		expect(checkAtTable(o("ready", "paid"), "cleared")).toEqual({
+			ok: true,
+			complete: true,
+		});
+		expect(checkAtTable(o("completed", "paid"), "cleared")).toEqual({
+			ok: true,
+			complete: false,
+		});
+		expect(checkAtTable(o("cancelled", "unpaid"), "cleared")).toEqual({
+			ok: true,
+			complete: false,
+		});
+	});
+	it("only dine-in sits at a table", () => {
+		expect(checkAtTable(o("ready", "paid", "takeaway"), "served")).toEqual({
+			ok: false,
+			error: "not_dine_in",
+		});
 	});
 });

@@ -182,4 +182,44 @@ describe.runIf(ownerUrl)("floor plan", () => {
 			await h.owner`select server_member_id from floor_tables where id = ${t1}`;
 		expect(row?.server_member_id).toBe(h.A.cashier);
 	});
+	it("holds the table through served and paid until it's cleared", async () => {
+		const orderId = uuidv7();
+		await h.owner`
+			insert into orders (id, org_id, location_id, ticket_number, business_date, source, type, prices_include_tax, subtotal, tax_total, total, table_label, fulfillment_status)
+			values (${orderId}, ${h.A.org}, ${h.A.loc}, 'T-91', '2026-11-24', 'counter', 'dine_in', true, 1000, 48, 1000, '3', 'ready')`;
+		const row = async () =>
+			(
+				await h.owner`select fulfillment_status, served_at, table_cleared_at from orders where id = ${orderId}`
+			)[0];
+		// Served unpaid: the tab stays open, the time is recorded.
+		const s = await push(h, h.A, [
+			mut("order.atTable", orderId, h.A.cashier, { orderId, step: "served" }),
+		]);
+		expect(s.results[0]?.status).toBe("applied");
+		expect(await row()).toMatchObject({ fulfillment_status: "ready" });
+		expect((await row())?.served_at).not.toBeNull();
+		// Can't clear a table that hasn't paid.
+		const early = await push(h, h.A, [
+			mut("order.atTable", orderId, h.A.cashier, { orderId, step: "cleared" }),
+		]);
+		expect(early.results[0]).toMatchObject({ status: "rejected" });
+		expect((await row())?.table_cleared_at).toBeNull();
+		// Paid, then cleared: completes and frees the table.
+		await h.owner`update orders set payment_status = 'paid', paid_total = 1000 where id = ${orderId}`;
+		const c = await push(h, h.A, [
+			mut("order.atTable", orderId, h.A.cashier, { orderId, step: "cleared" }),
+		]);
+		expect(c.results[0]?.status).toBe("applied");
+		expect(await row()).toMatchObject({ fulfillment_status: "completed" });
+		expect((await row())?.table_cleared_at).not.toBeNull();
+		// Kitchen can't, and another tenant can't see the order.
+		const k = await push(h, h.A, [
+			mut("order.atTable", orderId, h.A.kitchen, { orderId, step: "served" }),
+		]);
+		expect(k.results[0]?.status).toBe("rejected");
+		const b = await push(h, h.B, [
+			mut("order.atTable", orderId, h.B.manager, { orderId, step: "served" }),
+		]);
+		expect(b.results[0]).toMatchObject({ status: "rejected" });
+	});
 });

@@ -1003,6 +1003,16 @@ p.strong {
 	--floor-edge: var(--danger);
 	--floor-chair: var(--danger);
 }
+[data-status="eating"] {
+	--floor-fill: var(--brand-lime-100);
+	--floor-edge: var(--brand-olive);
+	--floor-chair: var(--brand-olive);
+}
+[data-status="paid"] {
+	--floor-fill: var(--surface-sunken);
+	--floor-edge: var(--brand-green);
+	--floor-chair: var(--brand-green);
+}
 .floor-status {
 	padding: 4px var(--space-3);
 	border-radius: var(--radius-pill);
@@ -1181,6 +1191,31 @@ p.strong {
 	font-weight: 700;
 	white-space: nowrap;
 	box-shadow: var(--shadow-sm);
+}
+.floor-table[data-status="paid"] {
+	border-style: dashed;
+}
+.floor-table__check {
+	position: absolute;
+	inset-block-end: -12px;
+	inset-inline-start: 50%;
+	transform: translateX(-50%);
+	padding: 2px 8px;
+	border-radius: var(--radius-pill);
+	background: var(--surface-inverse);
+	color: var(--brand-white);
+	font-size: var(--fs-xs);
+	font-weight: 700;
+	white-space: nowrap;
+	box-shadow: var(--shadow-sm);
+}
+.floor-clear {
+	display: grid;
+	gap: var(--space-1);
+	padding: var(--space-3);
+	border-radius: var(--radius-lg);
+	border: 2px dashed var(--brand-green);
+	background: var(--surface-sunken);
 }
 .floor-callrow {
 	display: flex;

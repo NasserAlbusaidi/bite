@@ -141,6 +141,13 @@
 			"when": 1795506866279,
 			"tag": "0019_floor_plan",
 			"breakpoints": true
+		},
+		{
+			"idx": 20,
+			"version": "7",
+			"when": 1795510773529,
+			"tag": "0020_table_lifecycle",
+			"breakpoints": true
 		}
 	]
 }
