@@ -52,6 +52,15 @@ describe("product form", () => {
 		expect(r.value.modifierGroupIds).toEqual(["a", "b"]);
 		expect(r.value.isVisible).toBe(true);
 		expect(r.value.description).toBeNull();
+		expect(r.value.dietaryTags).toEqual([]);
+	});
+
+	it("keeps ticked dietary tags in canonical order and drops unknown ones", () => {
+		const r = parseProductForm(
+			form({ ...base, dietaryTags: ["spicy", "bogus", "vegan"] }),
+			3,
+		);
+		expect(r.ok && r.value.dietaryTags).toEqual(["vegan", "spicy"]);
 	});
 
 	it("reports every bad field at once", () => {
