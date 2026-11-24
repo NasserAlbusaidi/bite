@@ -1368,6 +1368,9 @@ p.warn {
 @media print {
 	.floor-print {
 		display: block;
+	}
+}
+
 /* ------------------------------------------------ reports, orders, drawers */
 .stats--kpi {
 	grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
@@ -1902,5 +1905,68 @@ p.warn {
 	.drawer {
 		inline-size: 100%;
 		block-size: auto;
+	}
+}
+
+/* Floor plan editor: lighter side panel, room-like canvas. */
+.floor-side .fieldset {
+	border: 0;
+	padding: 0;
+	gap: var(--space-1);
+}
+.floor-side .fieldset > span:first-child {
+	font-weight: 600;
+	font-size: var(--fs-sm);
+	color: var(--text-strong);
+}
+.floor-side .form {
+	gap: var(--space-4);
+}
+.floor-side .card-head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+}
+.floor-canvas {
+	border: 0;
+	border-radius: var(--radius-lg);
+	background-image: radial-gradient(
+		color-mix(in srgb, var(--line-strong) 70%, transparent) 1.2px,
+		transparent 1.2px
+	);
+	background-size: calc(100% / 40) calc(100% / 28);
+	background-position: calc(50% / 40) calc(50% / 28);
+	box-shadow: inset 0 0 0 1px var(--line);
+}
+.floor-table {
+	border-width: 2px;
+	border-radius: var(--radius-md);
+}
+.floor-table:hover {
+	border-color: var(--action);
+}
+.floor-chair {
+	inline-size: 10px;
+	block-size: 10px;
+	margin: -5px 0 0 -5px;
+	opacity: 0.7;
+}
+.floor-table__label {
+	font-size: clamp(0.8rem, 1.6vw, 1.25rem);
+}
+.floor-stepper {
+	padding: 2px;
+	border: 1px solid var(--line);
+	border-radius: var(--radius-pill);
+	inline-size: max-content;
+}
+@media (max-width: 720px) {
+	.floor-scroll {
+		overflow-x: auto;
+		margin-inline: calc(-1 * var(--pad-card));
+		padding-inline: var(--pad-card);
+	}
+	.floor-scroll .floor-canvas {
+		min-inline-size: 640px;
 	}
 }

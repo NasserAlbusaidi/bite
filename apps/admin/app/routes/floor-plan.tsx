@@ -333,63 +333,65 @@ export default function FloorPlan({ loaderData }: Route.ComponentProps) {
 						))}
 					</div>
 					{/* The floor is a physical room: left is left in Arabic too. */}
-					<div
-						ref={canvas}
-						className="floor-canvas"
-						dir="ltr"
-						style={{ aspectRatio: `${GRID.cols} / ${GRID.rows}` }}
-						onPointerDown={() => setSelected(null)}
-					>
-						{here.map((tb) => (
-							<button
-								key={tb.id}
-								type="button"
-								aria-pressed={tb.id === selected}
-								aria-label={t("floor_table_aria", {
-									label: tb.label,
-									seats: tb.seats,
-								})}
-								className="floor-table"
-								data-shape={tb.shape}
-								data-selected={tb.id === selected || undefined}
-								data-bad={bad.has(tb.id) || collides(draft, tb) || undefined}
-								style={{
-									left: `${(tb.x / GRID.cols) * 100}%`,
-									top: `${(tb.y / GRID.rows) * 100}%`,
-									width: `${(tb.w / GRID.cols) * 100}%`,
-									height: `${(tb.h / GRID.rows) * 100}%`,
-								}}
-								onPointerDown={(e) => onPointerDown(e, tb, "move")}
-								onPointerMove={onPointerMove}
-								onPointerUp={onPointerUp}
-								onPointerCancel={onPointerUp}
-								onKeyDown={(e) => onTableKey(e, tb)}
-								onFocus={() => setSelected(tb.id)}
-							>
-								<Chairs seats={tb.seats} shape={tb.shape} />
-								<strong className="floor-table__label">
-									{tb.label || "?"}
-								</strong>
-								<span className="floor-table__seats">
-									<Icon name="user" size={11} />
-									{tb.seats}
-								</span>
-								{tb.id === selected && (
-									<span
-										className="floor-table__resize"
-										aria-hidden="true"
-										onPointerDown={(e) => onPointerDown(e, tb, "resize")}
-										onPointerMove={onPointerMove}
-										onPointerUp={onPointerUp}
-									/>
-								)}
-							</button>
-						))}
-						{here.length === 0 && (
-							<p className="floor-canvas__empty muted">
-								{t("floor_area_empty")}
-							</p>
-						)}
+					<div className="floor-scroll">
+						<div
+							ref={canvas}
+							className="floor-canvas"
+							dir="ltr"
+							style={{ aspectRatio: `${GRID.cols} / ${GRID.rows}` }}
+							onPointerDown={() => setSelected(null)}
+						>
+							{here.map((tb) => (
+								<button
+									key={tb.id}
+									type="button"
+									aria-pressed={tb.id === selected}
+									aria-label={t("floor_table_aria", {
+										label: tb.label,
+										seats: tb.seats,
+									})}
+									className="floor-table"
+									data-shape={tb.shape}
+									data-selected={tb.id === selected || undefined}
+									data-bad={bad.has(tb.id) || collides(draft, tb) || undefined}
+									style={{
+										left: `${(tb.x / GRID.cols) * 100}%`,
+										top: `${(tb.y / GRID.rows) * 100}%`,
+										width: `${(tb.w / GRID.cols) * 100}%`,
+										height: `${(tb.h / GRID.rows) * 100}%`,
+									}}
+									onPointerDown={(e) => onPointerDown(e, tb, "move")}
+									onPointerMove={onPointerMove}
+									onPointerUp={onPointerUp}
+									onPointerCancel={onPointerUp}
+									onKeyDown={(e) => onTableKey(e, tb)}
+									onFocus={() => setSelected(tb.id)}
+								>
+									<Chairs seats={tb.seats} shape={tb.shape} />
+									<strong className="floor-table__label">
+										{tb.label || "?"}
+									</strong>
+									<span className="floor-table__seats">
+										<Icon name="user" size={11} />
+										{tb.seats}
+									</span>
+									{tb.id === selected && (
+										<span
+											className="floor-table__resize"
+											aria-hidden="true"
+											onPointerDown={(e) => onPointerDown(e, tb, "resize")}
+											onPointerMove={onPointerMove}
+											onPointerUp={onPointerUp}
+										/>
+									)}
+								</button>
+							))}
+							{here.length === 0 && (
+								<p className="floor-canvas__empty muted">
+									{t("floor_area_empty")}
+								</p>
+							)}
+						</div>
 					</div>
 					<p className="muted small">{t("floor_drag_hint")}</p>
 				</section>
