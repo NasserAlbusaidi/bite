@@ -138,6 +138,7 @@ export default function MenuPage({
 	const [params, setParams] = useSearchParams();
 	const q = params.get("q") ?? "";
 	const filter = (params.get("show") ?? "all") as MenuFilter;
+	const added = Number(params.get("added") ?? 0) || 0;
 	const setParam = (k: string, v: string) =>
 		setParams(
 			(p) => {
@@ -251,6 +252,11 @@ export default function MenuPage({
 					</p>
 				</div>
 				<div className="actions-row">
+					{canEditMenu && (
+						<Link className="btn" to="/menu/create">
+							{t("creator_open")}
+						</Link>
+					)}
 					<Link className="btn" to="/menu/modifiers">
 						{t("options_title")}
 					</Link>
@@ -269,6 +275,12 @@ export default function MenuPage({
 
 			{!canEditMenu && <p className="card muted">{t("menu_owner_only")}</p>}
 
+			{added > 0 && (
+				<p className="menu-note" role="status">
+					{t("creator_done", { n: added })}
+				</p>
+			)}
+
 			{error && (
 				<p className="menu-alert" role="alert">
 					{t(error)}
@@ -279,6 +291,11 @@ export default function MenuPage({
 				<section className="card menu-empty">
 					<h2>{t("menu_empty_title")}</h2>
 					<p className="muted">{t("menu_empty_body")}</p>
+					{canEditMenu && (
+						<Link className="btn btn--primary" to="/menu/create">
+							{t("creator_empty_cta")}
+						</Link>
+					)}
 				</section>
 			) : (
 				<div className="menu-toolbar">
