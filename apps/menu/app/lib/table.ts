@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router";
 
 /**
  * The table a guest is sitting at, from the table QR (`/<slug>?table=7`).
@@ -32,17 +33,17 @@ export function rememberTable(slug: string, label: string | null) {
 }
 
 /**
- * The guest's table: `?table=` in the address wins (and is remembered),
- * otherwise what this tab remembered. Null on the server and first render.
+ * The guest's table: `?table=` in the address wins (and is remembered), so it
+ * is known on the server render too; otherwise what this tab remembered,
+ * which only arrives after hydration.
  */
 export function useTable(slug: string): string | null {
-	const [table, setTable] = useState<string | null>(null);
+	const [params] = useSearchParams();
+	const fromUrl = cleanTable(params.get("table"));
+	const [stored, setStored] = useState<string | null>(null);
 	useEffect(() => {
-		const fromUrl = cleanTable(
-			new URLSearchParams(window.location.search).get("table"),
-		);
 		if (fromUrl) rememberTable(slug, fromUrl);
-		setTable(fromUrl ?? read(slug));
-	}, [slug]);
-	return table;
+		else setStored(read(slug));
+	}, [slug, fromUrl]);
+	return fromUrl ?? stored;
 }

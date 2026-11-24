@@ -172,7 +172,10 @@ export default function Checkout({ loaderData }: Route.ComponentProps) {
 			<main className="page page--center">
 				<h1>{t("cart_empty_title")}</h1>
 				<p className="muted">{t("cart_empty_body")}</p>
-				<Link className="btn btn--primary" to={`/${lang}/${location.slug}`}>
+				<Link
+					className="btn btn--primary"
+					to={`/${lang}/${location.slug}${table ? `?table=${encodeURIComponent(table)}` : ""}`}
+				>
 					{t("browse_menu")}
 				</Link>
 			</main>
@@ -199,7 +202,7 @@ export default function Checkout({ loaderData }: Route.ComponentProps) {
 		<main className="page">
 			<header className="toolbar">
 				<Link
-					to={`/${lang}/${location.slug}`}
+					to={`/${lang}/${location.slug}${table ? `?table=${encodeURIComponent(table)}` : ""}`}
 					className="icon-btn"
 					aria-label={t("back_to_menu")}
 				>

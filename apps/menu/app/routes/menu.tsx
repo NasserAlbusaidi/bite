@@ -19,6 +19,7 @@ import {
 	lastKey,
 	parseActive,
 	parseLast,
+	remember,
 	reorderable,
 	useRemembered,
 } from "../lib/recent";
@@ -79,6 +80,7 @@ export default function Menu({ loaderData }: Route.ComponentProps) {
 	const activeRaw = useRemembered(activeKey(location.slug));
 	const lastRaw = useRemembered(lastKey(location.slug));
 	const active = useMemo(() => parseActive(activeRaw, Date.now()), [activeRaw]);
+	useDropClosedOrder(lang, location.slug, active?.token ?? null);
 	const { guest, forget } = useGuest(lang, location.slug);
 	// Only what can still be ordered exactly as it was last time. A
 	// remembered guest's last order (any device, any branch) wins over this
@@ -214,7 +216,7 @@ export default function Menu({ loaderData }: Route.ComponentProps) {
 						</div>
 					)}
 					<Link
-						to={`/${lang}/${location.slug}/checkout`}
+						to={`/${lang}/${location.slug}/checkout${table ? `?table=${encodeURIComponent(table)}` : ""}`}
 						className="btn btn--primary btn--grow"
 					>
 						<span className="badge" key={count}>
@@ -246,6 +248,38 @@ export default function Menu({ loaderData }: Route.ComponentProps) {
 			/>
 		</>
 	);
+}
+
+const ORDER_CHECK_MS = 20_000;
+
+/**
+ * The till can cancel or complete an order while the guest is on the menu:
+ * ask now and then, and forget it once it is closed.
+ */
+function useDropClosedOrder(lang: Lang, slug: string, token: string | null) {
+	useEffect(() => {
+		if (!token) return;
+		let stop = false;
+		const check = async () => {
+			if (document.visibilityState !== "visible") return;
+			try {
+				const res = await fetch(
+					`/${lang}/${slug}/orders/${encodeURIComponent(token)}/status`,
+				);
+				if (!res.ok) return;
+				const { open } = (await res.json()) as { open?: boolean };
+				if (!stop && open === false) remember(activeKey(slug), null);
+			} catch {
+				// Offline: keep the link, try again later.
+			}
+		};
+		void check();
+		const id = setInterval(check, ORDER_CHECK_MS);
+		return () => {
+			stop = true;
+			clearInterval(id);
+		};
+	}, [lang, slug, token]);
 }
 
 type Added = {

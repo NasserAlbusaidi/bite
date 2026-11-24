@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { T } from "../lib/i18n";
 import { toE164 } from "../lib/phone";
 import { cleanTable } from "../lib/table";
@@ -45,9 +45,11 @@ export function CheckoutForm({
 		if (defaultName) setName((v) => v || defaultName);
 	}, [defaultName]);
 	const [table, setTable] = useState(defaultTable ?? "");
-	// The QR's table arrives after hydration; take it unless the guest typed one.
+	// Once the guest has touched the field, it is theirs: a table remembered
+	// by this tab (known only after hydration) never overwrites or appends.
+	const tableTouched = useRef(false);
 	useEffect(() => {
-		if (defaultTable) setTable((v) => v || defaultTable);
+		if (defaultTable && !tableTouched.current) setTable(defaultTable);
 	}, [defaultTable]);
 	const [phone, setPhone] = useState("");
 	const [note, setNote] = useState("");
@@ -103,7 +105,10 @@ export function CheckoutForm({
 						maxLength={20}
 						placeholder={t("table_placeholder")}
 						value={table}
-						onChange={(e) => setTable(e.target.value)}
+						onChange={(e) => {
+							tableTouched.current = true;
+							setTable(e.target.value);
+						}}
 					/>
 				</>
 			)}
