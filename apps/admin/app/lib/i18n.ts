@@ -896,6 +896,7 @@ const en = {
 	error_500_body:
 		"Something broke on our side. Try again, and tell us if it keeps happening.",
 	try_again: "Try again",
+	loading_slow: "Still loading. Your connection may be slow.",
 	error_go_home: "Go to the overview",
 	setup_title: "Get to your first order",
 	setup_progress: "Done: {done} of {total}",
@@ -1880,6 +1881,7 @@ const ar: Record<MessageKey, string> = {
 	error_500_title: "لم ينجح ذلك",
 	error_500_body: "حدث خلل من جهتنا. حاول مجددًا، وأخبرنا إن تكرر.",
 	try_again: "حاول مجددًا",
+	loading_slow: "ما زال التحميل جاريًا. قد يكون اتصالك بطيئًا.",
 	error_go_home: "اذهب إلى النظرة العامة",
 	setup_title: "الطريق إلى أول طلب",
 	setup_progress: "المنجز: {done} من {total}",

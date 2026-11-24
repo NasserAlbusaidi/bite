@@ -42,6 +42,177 @@ h2 {
 	color: var(--text-muted);
 }
 
+/* ---------- Loading: lime thread on top, Bite logo for longer waits ---------- */
+/* Timing lives in lib/loading.ts; the Bite animation in lib/bite-loader.ts. */
+.route-thread {
+	position: fixed;
+	inset-block-start: 0;
+	inset-inline: 0;
+	z-index: 60;
+	block-size: 3px;
+	background: var(--action);
+	box-shadow: 0 0 8px var(--action);
+	transform-origin: left center;
+	transform: scaleX(0);
+	animation: route-thread 9s cubic-bezier(0.08, 0.7, 0.2, 1) forwards;
+	pointer-events: none;
+}
+:root[dir="rtl"] .route-thread {
+	transform-origin: right center;
+}
+.route-thread[data-done] {
+	animation: none;
+	transform: scaleX(1);
+	opacity: 0;
+	transition:
+		transform 0.15s ease-out,
+		opacity 0.2s ease-in 0.12s;
+}
+@keyframes route-thread {
+	0% {
+		transform: scaleX(0);
+	}
+	15% {
+		transform: scaleX(0.55);
+	}
+	100% {
+		transform: scaleX(0.92);
+	}
+}
+.content[data-pending] {
+	opacity: 0.55;
+	transition: opacity 0.2s;
+}
+.main {
+	position: relative;
+}
+.route-slow {
+	position: absolute;
+	inset-block-start: var(--space-3);
+	inset-inline: var(--space-4);
+	z-index: 15;
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: center;
+	gap: var(--space-3);
+	padding: var(--space-2) var(--space-4);
+	border-radius: var(--radius-md);
+	background: var(--surface);
+	box-shadow: var(--shadow-md);
+	color: var(--text);
+}
+.route-slow[data-scope="root"] {
+	position: fixed;
+	z-index: 50;
+}
+.route-bite {
+	position: absolute;
+	inset: 0;
+	z-index: 15;
+	background: var(--bg);
+}
+.route-bite[data-scope="root"] {
+	position: fixed;
+	z-index: 50;
+}
+.boot {
+	min-block-size: 100vh;
+	display: grid;
+	place-items: center;
+	background: var(--bg);
+}
+.bite-loader {
+	display: grid;
+	justify-items: center;
+	align-content: center;
+	gap: var(--space-3);
+	padding: var(--space-6);
+	text-align: center;
+}
+.route-bite .bite-loader {
+	position: sticky;
+	inset-block-start: 0;
+	min-block-size: min(100vh, 100%);
+	box-sizing: border-box;
+}
+.bite-loader__art {
+	inline-size: min(220px, 60vw);
+	block-size: auto;
+	overflow: visible;
+	color: var(--secondary);
+}
+.bite-loader__art[data-script="arabic"] {
+	inline-size: min(130px, 36vw);
+}
+.bite-loader__logo {
+	fill: currentColor;
+}
+.bite-loader__eat {
+	animation: bite-loader-fade 6.8s linear infinite;
+}
+/* Bites are page-coloured circles that grow over the logo. */
+.bite-loader__bite {
+	fill: var(--bg);
+	transform-box: fill-box;
+	transform-origin: center;
+	transform: scale(0);
+	animation: 6.8s ease-out infinite both;
+}
+.bite-loader__crumb {
+	fill: currentColor;
+	opacity: 0;
+	animation: 6.8s linear infinite both;
+}
+@keyframes loading-fade {
+	from {
+		opacity: 1;
+	}
+	to {
+		opacity: 0.35;
+	}
+}
+@keyframes bite-loader-fade {
+	0%,
+	78% {
+		opacity: 1;
+	}
+	80%,
+	84% {
+		opacity: 0;
+	}
+	98%,
+	100% {
+		opacity: 1;
+	}
+}
+.bite-loader__label,
+.bite-loader__hint {
+	margin: 0;
+	color: var(--text-muted);
+}
+/* Reduced motion: nothing moves or gets eaten; the line and logo just fade. */
+@media (prefers-reduced-motion: reduce) {
+	.route-thread {
+		transform: scaleX(1);
+		animation: loading-fade 1.6s ease-in-out infinite alternate;
+	}
+	.route-thread[data-done] {
+		animation: none;
+		transition: opacity 0.2s;
+	}
+	.bite-loader__bite,
+	.bite-loader__crumb {
+		animation: none;
+	}
+	.bite-loader__eat {
+		animation: loading-fade 1.6s ease-in-out infinite alternate;
+	}
+	.content[data-pending] {
+		transition: none;
+	}
+}
+
 /* ---------- App shell: sidebar, drawer on phones, command palette ---------- */
 .app {
 	display: grid;

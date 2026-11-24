@@ -1,16 +1,22 @@
 import { Icon, Logo, ToastProvider, UiProvider } from "@bite/ui";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
 	NavLink,
 	Outlet,
 	redirect,
 	useLocation,
 	useNavigate,
+	useNavigation,
 	useParams,
 	useRevalidator,
 } from "react-router";
 import { type Command, CommandPalette } from "../components/CommandPalette";
 import { FlashToasts } from "../components/FlashToasts";
+import {
+	LoadingLayer,
+	useOwnLoading,
+	useRouteLoading,
+} from "../components/RouteLoading";
 import { ShortcutsDialog } from "../components/ShortcutsDialog";
 import { SupportBanner } from "../components/SupportBanner";
 import { adminGate, saveOrg } from "../lib/account";
@@ -77,7 +83,34 @@ export default function Shell({ loaderData }: Route.ComponentProps) {
 	const params = useParams();
 	const navigate = useNavigate();
 	const location = useLocation();
-	const { revalidate } = useRevalidator();
+	const revalidator = useRevalidator();
+	const { revalidate: quietRevalidate } = revalidator;
+	// Switching branch or language reloads the page's data without a navigation,
+	// so it is tracked here to show the same loading as opening a page.
+	// Background refreshes use their own revalidate and stay silent.
+	const [loud, setLoud] = useState(false);
+	const sawLoad = useRef(false);
+	const revalidate = useCallback(() => {
+		sawLoad.current = false;
+		setLoud(true);
+		quietRevalidate();
+	}, [quietRevalidate]);
+	useEffect(() => {
+		if (!loud) return;
+		if (revalidator.state === "loading") {
+			sawLoad.current = true;
+			return;
+		}
+		if (sawLoad.current) {
+			setLoud(false);
+			return;
+		}
+		// Never stay stuck if the reload was skipped or finished unseen.
+		const id = window.setTimeout(() => setLoud(false), 250);
+		return () => window.clearTimeout(id);
+	}, [loud, revalidator.state]);
+	useOwnLoading();
+	const loading = useRouteLoading(loud ? "page" : null);
 	const locationId = params.locationId ?? loaderData.locationId;
 	const place = places.find((p) => p.id === locationId);
 	const items = useMemo(() => navItems(locationId), [locationId]);
@@ -93,6 +126,11 @@ export default function Shell({ loaderData }: Route.ComponentProps) {
 	useEffect(() => applyTheme(theme), [theme]);
 	// biome-ignore lint/correctness/useExhaustiveDependencies: close the drawer whenever the address changes
 	useEffect(() => setDrawer(false), [location.pathname]);
+	// ...and as soon as you pick a page, so a slow load isn't hidden behind it.
+	const goingTo = useNavigation().location?.pathname;
+	useEffect(() => {
+		if (goingTo) setDrawer(false);
+	}, [goingTo]);
 
 	useEffect(() => {
 		const page = here ? t(here.key) : t("overview");
@@ -170,9 +208,10 @@ export default function Shell({ loaderData }: Route.ComponentProps) {
 				t(minutes ? "paused_toast" : "resumed_toast", { branch: p.name }),
 				minutes ? "warning" : "success",
 			);
-			revalidate();
+			// Already confirmed by the toast: refresh quietly.
+			quietRevalidate();
 		},
-		[t, revalidate],
+		[t, quietRevalidate],
 	);
 
 	// Staff and products for the palette, fetched the first time it opens.
@@ -519,7 +558,16 @@ export default function Shell({ loaderData }: Route.ComponentProps) {
 								lang={lang}
 							/>
 						)}
-						<main className="content">
+						<LoadingLayer state={loading} scope="shell" lang={lang} t={t} />
+						<main
+							className="content"
+							aria-busy={loading.phase !== "idle" || undefined}
+							data-pending={
+								loading.phase !== "idle" && loading.kind === "page"
+									? ""
+									: undefined
+							}
+						>
 							<ShellPrefsContext value={prefs}>
 								<Outlet />
 							</ShellPrefsContext>
