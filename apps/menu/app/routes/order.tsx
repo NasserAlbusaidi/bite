@@ -7,6 +7,7 @@ import {
 	useSearchParams,
 } from "react-router";
 import { Price } from "../components/Price";
+import { ServiceBar } from "../components/ServiceBar";
 import { Totals } from "../components/Totals";
 import { guestApi } from "../lib/api.server";
 import { readCart, useCart } from "../lib/cart-store";
@@ -189,6 +190,15 @@ export default function OrderPage({ loaderData }: Route.ComponentProps) {
 					</ol>
 				)}
 			</section>
+
+			{order.tableLabel && !done && (
+				<ServiceBar
+					lang={lang}
+					slug={location.slug}
+					table={order.tableLabel}
+					t={t}
+				/>
+			)}
 
 			<ul className="lines">
 				{order.lines

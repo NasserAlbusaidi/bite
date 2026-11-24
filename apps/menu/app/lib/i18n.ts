@@ -168,6 +168,12 @@ const en = {
 	placed_now: "Placed just now",
 	placed_ago: "Placed {min} min ago",
 	options_chosen: "{count} chosen",
+	service_title: "Need anything?",
+	service_waiter: "Call waiter",
+	service_bill: "Bring the bill",
+	service_waiter_sent: "Waiter coming",
+	service_bill_sent: "Bill coming",
+	service_error: "Couldn't reach the staff. Try again or wave us over.",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -298,6 +304,12 @@ const ar: Record<MessageKey, string> = {
 	placed_now: "تم الطلب الآن",
 	placed_ago: "تم الطلب قبل {min} دقيقة",
 	options_chosen: "تم اختيار {count}",
+	service_title: "تحتاج شيئاً؟",
+	service_waiter: "نادِ النادل",
+	service_bill: "أحضروا الفاتورة",
+	service_waiter_sent: "النادل في الطريق",
+	service_bill_sent: "الفاتورة في الطريق",
+	service_error: "تعذّر الوصول إلى الطاقم. حاول مجدداً أو لوّح لنا.",
 };
 
 export const messages: Record<Lang, Record<MessageKey, string>> = { en, ar };

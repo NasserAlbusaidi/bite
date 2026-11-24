@@ -13,6 +13,7 @@ export default [
 	route(":lang/:slug/checkout", "routes/checkout.tsx"),
 	route(":lang/:slug/orders/:token", "routes/order.tsx"),
 	route(":lang/:slug/group", "routes/group-new.tsx"),
+	route(":lang/:slug/service", "routes/service.tsx"),
 	route(":lang/:slug/group/:token", "routes/group.tsx"),
 	route(":lang/:slug/group/:token/state", "routes/group-state.tsx"),
 	route("*", "routes/not-found.tsx"),

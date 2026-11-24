@@ -15,6 +15,7 @@ import { LockScreen } from "./LockScreen.js";
 import { PairScreen } from "./PairScreen.js";
 import { ProblemsSheet } from "./ProblemsSheet.js";
 import { createPrintService } from "./printing.js";
+import { SERVICE_EVENT, ServiceCalls } from "./ServiceCalls.js";
 import { SettingsSheet } from "./SettingsSheet.js";
 import { SyncBadge } from "./SyncBadge.js";
 import { ServicesCtx } from "./services.js";
@@ -98,7 +99,10 @@ function PairedApp(props: {
 			deviceId: paired.device.deviceId,
 			handlers: {
 				onReady: () => sync.kick(),
-				onEvent: () => sync.kick(),
+				onEvent: (e) =>
+					e.type === "service.changed"
+						? window.dispatchEvent(new Event(SERVICE_EVENT))
+						: sync.kick(),
 				onRevoked: onUnpair,
 			},
 		});
@@ -161,6 +165,7 @@ function PairedApp(props: {
 				<main className="main-full">
 					{paired.device.kind === "kds" ? <KdsShell /> : <TillScreen />}
 				</main>
+				{paired.device.kind !== "kds" && <ServiceCalls />}
 				{problems && <ProblemsSheet onClose={() => setProblems(false)} />}
 				{settings && (
 					<SettingsSheet

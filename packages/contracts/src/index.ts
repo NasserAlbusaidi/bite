@@ -14,4 +14,5 @@ export * from "./payments.js";
 export * from "./platform.js";
 export * from "./public.js";
 export * from "./realtime.js";
+export * from "./service.js";
 export * from "./sync.js";

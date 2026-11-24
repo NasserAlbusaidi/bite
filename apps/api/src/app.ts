@@ -10,6 +10,7 @@ import { deviceRoutes } from "./routes/device.js";
 import { platformRoutes } from "./routes/platform.js";
 import { publicRoutes } from "./routes/public.js";
 import { realtimeRoutes } from "./routes/realtime.js";
+import { deviceServiceRoutes, publicServiceRoutes } from "./routes/service.js";
 import { syncRoutes } from "./routes/sync.js";
 
 export function createApp(deps: Deps) {
@@ -39,7 +40,9 @@ export function createApp(deps: Deps) {
 		.route("/v1/admin", adminRoutes)
 		.route("/v1/platform", platformRoutes)
 		.route("/v1/device", deviceRoutes)
+		.route("/v1/device", deviceServiceRoutes)
 		.route("/v1/public", publicRoutes)
+		.route("/v1/public", publicServiceRoutes)
 		.route("/v1/public", cartRoutes)
 		.route("/v1/realtime", realtimeRoutes)
 		.route("/v1", syncRoutes);

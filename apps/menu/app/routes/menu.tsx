@@ -5,6 +5,7 @@ import { MenuHeader } from "../components/MenuHeader";
 import { MenuList } from "../components/MenuList";
 import { Price } from "../components/Price";
 import { ProductSheet } from "../components/ProductSheet";
+import { ServiceBar } from "../components/ServiceBar";
 import { type Cart, indexMenu, itemCount, lineKey } from "../lib/cart";
 import { useCart } from "../lib/cart-store";
 import type { MenuProduct } from "../lib/contracts";
@@ -114,6 +115,9 @@ export default function Menu({ loaderData }: Route.ComponentProps) {
 						</span>
 						<span className="orderlink__go">{t("order_track")}</span>
 					</Link>
+				)}
+				{table && (
+					<ServiceBar lang={lang} slug={location.slug} table={table} t={t} />
 				)}
 				{canOrder && <OrderTogether lang={lang} slug={location.slug} t={t} />}
 			</MenuHeader>

@@ -105,3 +105,31 @@ export function suggestPrefix(devices: readonly AdminDevice[]): string {
 	}
 	return "";
 }
+
+export type DeviceStatus =
+	| { kind: "revoked" }
+	| { kind: "unpaired" }
+	| { kind: "online" }
+	| { kind: "offline"; minutesAgo: number };
+
+/** Tablets sync every 15 s while open (seen-at is written once a minute), so 5 quiet minutes = offline. */
+export function deviceStatus(d: AdminDevice, now = Date.now()): DeviceStatus {
+	if (d.revokedAt) return { kind: "revoked" };
+	if (!d.lastSeenAt) return { kind: "unpaired" };
+	const mins = Math.max(
+		0,
+		Math.floor((now - Date.parse(d.lastSeenAt)) / 60_000),
+	);
+	return mins < 5 ? { kind: "online" } : { kind: "offline", minutesAgo: mins };
+}
+
+/** "3 minutes ago", "2 days ago" in the page language. */
+export function agoText(minutes: number, lang: "en" | "ar"): string {
+	const f = new Intl.RelativeTimeFormat(lang === "ar" ? "ar-OM" : "en", {
+		numeric: "auto",
+		numberingSystem: "latn",
+	} as Intl.RelativeTimeFormatOptions);
+	if (minutes < 60) return f.format(-minutes, "minute");
+	if (minutes < 60 * 24) return f.format(-Math.floor(minutes / 60), "hour");
+	return f.format(-Math.floor(minutes / (60 * 24)), "day");
+}

@@ -1281,6 +1281,87 @@ async function history(b: Built, tabs: Tablet[]) {
 	}
 }
 
+// ------------------------------------------------------------------ finish
+const GUEST_NAMES = [
+	"Ahmed",
+	"Fatma",
+	"Sultan",
+	"Noor",
+	"Yousuf",
+	"Shamsa",
+	"Hilal",
+	"Muna",
+	"Said",
+	"Laila",
+	"Omar",
+	"Asma",
+	"James",
+	"Priya",
+];
+
+/**
+ * The sync API stamps kitchen times with the server clock and only takes till
+ * orders, so history comes in as counter sales finished "now". Patch it with
+ * the owner role so reports look like a real café:
+ * - ready_at / completed_at: placed + 4-12 min prep (longer at rush hours),
+ *   served 1-5 min after ready. Only rows with no ready_at, so live KDS
+ *   timings are never touched.
+ * - About 30% of past orders become QR orders (source guest, Q-n tickets from
+ *   the real counter, guest name, table for dine-in). Chosen by a hash of the
+ *   order id, so re-runs pick the same ones and only add from new orders.
+ */
+async function finish(b: Built) {
+	const conn = createDb(OWNER_URL, { max: 1, onnotice: () => {} });
+	const o = conn.db as any;
+	try {
+		const hash = sql`(('x' || substr(md5(id::text), 1, 8))::bit(32)::int & 2147483647)`;
+		const timed = await o.execute(sql`
+			with x as (
+				select id, placed_at, ${hash} as h from orders
+				where org_id = ${b.orgId} and fulfillment_status = 'completed' and ready_at is null
+			), t as (
+				select id, h, placed_at + make_interval(
+					mins => 4 + h % 9 + case when extract(hour from placed_at at time zone ${TZ})
+						in (8, 9, 13, 14, 19, 20, 21) then (h / 9) % 7 else 0 end,
+					secs => h % 60) as r
+				from x
+			)
+			update orders o set ready_at = t.r, completed_at = t.r + make_interval(mins => 1 + (t.h / 63) % 5)
+			from t where o.id = t.id returning o.id`);
+		const picked = await o.execute(sql`
+			select id, location_id, business_date::text as bd, type, ${hash} as h from orders
+			where org_id = ${b.orgId} and source = 'counter' and fulfillment_status = 'completed'
+				and placed_at < now() - interval '20 minutes' and ${hash} % 100 < 30
+			order by placed_at`);
+		const rows = (picked.rows ?? picked) as any[];
+		await o.transaction(async (tx: any) => {
+			for (const r of rows) {
+				const c = await tx.execute(sql`
+					insert into ticket_counters (org_id, location_id, business_date, prefix, last_seq)
+					values (${b.orgId}, ${r.location_id}, ${r.bd}, 'Q', 1)
+					on conflict (location_id, business_date, prefix)
+					do update set last_seq = ticket_counters.last_seq + 1
+					returning last_seq`);
+				const seq = ((c.rows ?? c) as any[])[0].last_seq;
+				const h = Number(r.h);
+				await tx.execute(sql`
+					update orders set source = 'guest', device_id = null, created_by = null,
+						ticket_number = ${`Q-${seq}`},
+						customer_name = coalesce(customer_name, ${GUEST_NAMES[h % GUEST_NAMES.length]}),
+						customer_phone = coalesce(customer_phone, ${`+9689${String(1_000_000 + (h % 8_999_999)).padStart(7, "0")}`}),
+						table_label = ${r.type === "dine_in" ? String(1 + (h % 12)) : null}
+					where id = ${r.id}`);
+			}
+		});
+		const n = ((timed.rows ?? timed) as any[]).length;
+		console.log(
+			`finish kitchen times on ${n} orders, ${rows.length} turned into QR orders`,
+		);
+	} finally {
+		await conn.client.end();
+	}
+}
+
 // ------------------------------------------------------------------ loyalty
 /** Regulars: [name, local number, how often they come]. */
 const GUESTS: [string, string, number][] = [
@@ -1441,5 +1522,6 @@ const built = await build();
 const tabs = await tablets(built);
 await loyalty(built.orgId);
 await history(built, tabs);
+await finish(built);
 await seedPlatform(OWNER_URL, API);
 report(tabs);
