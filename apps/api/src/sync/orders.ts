@@ -12,6 +12,7 @@ import {
 import { schema, type Tx } from "@bite/db";
 import { and, eq, inArray, isNull, sql } from "@bite/db/orm";
 import { ApiError } from "../lib/errors.js";
+import { attachCustomer, upsertCustomer } from "../loyalty/service.js";
 import type { MutationCtx, MutationOutcome } from "./context.js";
 
 const { locations, orders, orderLines, payments, products, promotions } =
@@ -248,6 +249,16 @@ export async function createPosOrder(
 			sortOrder: i,
 		})),
 	);
+	// Returning guests: a phone typed at the till links the org's customer.
+	if (p.customerPhone) {
+		const c = await upsertCustomer(
+			tx,
+			device.orgId,
+			p.customerPhone,
+			p.customerName,
+		);
+		if (c) await attachCustomer(tx, p.id, c.customer, new Date(p.placedAt));
+	}
 	return { entityVersion: 1 };
 }
 
