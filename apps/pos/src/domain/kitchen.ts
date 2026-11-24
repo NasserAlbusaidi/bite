@@ -1,17 +1,33 @@
 import type { FulfillmentStatus, Order, SetFulfillment } from "@bite/contracts";
-import { checkFulfillmentTransition } from "@bite/core";
+import {
+	checkFulfillmentTransition,
+	fulfillmentPolicyFor,
+	isTab,
+} from "@bite/core";
 import type { SqlDriver } from "../db/driver.js";
 import { enqueue } from "../sync/outbox.js";
 
-/** What the kitchen sees: paid orders not yet completed, oldest first (FIFO). */
+/**
+ * What the kitchen sees, oldest first (FIFO): paid orders not yet completed,
+ * plus open table tabs (core `isTab`), which cook before they are paid. A tab
+ * leaves the screen once it is ready: the server takes it from there and it
+ * completes when the table pays.
+ */
 export async function kitchenOrders(db: SqlDriver): Promise<Order[]> {
-	const rows = await db.all<{ doc: string }>(
-		`SELECT doc FROM orders
+	const rows = await db.all<{ doc: string; payment_status: string }>(
+		`SELECT doc, payment_status FROM orders
 		 WHERE fulfillment_status IN ('pending', 'preparing', 'ready')
-		   AND payment_status IN ('paid', 'partially_refunded')
 		 ORDER BY placed_at`,
 	);
-	return rows.map((r) => JSON.parse(r.doc) as Order);
+	return rows.flatMap((r) => {
+		const o = JSON.parse(r.doc) as Order;
+		if (
+			r.payment_status === "paid" ||
+			r.payment_status === "partially_refunded"
+		)
+			return [o];
+		return isTab(o) && o.fulfillmentStatus !== "ready" ? [o] : [];
+	});
 }
 
 /** The one-tap move for a ticket in each column. */
@@ -54,6 +70,7 @@ export async function moveTicket(
 			order.fulfillmentStatus,
 			input.to,
 			order.paymentStatus,
+			fulfillmentPolicyFor(order),
 		);
 		if (!check.ok) return { ok: false as const, error: check.error };
 

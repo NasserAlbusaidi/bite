@@ -46,6 +46,8 @@ export type OrdersView = "toPay" | "today" | "yesterday";
 export function OrdersSheet(props: {
 	onClose: () => void;
 	initialView?: OrdersView;
+	/** Open with this order's detail showing (from the floor). */
+	initialOrderId?: string;
 }) {
 	const { db, sync, member, print, device } = useServices();
 	const { t, lang, dir } = useI18n();
@@ -55,7 +57,9 @@ export function OrdersSheet(props: {
 	const [search, setSearch] = useState("");
 	const [items, setItems] = useState<OrderListItem[]>([]);
 	const [toPay, setToPay] = useState(0);
-	const [selected, setSelected] = useState<string | null>(null);
+	const [selected, setSelected] = useState<string | null>(
+		props.initialOrderId ?? null,
+	);
 	const [detail, setDetail] = useState<OrderDetail | null>(null);
 	const [ask, setAsk] = useState<Ask | null>(null);
 	const [notice, setNotice] = useState<string | null>(null);
