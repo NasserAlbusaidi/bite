@@ -38,6 +38,7 @@ export {
 	UpdateProduct,
 	UpdatePromotion,
 	UpdateStaff,
+	UploadedImage,
 } from "@bite/contracts";
 
 import type {

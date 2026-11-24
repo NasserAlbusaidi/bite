@@ -1,6 +1,7 @@
 import type { Db } from "@bite/db";
 import type { Auth } from "./auth/better-auth.js";
 import type { PinLimiter } from "./lib/pin-limiter.js";
+import type { UploadStore } from "./lib/uploads.js";
 import type { RealtimeHub } from "./realtime/hub.js";
 import type { ServiceRequestStore } from "./service/requests.js";
 
@@ -23,6 +24,10 @@ export type Deps = {
 	 * every org then gets every feature, unlimited.
 	 */
 	planEnforcement?: boolean;
+	/** Product photo storage. Absent: uploads answer 404 and owners paste links. */
+	uploads?: UploadStore;
+	/** The API's public address, for the photo URLs it hands out. */
+	publicApiUrl?: string;
 };
 
 export type DeviceCtx = {

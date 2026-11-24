@@ -8,6 +8,7 @@ import {
 	useSearchParams,
 } from "react-router";
 import "../menu.css";
+import { PhotoDrop } from "../components/PhotoDrop";
 import { Thumb } from "../components/Thumb";
 import { adminApi } from "../lib/api";
 import type { AdminCategory, AdminProduct } from "../lib/contracts";
@@ -81,6 +82,11 @@ export async function clientAction({ request }: Route.ClientActionArgs) {
 				return { ok: true as const, intent };
 			case "reorderProducts":
 				await api.reorderProducts(reorderBody(ids(form)));
+				return { ok: true as const, intent };
+			case "setPhoto":
+				await api.updateProduct(str(form, "id"), {
+					imageUrl: str(form, "url") || null,
+				});
 				return { ok: true as const, intent };
 			case "setVisible":
 				await api.updateProduct(str(form, "id"), {
@@ -761,6 +767,8 @@ function ProductRow({
 	const { t, lang } = useShell();
 	const vis = useFetcher<typeof clientAction>();
 	const dup = useFetcher<typeof clientAction>();
+	const photo = useFetcher<typeof clientAction>();
+	const pendingPhoto = photo.formData?.get("url")?.toString() ?? null;
 	const pending = vis.formData?.get("visible");
 	const visible =
 		pending === undefined || pending === null
@@ -798,7 +806,21 @@ function ProductRow({
 					aria-label={t("select_product", { name })}
 				/>
 			)}
-			<Thumb url={p.imageUrl} name={name} />
+			{canEdit ? (
+				<PhotoDrop
+					compact
+					url={pendingPhoto ?? p.imageUrl}
+					name={name}
+					onUploaded={(url) =>
+						photo.submit(
+							{ intent: "setPhoto", id: p.id, url },
+							{ method: "post" },
+						)
+					}
+				/>
+			) : (
+				<Thumb url={p.imageUrl} name={name} />
+			)}
 			<div className="menu-item__body">
 				<Link
 					to={canEdit ? `/menu/products/${p.id}` : "#"}

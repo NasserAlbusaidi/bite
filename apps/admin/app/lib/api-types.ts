@@ -59,6 +59,8 @@ export interface AdminApi {
 	/** New sort orders in one go; every id must exist or nothing changes. */
 	reorderCategories(items: Reorder): Promise<void>;
 	reorderProducts(items: Reorder): Promise<void>;
+	/** Stores a product photo and answers with its public URL. */
+	uploadImage(image: Blob): Promise<string>;
 	createModifierGroup(g: CreateModifierGroup): Promise<AdminModifierGroup>;
 	updateModifierGroup(
 		id: string,
