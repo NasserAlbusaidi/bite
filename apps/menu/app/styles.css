@@ -1251,7 +1251,7 @@ input[type="search"].input {
 	background: var(--surface-sunken);
 	overflow: hidden;
 }
-.guestcard__bar span {
+.guestcard__fill {
 	display: block;
 	height: 100%;
 	border-radius: inherit;
@@ -1283,9 +1283,6 @@ input[type="search"].input {
 	padding: 0;
 	margin-block-end: var(--space-2);
 }
-.reward + .reward {
-	margin-block-start: var(--space-2);
-}
 .reward input {
 	accent-color: var(--action);
 	inline-size: 18px;
@@ -1300,6 +1297,9 @@ input[type="search"].input {
 	border-radius: var(--radius-md);
 	background: var(--surface);
 	cursor: pointer;
+}
+.reward + .reward {
+	margin-block-start: var(--space-2);
 }
 .reward:has(input:checked) {
 	border-color: var(--action);
@@ -1319,7 +1319,7 @@ input[type="search"].input {
 	gap: var(--space-2);
 	margin: 0;
 }
-.ticket__points span {
+.ticket__chip {
 	padding: var(--space-1) var(--space-3);
 	border-radius: var(--radius-pill);
 	background: var(--success-bg);

@@ -179,9 +179,13 @@ export default function OrderPage({ loaderData }: Route.ComponentProps) {
 				{!done && <Elapsed since={order.placedAt} t={t} />}
 				{(loyalty.pts > 0 || loyalty.off > 0) && (
 					<p className="ticket__points">
-						{loyalty.off > 0 && <span>{t("reward_applied")}</span>}
+						{loyalty.off > 0 && (
+							<span className="ticket__chip">{t("reward_applied")}</span>
+						)}
 						{loyalty.pts > 0 && (
-							<span>{t("points_earned_note", { points: loyalty.pts })}</span>
+							<span className="ticket__chip">
+								{t("points_earned_note", { points: loyalty.pts })}
+							</span>
 						)}
 					</p>
 				)}

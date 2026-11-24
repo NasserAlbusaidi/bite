@@ -68,7 +68,7 @@ export function GuestCard({
 			{p.enabled && goal && (
 				<>
 					<div className="guestcard__bar" aria-hidden="true">
-						<span style={{ width: `${pct}%` }} />
+						<span className="guestcard__fill" style={{ width: `${pct}%` }} />
 					</div>
 					<p className="small muted">
 						{ready
