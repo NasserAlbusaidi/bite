@@ -1,8 +1,12 @@
+import { Badge } from "@bite/ui";
 import { Form, useNavigation } from "react-router";
 import { parsePasswordForm, passwordError } from "../lib/account-form";
 import { account, adminApi } from "../lib/api";
 import { AdminApiError } from "../lib/api-types";
 import type { MessageKey } from "../lib/i18n";
+import { useShellPrefs } from "../lib/shell-prefs";
+import { initials } from "../lib/staff-list";
+import { THEMES } from "../lib/theme";
 import { useShell } from "../lib/use-shell";
 import type { Route } from "./+types/account";
 
@@ -65,7 +69,17 @@ export default function AccountPage({ actionData }: Route.ComponentProps) {
 	return (
 		<>
 			<div className="page-head">
-				<h1>{t("account")}</h1>
+				<div className="person-head">
+					<span className="avatar avatar--lg" aria-hidden="true">
+						{initials(me.member.displayName)}
+					</span>
+					<div>
+						<h1>{me.member.displayName}</h1>
+						<p className="muted small page-sub">
+							{t(`role_${me.member.orgRole}_short`)} · {me.org.name}
+						</p>
+					</div>
+				</div>
 			</div>
 
 			<Form method="post" className="card form">
@@ -108,6 +122,9 @@ export default function AccountPage({ actionData }: Route.ComponentProps) {
 					{name && "saved" in name && !busy && saved}
 				</div>
 			</Form>
+
+			<Preferences />
+			<Access />
 
 			{demo ? (
 				<p className="card muted">{t("account_demo")}</p>
@@ -178,5 +195,94 @@ export default function AccountPage({ actionData }: Route.ComponentProps) {
 				</Form>
 			)}
 		</>
+	);
+}
+
+function Preferences() {
+	const { t, lang } = useShell();
+	const { theme, setTheme, toggleLang } = useShellPrefs();
+	return (
+		<section className="card form">
+			<h2>{t("prefs_title")}</h2>
+			<div className="pref-rows">
+				<fieldset className="pref-row bare">
+					<legend>{t("theme")}</legend>
+					<div className="seg">
+						{THEMES.map((th) => (
+							<button
+								key={th}
+								type="button"
+								className="seg__btn"
+								aria-pressed={theme === th}
+								onClick={() => setTheme(th)}
+							>
+								{t(`theme_${th}`)}
+							</button>
+						))}
+					</div>
+				</fieldset>
+				<fieldset className="pref-row bare">
+					<legend>{t("prefs_language")}</legend>
+					<div className="seg">
+						{(["en", "ar"] as const).map((l) => (
+							<button
+								key={l}
+								type="button"
+								className="seg__btn"
+								lang={l}
+								aria-pressed={lang === l}
+								onClick={() => lang !== l && toggleLang()}
+							>
+								{l === "en" ? "English" : "العربية"}
+							</button>
+						))}
+					</div>
+				</fieldset>
+			</div>
+		</section>
+	);
+}
+
+function Access() {
+	const { t, me, places } = useShell();
+	const role = me.member.orgRole;
+	const names = new Map(places.map((p) => [p.id, p.name]));
+	return (
+		<section className="card">
+			<h2>{t("access_title")}</h2>
+			<div className="person__roles">
+				{role !== "staff" ? (
+					<Badge tone="brand">
+						{t("access_everywhere", {
+							role: t(`role_${role}_short`),
+							org: me.org.name,
+						})}
+					</Badge>
+				) : (
+					me.locations.map((l) => (
+						<Badge key={l.location.id}>
+							{t("role_at", {
+								role: t(`role_${l.role}`),
+								place: names.get(l.location.id) ?? l.location.name,
+							})}
+						</Badge>
+					))
+				)}
+			</div>
+			<p className="muted small">
+				{t(`role_desc_${role === "staff" ? "manager" : role}`)}
+			</p>
+			<h2 className="mt">{t("shortcuts_title")}</h2>
+			<dl className="kv kv--keys">
+				<dt>
+					<kbd>Ctrl</kbd> <kbd>K</kbd>
+				</dt>
+				<dd>{t("shortcut_palette")}</dd>
+				<dt>
+					<kbd>Esc</kbd>
+				</dt>
+				<dd>{t("shortcut_close")}</dd>
+			</dl>
+		</section>
 	);
 }

@@ -25,6 +25,7 @@ export default [
 			route("staff", "routes/staff.tsx"),
 			route("staff/:staffId", "routes/staff-member.tsx"),
 			route("account", "routes/account.tsx"),
+			route("setup", "routes/setup.tsx"),
 			route("*", "routes/not-found.tsx"),
 		]),
 	]),
