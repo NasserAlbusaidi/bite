@@ -27,6 +27,8 @@ const PUBLIC_ROUTES = new Set([
 	"GET /health",
 	"GET /v1/auth/*",
 	"POST /v1/auth/*",
+	// Product photos guests' phones load; random names, served only as images.
+	"GET /v1/uploads/:org/:file",
 ]);
 
 const cases: Record<string, Case> = {
@@ -139,6 +141,50 @@ const cases: Record<string, Case> = {
 		const rows =
 			await h.owner`select 1 from product_location_settings where product_id = ${h.A.prod} and org_id = ${h.B.org}`;
 		expect(rows.length).toBe(0);
+	},
+	"POST /v1/public/locations/:slug/service-requests": async (h) => {
+		// A guest at A's table calls a waiter; B's till never sees it.
+		const res = await h.app.request(
+			"/v1/public/locations/a-main/service-requests",
+			json({ kind: "waiter", tableLabel: "xt-1" }),
+		);
+		expect(res.status).toBe(201);
+		const b = await h.app.request("/v1/device/service-requests", {
+			headers: bearer(h.B),
+		});
+		expect(await b.text()).not.toContain("xt-1");
+	},
+	"GET /v1/device/service-requests": async (h) => {
+		await h.app.request(
+			"/v1/public/locations/b-main/service-requests",
+			json({ kind: "bill", tableLabel: "xt-b" }),
+		);
+		await h.app.request(
+			"/v1/public/locations/a-main/service-requests",
+			json({ kind: "bill", tableLabel: "xt-a" }),
+		);
+		const res = await h.app.request("/v1/device/service-requests", {
+			headers: bearer(h.B),
+		});
+		const text = await res.text();
+		expect(text).toContain("xt-b");
+		expect(text).not.toContain("xt-a");
+	},
+	"POST /v1/device/service-requests/:id/done": async (h) => {
+		const a = await h.app.request(
+			"/v1/public/locations/a-main/service-requests",
+			json({ kind: "waiter", tableLabel: "xt-done" }),
+		);
+		const { request } = (await a.json()) as { request: { id: string } };
+		const res = await h.app.request(
+			`/v1/device/service-requests/${request.id}/done`,
+			{ method: "POST", headers: bearer(h.B) },
+		);
+		expect(res.status).toBe(404);
+		const still = await h.app.request("/v1/device/service-requests", {
+			headers: bearer(h.A),
+		});
+		expect(await still.text()).toContain(request.id);
 	},
 	"GET /v1/public/locations/:slug/menu": async (h) => {
 		const res = await h.app.request("/v1/public/locations/b-main/menu");

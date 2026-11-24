@@ -20,6 +20,7 @@ import {
 	RegisterDeviceResponse,
 	SalesReport,
 	TrendsReport,
+	UploadedImage,
 } from "./contracts";
 
 /** Back office over HTTP, under /v1/admin. Auth is the Better Auth session cookie. */
@@ -120,6 +121,14 @@ export function httpAdminApi(
 		},
 		reorderProducts: async (items) => {
 			await call(z.unknown(), "/products/order", send("PATCH", items));
+		},
+		uploadImage: async (image) => {
+			const r = await call(UploadedImage, "/uploads", {
+				method: "POST",
+				body: image,
+				headers: { "content-type": image.type },
+			});
+			return r.url;
 		},
 		createModifierGroup: (g) =>
 			call(AdminModifierGroup, "/modifier-groups", send("POST", g)),

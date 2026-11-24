@@ -1168,6 +1168,31 @@ p.strong {
 	font-size: var(--fs-xs);
 	font-weight: 700;
 }
+.floor-table__call {
+	position: absolute;
+	inset-block-start: -12px;
+	inset-inline-start: 50%;
+	transform: translateX(-50%);
+	padding: 2px 8px;
+	border-radius: var(--radius-pill);
+	background: var(--brand-lime);
+	color: var(--brand-forest);
+	font-size: var(--fs-xs);
+	font-weight: 700;
+	white-space: nowrap;
+	box-shadow: var(--shadow-sm);
+}
+.floor-callrow {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--space-2);
+	padding: var(--space-2) var(--space-2) var(--space-2) var(--space-3);
+	border-radius: var(--radius-lg);
+	background: var(--brand-lime);
+	color: var(--brand-forest);
+	font-weight: 700;
+}
 .floor-panel {
 	display: flex;
 	flex-direction: column;
@@ -1261,5 +1286,72 @@ p.strong {
 @media (max-width: 900px) {
 	.floor-body {
 		grid-template-columns: minmax(0, 1fr);
+	}
+}
+/* ── Guest calls (waiter / bill), over the till ── */
+/* Bottom-start, over the menu grid: the order panel's Charge button stays clear. */
+.svc {
+	position: fixed;
+	inset-block-end: var(--space-4);
+	inset-inline-start: var(--space-4);
+	z-index: 40;
+	display: grid;
+	gap: var(--space-2);
+	inline-size: min(400px, calc(100vw - var(--space-8)));
+}
+.svc__card {
+	display: flex;
+	align-items: center;
+	gap: var(--space-3);
+	padding-inline: var(--space-4) var(--space-3);
+	border-radius: var(--radius-lg);
+	background: var(--surface-inverse);
+	color: var(--text-inverse);
+	box-shadow: var(--shadow-lg);
+	animation: svc-in var(--dur-slow) var(--ease-bounce);
+}
+.svc__card--bill {
+	background: var(--warning-bg);
+	color: var(--text-strong);
+	border: 2px solid var(--warning);
+}
+.svc__card > .bite-icon {
+	inline-size: 28px;
+	block-size: 28px;
+	flex: none;
+}
+.svc__text {
+	flex: 1;
+	display: grid;
+	gap: 2px;
+	min-inline-size: 0;
+}
+.svc__text .muted {
+	color: inherit;
+	opacity: 0.75;
+	font-size: var(--fs-sm);
+}
+.svc__done {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-1);
+	min-block-size: 48px;
+	padding-inline: var(--space-4);
+	border: 0;
+	border-radius: var(--radius-md);
+	background: var(--action);
+	color: var(--on-action);
+	font: inherit;
+	font-weight: 700;
+	cursor: pointer;
+}
+.svc__done .bite-icon {
+	inline-size: 18px;
+	block-size: 18px;
+}
+@keyframes svc-in {
+	from {
+		transform: translateY(24px) scale(0.96);
+		opacity: 0;
 	}
 }

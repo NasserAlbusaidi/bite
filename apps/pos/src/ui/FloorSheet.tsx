@@ -17,6 +17,7 @@ import { useI18n } from "../i18n/I18nProvider.js";
 import type { MessageKey } from "../i18n/messages.js";
 import { OMR } from "./money.js";
 import { OrdersSheet } from "./OrdersSheet.js";
+import { useServiceRequests } from "./ServiceCalls.js";
 import { useServices } from "./services.js";
 
 const STATUSES: TableStatus[] = [
@@ -51,6 +52,11 @@ export function FloorSheet(props: {
 	const [notice, setNotice] = useState<string | null>(null);
 	const [openOrder, setOpenOrder] = useState<string | null>(null);
 	const [now, setNow] = useState(Date.now());
+	const calls = useServiceRequests();
+	const callsAt = (label: string) =>
+		calls.requests.filter(
+			(r) => r.tableLabel?.trim().toLowerCase() === label.trim().toLowerCase(),
+		);
 
 	const reload = useCallback(async () => {
 		const f = await loadFloor(db);
@@ -317,6 +323,15 @@ export function FloorSheet(props: {
 														<Money amount={s.due} currency={OMR} />
 													</span>
 												)}
+												{callsAt(s.table.label).length > 0 && (
+													<span className="floor-table__call">
+														{callsAt(s.table.label).some(
+															(r) => r.kind === "bill",
+														)
+															? t("floor.callBill")
+															: t("floor.callWaiter")}
+													</span>
+												)}
 												{server && (
 													<span className="floor-table__server">
 														{server.slice(0, 1)}
@@ -346,6 +361,23 @@ export function FloorSheet(props: {
 											{t("floor.seats", { n: sel.table.seats })}
 											{sel.since && ` · ${since(sel.since)}`}
 										</p>
+
+										{callsAt(sel.table.label).map((r) => (
+											<div key={r.id} className="floor-callrow">
+												<span>
+													{r.kind === "bill"
+														? t("floor.callBill")
+														: t("floor.callWaiter")}
+												</span>
+
+												<button
+													type="button"
+													onClick={() => void calls.close(r.id)}
+												>
+													{t("floor.callDone")}
+												</button>
+											</div>
+										))}
 
 										<label className="floor-server">
 											<span>{t("floor.server")}</span>

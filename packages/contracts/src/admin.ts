@@ -146,6 +146,13 @@ export const CreateModifierOption = AdminModifierOption.omit({
 });
 export const UpdateModifierOption = CreateModifierOption.partial();
 
+/**
+ * POST /uploads with the image bytes as the body (content-type image/jpeg,
+ * png, webp or gif, at most 5 MB). Answers with the public URL to put in a
+ * product's imageUrl.
+ */
+export const UploadedImage = z.object({ url: z.url() });
+
 // ---------------------------------------------------------------- per-location overrides
 
 /** GET /locations/:locationId/products */
@@ -550,6 +557,7 @@ export type UpdateModifierGroup = z.infer<typeof UpdateModifierGroup>;
 export type CreateModifierOption = z.infer<typeof CreateModifierOption>;
 export type UpdateModifierOption = z.infer<typeof UpdateModifierOption>;
 export type LocationProduct = z.infer<typeof LocationProduct>;
+export type UploadedImage = z.infer<typeof UploadedImage>;
 export type SetLocationProduct = z.infer<typeof SetLocationProduct>;
 export type AdminPromotion = z.infer<typeof AdminPromotion>;
 export type CreatePromotion = z.infer<typeof CreatePromotion>;

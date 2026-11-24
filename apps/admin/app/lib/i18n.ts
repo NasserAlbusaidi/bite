@@ -113,6 +113,14 @@ const en = {
 	prefix_hint: "Starts every ticket number on this device, like {prefix}-012.",
 	devices_empty: "No devices yet. Start with the till.",
 	settings_jump: "Jump to section",
+	palette_pause: "Pause QR ordering at {branch} for 30 min",
+	palette_resume: "Resume QR ordering at {branch}",
+	paused_toast: "QR ordering at {branch} paused for 30 minutes.",
+	resumed_toast: "QR ordering at {branch} is open again.",
+	leave_title: "Leave without saving?",
+	leave_body: "Your changes to this branch will be lost.",
+	leave_stay: "Keep editing",
+	leave_go: "Leave",
 	// Staff list and roles.
 	staff_search: "Search by name or email",
 	staff_filter_all: "Everyone",
@@ -174,6 +182,15 @@ const en = {
 	tax_override_hint:
 		"Leave empty to use the location's rate. 0 means zero-rated.",
 	image_url: "Image URL",
+	photo_drop: "Drop a photo here, or click to choose one",
+	photo_uploading: "Uploading…",
+	photo_upload_failed:
+		"Couldn't upload that photo. Use a JPEG, PNG or WebP under 5 MB.",
+	photo_uploads_off:
+		"Photo upload isn't set up on this server. Paste a link instead.",
+	photo_or_link: "Or paste a link",
+	photo_add: "Add photo",
+	photo_change: "Change photo of {name}",
 	creator_title: "Menu creator",
 	creator_intro:
 		"Start from a template or paste your menu. Check the preview, then create everything in one go.",
@@ -905,6 +922,14 @@ const ar: Record<MessageKey, string> = {
 	prefix_hint: "يبدأ به رقم كل طلب على هذا الجهاز، مثل {prefix}-012.",
 	devices_empty: "لا توجد أجهزة بعد. ابدأ بالكاشير.",
 	settings_jump: "انتقل إلى قسم",
+	palette_pause: "أوقف طلبات QR في {branch} لمدة 30 دقيقة",
+	palette_resume: "استأنف طلبات QR في {branch}",
+	paused_toast: "تم إيقاف طلبات QR في {branch} لمدة 30 دقيقة.",
+	resumed_toast: "عادت طلبات QR في {branch}.",
+	leave_title: "المغادرة دون حفظ؟",
+	leave_body: "ستضيع تغييراتك على هذا الفرع.",
+	leave_stay: "متابعة التعديل",
+	leave_go: "مغادرة",
 	// Staff list and roles.
 	staff_search: "ابحث بالاسم أو البريد",
 	staff_filter_all: "الجميع",
@@ -964,6 +989,15 @@ const ar: Record<MessageKey, string> = {
 	tax_override: "نسبة ضريبة خاصة (%)",
 	tax_override_hint: "اتركه فارغاً لاستخدام نسبة الفرع. صفر يعني معفى.",
 	image_url: "رابط الصورة",
+	photo_drop: "أفلت صورة هنا، أو انقر لاختيار واحدة",
+	photo_uploading: "جارٍ الرفع…",
+	photo_upload_failed:
+		"تعذّر رفع الصورة. استخدم JPEG أو PNG أو WebP أقل من 5 ميغابايت.",
+	photo_uploads_off:
+		"رفع الصور غير مُفعّل على هذا الخادم. الصق رابطاً بدلاً من ذلك.",
+	photo_or_link: "أو الصق رابطاً",
+	photo_add: "أضف صورة",
+	photo_change: "غيّر صورة {name}",
 	creator_title: "منشئ القائمة",
 	creator_intro:
 		"ابدأ من قالب أو الصق قائمتك. راجع المعاينة ثم أنشئ كل شيء دفعة واحدة.",

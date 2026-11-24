@@ -1,4 +1,5 @@
 import { expect } from "vitest";
+import { memoryStore } from "../lib/uploads.js";
 import { type Harness, uuidv7 } from "./harness.js";
 
 /**
@@ -128,6 +129,32 @@ export const adminCases: Record<string, Case> = {
 			tables: [],
 		});
 		expect([404, 409, 422]).toContain(res2.status);
+		expect(await aDigest(h)).toBe(before);
+	},
+	"POST /v1/admin/uploads": async (h) => {
+		// B's owner uploads, even naming A's org in the header: the photo
+		// still lands under B, and A's data is untouched.
+		h.deps.uploads ??= memoryStore();
+		const before = await aDigest(h);
+		const aimed = await h.app.request("/v1/admin/uploads", {
+			method: "POST",
+			headers: {
+				...h.logins.B.owner,
+				"x-org-id": h.A.org,
+				"content-type": "image/png",
+			},
+			body: new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+		});
+		expect(aimed.status).toBe(403);
+		const own = await h.app.request("/v1/admin/uploads", {
+			method: "POST",
+			headers: { ...h.logins.B.owner, "content-type": "image/png" },
+			body: new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+		});
+		expect(own.status).toBe(201);
+		const { url } = (await own.json()) as { url: string };
+		expect(url).toContain(`/v1/uploads/${h.B.org}/`);
+		expect(url).not.toContain(h.A.org);
 		expect(await aDigest(h)).toBe(before);
 	},
 	"GET /v1/admin/reports/sales": read((h) => `/reports/sales?${range(h)}`, 404),

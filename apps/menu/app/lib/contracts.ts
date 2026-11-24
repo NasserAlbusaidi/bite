@@ -23,6 +23,9 @@ export {
 	type OrderLineInput,
 	PARTICIPANT_SECRET_HEADER,
 	PublicMenuResponse,
+	type ServiceRequest,
+	type ServiceRequestKind,
+	ServiceRequestResponse,
 	type SubmitGroupCartRequest,
 	type UpsertGroupCartItem,
 } from "@bite/contracts";
