@@ -1,10 +1,11 @@
 import type { LocalClock } from "@bite/core";
 import { Icon, Logo } from "@bite/ui";
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import type { MenuProduct, MenuSnapshot } from "../lib/contracts";
 import { type Lang, loc, type T } from "../lib/i18n";
 import type { Currency } from "../lib/money";
 import { cardPrice, type MenuPricing } from "../lib/pricing";
+import { matcher } from "../lib/search";
 import { Price } from "./Price";
 
 type Props = {
@@ -19,6 +20,8 @@ type Props = {
 	onQuickAdd: (p: MenuProduct) => void;
 	/** Shown above the list, under the search box. Hidden while searching. */
 	top?: ReactNode;
+	/** Product just added to the cart: its + button shows a tick for a moment. */
+	added?: string | null;
 };
 
 /** Category nav, search and product list. Shared by solo and group ordering. */
@@ -33,24 +36,37 @@ export function MenuList({
 	onOpen,
 	onQuickAdd,
 	top,
+	added = null,
 }: Props) {
 	const [query, setQuery] = useState("");
-	const q = query.trim().toLowerCase();
+	const match = matcher(query);
+	const q = match !== null;
 	const sections = [...menu.categories]
 		.sort((a, b) => a.sortOrder - b.sortOrder)
 		.map((c) => ({
 			category: c,
 			products: menu.products
 				.filter((p) => p.categoryId === c.id)
-				.filter(
-					(p) =>
-						!q ||
-						p.name.en.toLowerCase().includes(q) ||
-						(p.name.ar?.includes(query.trim()) ?? false),
-				)
+				.filter((p) => !match || match(p))
 				.sort((a, b) => a.sortOrder - b.sortOrder),
 		}))
 		.filter((s) => s.products.length > 0);
+	const results = sections.reduce((n, s) => n + s.products.length, 0);
+	const sectionKey = sections.map((s) => s.category.id).join(",");
+	const active = useScrollSpy(sectionKey);
+	const navRef = useRef<HTMLElement>(null);
+
+	// Keep the current category's chip in view as the guest scrolls.
+	useEffect(() => {
+		if (!active) return;
+		const chip = navRef.current?.querySelector<HTMLElement>(
+			`[data-cat="${active}"]`,
+		);
+		const nav = navRef.current;
+		if (!chip || !nav) return;
+		const left = chip.offsetLeft - nav.clientWidth / 2 + chip.clientWidth / 2;
+		nav.scrollTo({ left, behavior: "smooth" });
+	}, [active]);
 
 	// Products on promotion right now, shown as a rail above the menu. Hidden
 	// while searching so results stay in one list.
@@ -67,23 +83,59 @@ export function MenuList({
 
 	return (
 		<>
-			<nav className="catnav" aria-label="categories">
+			<nav className="catnav" aria-label="categories" ref={navRef}>
 				{sections.map((s) => (
-					<a key={s.category.id} href={`#c-${s.category.id}`} className="chip">
+					<a
+						key={s.category.id}
+						href={`#c-${s.category.id}`}
+						data-cat={s.category.id}
+						className={`chip${active === s.category.id ? " is-active" : ""}`}
+						aria-current={active === s.category.id ? "true" : undefined}
+						onClick={(e) => {
+							const el = document.getElementById(`c-${s.category.id}`);
+							if (!el) return;
+							e.preventDefault();
+							el.scrollIntoView({ behavior: "smooth", block: "start" });
+							history.replaceState(null, "", `#c-${s.category.id}`);
+						}}
+					>
 						{loc(s.category.name, lang)}
 					</a>
 				))}
 			</nav>
 
 			<main className="page">
-				<input
-					type="search"
-					className="input"
-					placeholder={t("search_menu")}
-					value={query}
-					onChange={(e) => setQuery(e.target.value)}
-					aria-label={t("search_menu")}
-				/>
+				<div className="search">
+					<Icon name="search" className="search__icon" />
+					<input
+						type="search"
+						className="input"
+						placeholder={t("search_menu")}
+						value={query}
+						onChange={(e) => setQuery(e.target.value)}
+						onKeyDown={(e) => {
+							if (e.key === "Escape") setQuery("");
+						}}
+						aria-label={t("search_menu")}
+						enterKeyHint="search"
+						autoComplete="off"
+					/>
+					{query && (
+						<button
+							type="button"
+							className="search__clear"
+							onClick={() => setQuery("")}
+							aria-label={t("clear_search")}
+						>
+							<Icon name="close" />
+						</button>
+					)}
+				</div>
+				{q && results > 0 && (
+					<p className="muted small" aria-live="polite">
+						{t("search_results", { count: results })}
+					</p>
+				)}
 
 				{!q && top}
 
@@ -133,9 +185,19 @@ export function MenuList({
 				)}
 
 				{sections.length === 0 && (
-					<p className="empty">
-						{q ? t("no_search_results") : t("no_items_available")}
-					</p>
+					<div className="empty" aria-live="polite">
+						<Icon name="search" />
+						<p>{q ? t("no_search_results") : t("no_items_available")}</p>
+						{q && (
+							<button
+								type="button"
+								className="btn"
+								onClick={() => setQuery("")}
+							>
+								{t("clear_search")}
+							</button>
+						)}
+					</div>
 				)}
 
 				{sections.map(({ category, products }) => (
@@ -208,13 +270,13 @@ export function MenuList({
 										{p.isAvailable && canOrder && (
 											<button
 												type="button"
-												className="add-btn"
+												className={`add-btn${added === p.id ? " is-added" : ""}`}
 												onClick={() => onQuickAdd(p)}
 												aria-label={t("add_item_aria", {
 													name: loc(p.name, lang),
 												})}
 											>
-												<Icon name="plus" />
+												<Icon name={added === p.id ? "check" : "plus"} />
 											</button>
 										)}
 									</li>
@@ -229,4 +291,45 @@ export function MenuList({
 			</main>
 		</>
 	);
+}
+
+/**
+ * The category the guest is reading: the last section whose top has passed
+ * just under the sticky category bar. Re-run when the visible sections change.
+ */
+function useScrollSpy(sectionKey: string): string | null {
+	const [active, setActive] = useState<string | null>(null);
+	useEffect(() => {
+		const ids = sectionKey ? sectionKey.split(",") : [];
+		if (ids.length === 0) return setActive(null);
+		let frame = 0;
+		const check = () => {
+			frame = 0;
+			const line = 140;
+			let current = ids[0] ?? null;
+			for (const id of ids) {
+				const el = document.getElementById(`c-${id}`);
+				if (el && el.getBoundingClientRect().top <= line) current = id;
+			}
+			// At the very bottom the last short section never reaches the line.
+			if (
+				window.innerHeight + window.scrollY >=
+				document.documentElement.scrollHeight - 4
+			)
+				current = ids[ids.length - 1] ?? current;
+			setActive(current);
+		};
+		const onScroll = () => {
+			if (!frame) frame = requestAnimationFrame(check);
+		};
+		check();
+		window.addEventListener("scroll", onScroll, { passive: true });
+		window.addEventListener("resize", onScroll);
+		return () => {
+			window.removeEventListener("scroll", onScroll);
+			window.removeEventListener("resize", onScroll);
+			if (frame) cancelAnimationFrame(frame);
+		};
+	}, [sectionKey]);
+	return active;
 }

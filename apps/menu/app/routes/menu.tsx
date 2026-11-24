@@ -1,10 +1,11 @@
+import { Icon } from "@bite/ui";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useFetcher } from "react-router";
 import { MenuHeader } from "../components/MenuHeader";
 import { MenuList } from "../components/MenuList";
 import { Price } from "../components/Price";
 import { ProductSheet } from "../components/ProductSheet";
-import { type Cart, indexMenu, itemCount } from "../lib/cart";
+import { type Cart, indexMenu, itemCount, lineKey } from "../lib/cart";
 import { useCart } from "../lib/cart-store";
 import type { MenuProduct } from "../lib/contracts";
 import type { GroupActionResult } from "../lib/group.server";
@@ -48,6 +49,28 @@ export default function Menu({ loaderData }: Route.ComponentProps) {
 	const table = useTable(location.slug);
 	const [open, setOpen] = useState<MenuProduct | null>(null);
 	const canOrder = location.isAcceptingOrders;
+	const [added, setAdded] = useState<Added | null>(null);
+	useEffect(() => {
+		if (!added) return;
+		const id = setTimeout(() => setAdded(null), 2600);
+		return () => clearTimeout(id);
+	}, [added]);
+	const add = (line: {
+		productId: string;
+		modifierOptionIds: string[];
+		note?: string;
+		quantity?: number;
+	}) => {
+		dispatch({ type: "add", ...line });
+		const p = idx.products.get(line.productId);
+		setAdded({
+			n: (added?.n ?? 0) + 1,
+			productId: line.productId,
+			key: lineKey(line.productId, line.modifierOptionIds, line.note),
+			quantity: line.quantity ?? 1,
+			name: p ? loc(p.name, lang) : "",
+		});
+	};
 
 	const count = itemCount(cart);
 	const activeRaw = useRemembered(activeKey(location.slug));
@@ -104,9 +127,10 @@ export default function Menu({ loaderData }: Route.ComponentProps) {
 				currency={currency}
 				canOrder={canOrder}
 				onOpen={setOpen}
+				added={added?.productId ?? null}
 				onQuickAdd={(p) =>
 					p.modifierGroupIds.length === 0
-						? dispatch({ type: "add", productId: p.id, modifierOptionIds: [] })
+						? add({ productId: p.id, modifierOptionIds: [] })
 						: setOpen(p)
 				}
 				top={
@@ -154,11 +178,30 @@ export default function Menu({ loaderData }: Route.ComponentProps) {
 
 			{count > 0 && (
 				<div className="cartbar">
+					{added && (
+						<div className="added" role="status" key={added.n}>
+							<Icon name="check" />
+							<span>{t("added_toast", { name: added.name })}</span>
+							<button
+								type="button"
+								className="added__undo"
+								onClick={() => {
+									for (let i = 0; i < added.quantity; i++)
+										dispatch({ type: "decrement", key: added.key });
+									setAdded(null);
+								}}
+							>
+								{t("undo")}
+							</button>
+						</div>
+					)}
 					<Link
 						to={`/${lang}/${location.slug}/checkout`}
 						className="btn btn--primary btn--grow"
 					>
-						<span className="badge">{count}</span>
+						<span className="badge" key={count}>
+							{count}
+						</span>
 						<span>{t("view_cart")}</span>
 						<Price
 							amount={quote.order?.total ?? 0}
@@ -179,13 +222,22 @@ export default function Menu({ loaderData }: Route.ComponentProps) {
 				currency={currency}
 				onClose={() => setOpen(null)}
 				onAdd={(line) => {
-					dispatch({ type: "add", ...line });
+					add(line);
 					setOpen(null);
 				}}
 			/>
 		</>
 	);
 }
+
+type Added = {
+	/** Bumps on every add so the toast replays its entrance. */
+	n: number;
+	productId: string;
+	key: string;
+	quantity: number;
+	name: string;
+};
 
 /** Start a group cart: ask the host's name, then go to the shared page. */
 function OrderTogether({ lang, slug, t }: { lang: Lang; slug: string; t: T }) {
