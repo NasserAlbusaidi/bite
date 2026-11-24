@@ -282,6 +282,14 @@ function Access() {
 					<kbd>Esc</kbd>
 				</dt>
 				<dd>{t("shortcut_close")}</dd>
+				<dt>
+					<kbd>G</kbd> <kbd>S</kbd>
+				</dt>
+				<dd>{t("shortcut_go")}</dd>
+				<dt>
+					<kbd>?</kbd>
+				</dt>
+				<dd>{t("shortcut_all")}</dd>
 			</dl>
 		</section>
 	);

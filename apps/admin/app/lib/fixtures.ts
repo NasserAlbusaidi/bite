@@ -937,6 +937,10 @@ export function fixtureAdminApi(
 			s.isActive = false;
 			persist();
 		},
+		async reactivateStaff(sid) {
+			member(sid).isActive = true;
+			persist();
+		},
 		async loyalty() {
 			return demoProgram();
 		},

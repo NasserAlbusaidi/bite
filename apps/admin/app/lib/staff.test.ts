@@ -126,6 +126,10 @@ describe("demo staff api", () => {
 		expect((await a.staff()).find((s) => s.id === someone.id)?.isActive).toBe(
 			false,
 		);
+		await a.reactivateStaff(someone.id);
+		const back = (await a.staff()).find((s) => s.id === someone.id);
+		expect(back?.isActive).toBe(true);
+		expect(back?.locations).toEqual(someone.locations);
 	});
 });
 

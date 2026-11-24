@@ -101,6 +101,8 @@ export interface AdminApi {
 	updateStaff(id: string, s: UpdateStaff): Promise<AdminStaff>;
 	resetPin(id: string, pin: string): Promise<void>;
 	deactivateStaff(id: string): Promise<void>;
+	/** Undo a deactivation: roles and PIN were kept. */
+	reactivateStaff(id: string): Promise<void>;
 	updateLocation(id: string, l: UpdateLocation): Promise<AdminLocationSettings>;
 	devices(locationId: string): Promise<AdminDevice[]>;
 	/** The branch's floor plan. */

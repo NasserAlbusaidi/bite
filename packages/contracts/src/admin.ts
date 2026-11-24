@@ -297,7 +297,7 @@ export const UpdateStaff = z.object({
 	locations: z.array(StaffLocationRole).optional(),
 });
 
-/** POST /staff/:id/reset-pin. POST /staff/:id/deactivate takes no body. */
+/** POST /staff/:id/reset-pin. POST /staff/:id/deactivate and /reactivate take no body. */
 export const ResetPin = z.object({ pin: z.string().regex(/^\d{4,8}$/) });
 
 // ---------------------------------------------------------------- locations + devices

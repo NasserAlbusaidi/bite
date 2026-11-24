@@ -219,6 +219,11 @@ export const adminCases: Record<string, Case> = {
 		(h) => `/staff/${h.A.cashier}/deactivate`,
 		() => undefined,
 	),
+	"POST /v1/admin/staff/:id/reactivate": write(
+		"POST",
+		(h) => `/staff/${h.A.cashier}/reactivate`,
+		() => undefined,
+	),
 	"POST /v1/admin/staff/:id/invite": write(
 		"POST",
 		(h) => `/staff/${h.A.cashier}/invite`,
