@@ -20,7 +20,9 @@ export function methodLabel(lang: Lang, m: PaymentMethod): string {
 		? translate(lang, "pay.cash")
 		: m === "card"
 			? translate(lang, "pay.card")
-			: translate(lang, "pay.other");
+			: m === "loyalty"
+				? translate(lang, "pay.loyalty")
+				: translate(lang, "pay.other");
 }
 
 function base(order: Order, timeZone: string, lang: Lang): TicketOrderInput {

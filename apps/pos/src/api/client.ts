@@ -6,13 +6,23 @@ import type {
 	SyncPullResponse,
 	SyncPushRequest,
 	SyncPushResponse,
+	TillCustomer,
+	TillRedeem,
+	TillRedeemResponse,
 } from "@bite/contracts";
+import { STAFF_TOKEN_HEADER } from "@bite/contracts";
 import { SyncHttpError } from "../sync/transport.js";
 
 export type ApiConfig = { baseUrl: string; deviceToken: string };
 
 /** Thin fetch client for the tablet routes. Device token on every call. */
 export class ApiClient {
+	/**
+	 * From the last online PIN login, in memory only. Routes that act for a
+	 * person (loyalty) need it; an offline unlock has none, so those calls 401.
+	 */
+	private staffToken: string | null = null;
+
 	constructor(
 		private readonly cfg: ApiConfig,
 		private readonly doFetch: typeof fetch = (...a) => fetch(...a),
@@ -29,6 +39,7 @@ export class ApiClient {
 				headers: {
 					"content-type": "application/json",
 					authorization: `Bearer ${this.cfg.deviceToken}`,
+					...(this.staffToken && { [STAFF_TOKEN_HEADER]: this.staffToken }),
 					...(init.headers ?? {}),
 				},
 				signal: AbortSignal.timeout(init.timeoutMs ?? 15_000),
@@ -69,11 +80,36 @@ export class ApiClient {
 		return this.call<StaffListResponse>("/v1/device/staff");
 	}
 
-	pinLogin(memberId: string, pin: string) {
-		return this.call<PinLoginResponse>("/v1/device/pin-login", {
+	async pinLogin(memberId: string, pin: string) {
+		// Whoever was logged in before must not stay attached to these calls.
+		this.staffToken = null;
+		const r = await this.call<PinLoginResponse>("/v1/device/pin-login", {
 			method: "POST",
 			body: JSON.stringify({ memberId, pin }),
 		});
+		this.staffToken = r.staffToken;
+		return r;
+	}
+
+	/** Forget the staff token (lock screen). */
+	clearStaff() {
+		this.staffToken = null;
+	}
+
+	/** Loyalty guest by phone, across the org. 404 when unknown. */
+	findGuest(phone: string) {
+		return this.call<TillCustomer>(
+			`/v1/device/customers?phone=${encodeURIComponent(phone)}`,
+			{ timeoutMs: 8_000 },
+		);
+	}
+
+	/** Spend a guest's points on an order the server already has. */
+	redeem(orderId: string, body: TillRedeem) {
+		return this.call<TillRedeemResponse>(
+			`/v1/device/orders/${encodeURIComponent(orderId)}/redeem`,
+			{ method: "POST", body: JSON.stringify(body), timeoutMs: 10_000 },
+		);
 	}
 
 	push(req: SyncPushRequest) {

@@ -294,6 +294,31 @@ const en = {
 	"orders.error.tendered_not_cash": "Only cash can be over-tendered.",
 	"orders.error.not_allowed": "This order can't be cancelled any more.",
 	"orders.error.unpaid": "This order isn't paid yet.",
+	"guest.title": "Loyalty guest",
+	"guest.phone": "Phone number",
+	"guest.find": "Find",
+	"guest.looking": "Looking…",
+	"guest.badPhone": "That doesn't look like a phone number.",
+	"guest.needsOnlineLogin":
+		"Loyalty needs an online login. Lock the till and unlock with your PIN while connected.",
+	"guest.offline": "Can't reach the server. Loyalty needs a connection.",
+	"guest.points": "{points} pts",
+	"guest.pointsToGo": "{points} more pts",
+	"guest.visits": "{count} visits",
+	"guest.newGuest": "New guest. They start earning points with this order.",
+	"guest.name": "Name (optional)",
+	"guest.useReward": "Use a reward",
+	"guest.noReward": "No reward this time",
+	"guest.remove": "Remove guest",
+	"guest.attach": "Done",
+	"guest.add": "Add a loyalty guest",
+	"guest.reward": "Reward: {name}",
+	"guest.rewardApplied": "Reward applied: {amount} off",
+	"guest.earned": "Earns {points} points",
+	"guest.rewardFailed":
+		"Reward not applied ({error}). {amount} is still owed: take it from Orders, To pay.",
+	"guest.payWithReward": "Pay with reward",
+	"pay.loyalty": "Reward",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -587,6 +612,31 @@ const ar: Record<MessageKey, string> = {
 	"orders.error.tendered_not_cash": "الزيادة في المبلغ المستلم للنقد فقط.",
 	"orders.error.not_allowed": "لا يمكن إلغاء هذا الطلب الآن.",
 	"orders.error.unpaid": "هذا الطلب غير مدفوع بعد.",
+	"guest.title": "ضيف برنامج الولاء",
+	"guest.phone": "رقم الهاتف",
+	"guest.find": "بحث",
+	"guest.looking": "جارٍ البحث…",
+	"guest.badPhone": "هذا لا يبدو رقم هاتف.",
+	"guest.needsOnlineLogin":
+		"برنامج الولاء يحتاج تسجيل دخول متصل. اقفل الجهاز وافتحه برمزك وأنت متصل.",
+	"guest.offline": "تعذر الوصول إلى الخادم. برنامج الولاء يحتاج اتصالاً.",
+	"guest.points": "{points} نقطة",
+	"guest.pointsToGo": "باقي {points} نقطة",
+	"guest.visits": "{count} زيارة",
+	"guest.newGuest": "ضيف جديد. يبدأ بجمع النقاط مع هذا الطلب.",
+	"guest.name": "الاسم (اختياري)",
+	"guest.useReward": "استخدم مكافأة",
+	"guest.noReward": "بدون مكافأة هذه المرة",
+	"guest.remove": "إزالة الضيف",
+	"guest.attach": "تم",
+	"guest.add": "أضف ضيف برنامج الولاء",
+	"guest.reward": "مكافأة: {name}",
+	"guest.rewardApplied": "تم تطبيق المكافأة: خصم {amount}",
+	"guest.earned": "يكسب {points} نقطة",
+	"guest.rewardFailed":
+		"لم تُطبق المكافأة ({error}). المتبقي {amount}: خذه من الطلبات، بانتظار الدفع.",
+	"guest.payWithReward": "ادفع بالمكافأة",
+	"pay.loyalty": "مكافأة",
 };
 
 export const messages = { en, ar };

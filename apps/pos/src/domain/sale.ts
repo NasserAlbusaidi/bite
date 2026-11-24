@@ -69,6 +69,8 @@ export type SaleInput = {
 	type: "dine_in" | "takeaway";
 	note?: string;
 	customerName?: string;
+	/** Loyalty guest: the server links the order and awards points once paid. */
+	customerPhone?: string;
 	/** Dine-in only: where to bring it. */
 	tableLabel?: string;
 	ticketPrefix: string;
@@ -131,6 +133,7 @@ export async function commitSale(
 			source: "counter",
 			type: input.type,
 			...(input.customerName && { customerName: input.customerName }),
+			...(input.customerPhone && { customerPhone: input.customerPhone }),
 			...(input.type === "dine_in" &&
 				input.tableLabel && { tableLabel: input.tableLabel }),
 			...(input.note && { note: input.note }),
