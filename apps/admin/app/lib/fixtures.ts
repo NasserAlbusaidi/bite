@@ -110,15 +110,27 @@ const settings = (l: typeof azaiba): AdminLocationSettings => ({
 			: "The Walk, Al Mouj, Muscat",
 	phone: l.name === "Azaiba" ? "+968 2400 1122" : "+968 2400 3344",
 	whatsappNumber: null,
-	businessHours: {
-		sun: [{ open: "06:30", close: "22:00" }],
-		mon: [{ open: "06:30", close: "22:00" }],
-		tue: [{ open: "06:30", close: "22:00" }],
-		wed: [{ open: "06:30", close: "22:00" }],
-		thu: [{ open: "06:30", close: "23:00" }],
-		fri: [{ open: "08:00", close: "23:00" }],
-		sat: [{ open: "07:00", close: "22:00" }],
-	},
+	// Al Mouj sits on The Walk, so it opens later and stays open later.
+	businessHours:
+		l.name === "Azaiba"
+			? {
+					sun: [{ open: "06:30", close: "22:00" }],
+					mon: [{ open: "06:30", close: "22:00" }],
+					tue: [{ open: "06:30", close: "22:00" }],
+					wed: [{ open: "06:30", close: "22:00" }],
+					thu: [{ open: "06:30", close: "23:00" }],
+					fri: [{ open: "08:00", close: "23:00" }],
+					sat: [{ open: "07:00", close: "22:00" }],
+				}
+			: {
+					sun: [{ open: "09:00", close: "23:00" }],
+					mon: [{ open: "09:00", close: "23:00" }],
+					tue: [{ open: "09:00", close: "23:00" }],
+					wed: [{ open: "09:00", close: "23:00" }],
+					thu: [{ open: "09:00", close: "23:30" }],
+					fri: [{ open: "10:00", close: "23:30" }],
+					sat: [{ open: "09:00", close: "23:00" }],
+				},
 	theme: {},
 	receiptHeader: "Baked fresh every morning",
 	ordersPausedUntil: null,
