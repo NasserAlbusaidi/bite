@@ -10,6 +10,7 @@ import {
 	useSearchParams,
 	useSubmit,
 } from "react-router";
+import { Roles, SignIn } from "../components/StaffBadges";
 import { adminApi } from "../lib/api";
 import { AdminApiError } from "../lib/api-types";
 import type { AdminStaff, InviteStaffResponse } from "../lib/contracts";
@@ -140,7 +141,7 @@ export default function StaffMember({
 		: search.get("kind") === "invite"
 			? "invite"
 			: "pin";
-	const { t, me } = useShell();
+	const { t, me, places, locationId } = useShell();
 	const powers = staffPowers(me);
 	const editable = !member || powers.canEdit(member);
 	const nav = useNavigation();
@@ -198,6 +199,17 @@ export default function StaffMember({
 							<p className="muted small page-sub" dir="ltr">
 								{member.email}
 							</p>
+						)}
+						{member && (
+							<div className="person-head__badges">
+								<Roles
+									s={member}
+									names={new Map(places.map((p) => [p.id, p.name]))}
+									current={locationId}
+									t={t}
+								/>
+								<SignIn s={member} t={t} />
+							</div>
 						)}
 					</div>
 				</div>
@@ -314,6 +326,9 @@ function RolePicker({
 	const current = new Map(
 		(member?.locations ?? []).map((l) => [l.locationId, l.role]),
 	);
+	const [picked, setPicked] = useState<Map<string, string>>(
+		() => new Map(current),
+	);
 	return (
 		<fieldset className="fieldset role-matrix">
 			<legend>{t("location_access")}</legend>
@@ -337,11 +352,19 @@ function RolePicker({
 										name={`role:${p.id}`}
 										value={r}
 										defaultChecked={(current.get(p.id) ?? "") === r}
+										onChange={() => setPicked((m) => new Map(m).set(p.id, r))}
 									/>
 									{r ? t(`role_${r}`) : t("no_access")}
 								</label>
 							))}
 						</fieldset>
+						<span className="role-matrix__desc muted small">
+							{picked.get(p.id)
+								? t(
+										`role_desc_${picked.get(p.id) as (typeof LOCATION_ROLES)[number]}`,
+									)
+								: t("no_access_desc", { place: p.name })}
+						</span>
 					</div>
 				);
 			})}
@@ -489,7 +512,10 @@ function Reissue() {
 	return (
 		<fetcher.Form method="post" className="card form inline-form">
 			<input type="hidden" name="intent" value="reissue" />
-			<span className="muted small">{t("reissue_hint")}</span>
+			<div className="inline-form__head">
+				<h2>{t("reissue_title")}</h2>
+				<span className="muted small">{t("reissue_hint")}</span>
+			</div>
 			<button type="submit" className="btn" disabled={fetcher.state !== "idle"}>
 				{t("reissue_invite")}
 			</button>
@@ -517,6 +543,10 @@ function ResetPin({ errors }: { errors: Errors }) {
 	return (
 		<fetcher.Form method="post" className="card form inline-form">
 			<input type="hidden" name="intent" value="resetPin" />
+			<div className="inline-form__head">
+				<h2>{t("tablet_pin_title")}</h2>
+				<span className="muted small">{t("tablet_pin_hint")}</span>
+			</div>
 			<div className="field">
 				<span>{t("new_pin")}</span>
 				<PinInput key={done ? "done" : "edit"} label={t("new_pin")} />

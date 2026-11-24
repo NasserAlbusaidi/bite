@@ -792,3 +792,31 @@ label.switch-mini {
 	inline-size: auto;
 	max-inline-size: 100%;
 }
+
+/* Staff member page */
+.person-head__badges {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--space-1);
+	margin-block-start: var(--space-2);
+}
+.role-matrix__desc {
+	grid-column: 2;
+	margin-block-start: calc(-1 * var(--space-2));
+}
+.inline-form__head {
+	flex-basis: 100%;
+	display: grid;
+	gap: 2px;
+}
+.inline-form__head h2 {
+	margin: 0;
+	font-size: var(--fs-md);
+}
+@media (max-width: 760px) {
+	.role-matrix__desc {
+		grid-column: 1;
+		margin-block-start: 0;
+	}
+}
