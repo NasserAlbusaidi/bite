@@ -672,8 +672,8 @@ a.menu-item__name:hover {
 	gap: var(--space-4);
 	align-items: start;
 }
-.creator h2,
-.creator p {
+.menu-page .creator h2,
+.menu-page .creator p {
 	margin: 0;
 }
 .creator-text {
