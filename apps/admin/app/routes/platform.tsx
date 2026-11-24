@@ -1,4 +1,4 @@
-import { Logo, ToastProvider, UiProvider } from "@bite/ui";
+import { Icon, Logo, ToastProvider, UiProvider } from "@bite/ui";
 import { useEffect, useState } from "react";
 import {
 	Link,
@@ -92,16 +92,20 @@ export default function PlatformLayout({ loaderData }: Route.ComponentProps) {
 		<UiProvider lang={lang}>
 			<ToastProvider>
 				<div className="pf" lang={lang} dir={lang === "ar" ? "rtl" : "ltr"}>
-					<header className="pf-bar">
+					<header className="pf-bar" data-theme="light">
 						<Link to="/platform" className="pf-bar__brand">
 							<Logo height={22} />
 							<span className="pf-bar__tag">{t("console_short")}</span>
 						</Link>
 						<nav className="pf-bar__nav">
 							<NavLink to="/platform" end>
+								<Icon name="store" />
 								{t("businesses")}
 							</NavLink>
-							<NavLink to="/platform/new">{t("new_business")}</NavLink>
+							<NavLink to="/platform/new">
+								<Icon name="plus" />
+								{t("new_business")}
+							</NavLink>
 						</nav>
 						<div className="pf-bar__me">
 							<button
@@ -109,10 +113,16 @@ export default function PlatformLayout({ loaderData }: Route.ComponentProps) {
 								className="pf-bar__btn"
 								onClick={() => setLang(lang === "ar" ? "en" : "ar")}
 							>
+								<Icon name="globe" />
 								{t("language")}
 							</button>
-							<span className="pf-bar__email" dir="ltr">
-								{me.email}
+							<span className="pf-bar__user">
+								<span className="pf-bar__avatar" aria-hidden="true">
+									{(me.name || me.email).slice(0, 1).toUpperCase()}
+								</span>
+								<span className="pf-bar__email" dir="ltr">
+									{me.email}
+								</span>
 							</span>
 							<button
 								type="button"
@@ -122,7 +132,8 @@ export default function PlatformLayout({ loaderData }: Route.ComponentProps) {
 									window.location.assign("/sign-in?next=/platform");
 								}}
 							>
-								{t("sign_out")}
+								<Icon name="logout" />
+								<span className="pf-bar__hide">{t("sign_out")}</span>
 							</button>
 						</div>
 					</header>
