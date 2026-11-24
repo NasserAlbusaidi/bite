@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { openStatus, suggestPrefix, vatExample } from "./branch-settings";
+import {
+	agoText,
+	deviceStatus,
+	openStatus,
+	suggestPrefix,
+	vatExample,
+} from "./branch-settings";
 import type { AdminDevice } from "./contracts";
 import type { Day } from "./location-form";
 
@@ -84,5 +90,26 @@ describe("suggestPrefix", () => {
 			]),
 		).toBe("H");
 		expect(suggestPrefix([dev("A", true)])).toBe("A");
+	});
+});
+
+describe("deviceStatus", () => {
+	const now = Date.parse("2026-11-24T10:00:00Z");
+	const d = (lastSeenAt: string | null, revokedAt: string | null = null) =>
+		({ lastSeenAt, revokedAt }) as AdminDevice;
+	it("reads revoked, never paired, online and offline", () => {
+		expect(deviceStatus(d(null, "2026-11-01T00:00:00Z"), now).kind).toBe(
+			"revoked",
+		);
+		expect(deviceStatus(d(null), now).kind).toBe("unpaired");
+		expect(deviceStatus(d("2026-11-24T09:58:00Z"), now).kind).toBe("online");
+		expect(deviceStatus(d("2026-11-24T07:00:00Z"), now)).toEqual({
+			kind: "offline",
+			minutesAgo: 180,
+		});
+	});
+	it("says how long ago", () => {
+		expect(agoText(180, "en")).toBe("3 hours ago");
+		expect(agoText(2, "en")).toBe("2 minutes ago");
 	});
 });

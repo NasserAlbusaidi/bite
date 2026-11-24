@@ -20,7 +20,9 @@ import { QrCode, qrSvg } from "../components/QrCode";
 import { adminApi, isDemo } from "../lib/api";
 import { AdminApiError } from "../lib/api-types";
 import {
+	agoText,
 	type DayHours,
+	deviceStatus,
 	openStatus,
 	suggestPrefix,
 	vatExample,
@@ -879,6 +881,21 @@ function PauseCard({ until }: { until: string | null }) {
 	);
 }
 
+function StatusBadge({ d }: { d: AdminDevice }) {
+	const { t } = useShell();
+	const st = deviceStatus(d);
+	if (st.kind === "online")
+		return (
+			<Badge tone="success">
+				<span className="dot" aria-hidden="true" />
+				{t("device_online")}
+			</Badge>
+		);
+	if (st.kind === "unpaired")
+		return <Badge tone="warning">{t("device_unpaired")}</Badge>;
+	return <Badge>{t("device_offline")}</Badge>;
+}
+
 const KIND_ICON = { pos: "tablet", kds: "monitor", kiosk: "bag" } as const;
 
 function Devices({ devices }: { devices: AdminDevice[] }) {
@@ -939,16 +956,27 @@ function Devices({ devices }: { devices: AdminDevice[] }) {
 									{t(`kind_${d.kind}`)} · {t("ticket_prefix")}{" "}
 									<b dir="ltr">{d.ticketPrefix}</b>
 								</span>
-								<span className="muted small">
-									{t("last_seen")}: {when(d.lastSeenAt)}
-								</span>
+								{d.lastSeenAt && (
+									<span className="muted small" title={when(d.lastSeenAt)}>
+										{t("last_seen")}:{" "}
+										{agoText(
+											Math.max(
+												0,
+												Math.floor(
+													(Date.now() - Date.parse(d.lastSeenAt)) / 60_000,
+												),
+											),
+											lang,
+										)}
+									</span>
+								)}
 							</span>
 							<span className="device__side">
 								{d.revokedAt ? (
 									<Badge tone="danger">{t("revoked")}</Badge>
 								) : (
 									<>
-										<Badge tone="success">{t("device_active")}</Badge>
+										<StatusBadge d={d} />
 										<button
 											type="button"
 											className="link-btn danger small"
