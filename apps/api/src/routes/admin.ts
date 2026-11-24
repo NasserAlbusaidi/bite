@@ -9,6 +9,7 @@ import { adminCustomerRoutes } from "./admin-customers.js";
 import { adminMenuRoutes } from "./admin-menu.js";
 import { adminOrgRoutes } from "./admin-org.js";
 import { adminReportRoutes } from "./admin-reports.js";
+import { adminUploadRoutes } from "./uploads.js";
 
 const { orgs } = schema;
 
@@ -41,4 +42,5 @@ export const adminRoutes = new Hono<AppEnv>()
 	.route("/", adminMenuRoutes)
 	.route("/", adminOrgRoutes)
 	.route("/", adminReportRoutes)
-	.route("/", adminCustomerRoutes);
+	.route("/", adminCustomerRoutes)
+	.route("/", adminUploadRoutes);

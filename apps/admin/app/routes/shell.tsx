@@ -14,6 +14,7 @@ import { FlashToasts } from "../components/FlashToasts";
 import { SupportBanner } from "../components/SupportBanner";
 import { adminGate, saveOrg } from "../lib/account";
 import { account, adminApi, isDemo } from "../lib/api";
+import { toastNow } from "../lib/flash";
 import {
 	loc,
 	type MessageKey,
@@ -21,6 +22,7 @@ import {
 	saveLang,
 	translator,
 } from "../lib/i18n";
+import { pausedUntil } from "../lib/location-form";
 import { currentNav, type NavGroup, navItems } from "../lib/nav";
 import { catalogPowers, staffPowers } from "../lib/permissions";
 import { loadPlaces } from "../lib/places";
@@ -129,6 +131,20 @@ export default function Shell({ loaderData }: Route.ComponentProps) {
 		navigate("/sign-in");
 	}, [navigate]);
 
+	const pauseOrders = useCallback(
+		async (p: { id: string; name: string }, minutes: number | null) => {
+			await adminApi().updateLocation(p.id, {
+				ordersPausedUntil: pausedUntil(minutes),
+			});
+			toastNow(
+				t(minutes ? "paused_toast" : "resumed_toast", { branch: p.name }),
+				minutes ? "warning" : "success",
+			);
+			revalidate();
+		},
+		[t, revalidate],
+	);
+
 	// Staff and products for the palette, fetched the first time it opens.
 	useEffect(() => {
 		if (!palette || extra) return;
@@ -217,6 +233,22 @@ export default function Shell({ loaderData }: Route.ComponentProps) {
 				icon: "plus",
 				run: () => navigate("/menu/products/new"),
 			},
+			!!place && {
+				id: "act-pause",
+				label: t("palette_pause", { branch: place.name }),
+				keywords: ["pause", "busy", "kitchen", "إيقاف"],
+				group: t("palette_actions"),
+				icon: "clock",
+				run: () => pauseOrders(place, 30),
+			},
+			!!place && {
+				id: "act-resume",
+				label: t("palette_resume", { branch: place.name }),
+				keywords: ["resume", "open", "استئناف"],
+				group: t("palette_actions"),
+				icon: "refresh",
+				run: () => pauseOrders(place, null),
+			},
 			{
 				id: "act-theme",
 				label: t("theme_set", { name: t(`theme_${nextTheme(theme)}`) }),
@@ -256,6 +288,8 @@ export default function Shell({ loaderData }: Route.ComponentProps) {
 		theme,
 		demo,
 		extra,
+		place,
+		pauseOrders,
 		t,
 		navigate,
 		switchBranch,

@@ -27,6 +27,8 @@ const PUBLIC_ROUTES = new Set([
 	"GET /health",
 	"GET /v1/auth/*",
 	"POST /v1/auth/*",
+	// Product photos guests' phones load; random names, served only as images.
+	"GET /v1/uploads/:org/:file",
 ]);
 
 /**

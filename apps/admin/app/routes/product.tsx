@@ -8,6 +8,7 @@ import {
 	useNavigation,
 } from "react-router";
 import "../menu.css";
+import { PhotoDrop } from "../components/PhotoDrop";
 import { Thumb } from "../components/Thumb";
 import { adminApi } from "../lib/api";
 import type { AdminModifierGroup } from "../lib/contracts";
@@ -252,20 +253,22 @@ function ProductEditor({ loaderData, actionData }: Route.ComponentProps) {
 					<section className="card form">
 						<h2>{t("section_photo")}</h2>
 						<div className="editor__photo">
-							<Thumb
+							<PhotoDrop
 								url={imageUrl || null}
 								name={draft.nameEn || "?"}
 								className="editor__thumb"
+								onUploaded={setImageUrl}
 							/>
 							<label>
-								{t("image_url")}
+								{t("photo_or_link")}
+								<input type="hidden" name="imageUrl" value={imageUrl} />
 								<input
-									name="imageUrl"
 									className="input"
 									type="url"
 									dir="ltr"
 									placeholder="https://"
-									value={imageUrl}
+									// A demo-mode photo is a long data: URL; don't show it.
+									value={imageUrl.startsWith("data:") ? "" : imageUrl}
 									onChange={(e) => setImageUrl(e.currentTarget.value.trim())}
 								/>
 								<span className="muted small">{t("photo_hint")}</span>

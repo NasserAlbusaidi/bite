@@ -11,3 +11,7 @@ coverage/
 .react-router/
 .dev-credentials.txt
 .demo-credentials.txt
+
+# product photos stored by the API (UPLOAD_DIR)
+apps/api/uploads/
+uploads/

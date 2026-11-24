@@ -4,7 +4,7 @@ Legacy app: `NasserAlbusaidi/pos-system` (Laravel). It stays in production until
 
 ## Layout
 
-- `apps/api` Hono API (Node 22)
+- `apps/api` Hono API (Node 22). Product photos: `POST /v1/admin/uploads` stores them on local disk at `UPLOAD_DIR` (default `./uploads`, relative to where the API runs) and serves them at `GET /v1/uploads/:org/:file` under `PUBLIC_API_URL`. Back up that folder with the database.
 - `apps/pos` React + Vite + Capacitor POS and KDS, offline with a local SQLite outbox. Read `apps/pos/README.md` first.
 - `apps/menu` SSR guest menu + group carts (React Router framework mode). With `BITE_API_URL` unset it runs on in-memory fixtures (`app/lib/fixtures.server.ts`). The bare domain (`/`, `/ar`) is Bite's own public page; `BITE_ADMIN_URL` is the back office address its sign-up and log-in buttons point at (unset = no buttons). Behind a TLS proxy set `BITE_MENU_ACTION_HOSTS` (public host, build time) or checkout fails with a bare 400 from the CSRF check.
 - `apps/admin` back office SPA (React Router, `ssr: false`) on the `/v1/admin` contracts. With `VITE_API_URL` unset it runs on in-browser demo data (`app/lib/fixtures.ts`, saved to localStorage). With it set, sign-in is Better Auth on the API: the API's `ADMIN_ORIGINS` must list the admin origin, and admin + API should share a site (admin.bite.om / api.bite.om) so the session cookie works without SameSite=None. `VITE_MENU_URL` is the guest menu's public address (for the printable QR); `VITE_PAIRING_API_URL` overrides the API address in the tablet pairing QR (dev only).

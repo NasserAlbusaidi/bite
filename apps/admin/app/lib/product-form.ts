@@ -39,7 +39,14 @@ export function parseProductForm(f: FormData, decimals: number): ParseResult {
 	if (!categoryId) errors.categoryId = { key: "required_field" };
 
 	const imageUrl = text(f, "imageUrl");
-	if (imageUrl && !/^https:\/\/\S+$/i.test(imageUrl))
+	// https links (uploads included), plain http only for a local dev API,
+	// and demo-mode photos kept in the browser.
+	if (
+		imageUrl &&
+		!/^https:\/\/\S+$/i.test(imageUrl) &&
+		!/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?\/\S*$/.test(imageUrl) &&
+		!/^data:image\/(png|jpeg|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(imageUrl)
+	)
 		errors.imageUrl = { key: "required_field" };
 
 	const sortOrder = Number(text(f, "sortOrder") || "0");

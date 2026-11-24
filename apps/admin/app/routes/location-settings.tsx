@@ -15,7 +15,13 @@ import {
 	useRef,
 	useState,
 } from "react";
-import { data, Form, useFetcher, useNavigation } from "react-router";
+import {
+	data,
+	Form,
+	useBlocker,
+	useFetcher,
+	useNavigation,
+} from "react-router";
 import { QrCode, qrSvg } from "../components/QrCode";
 import { adminApi, isDemo } from "../lib/api";
 import { AdminApiError } from "../lib/api-types";
@@ -228,6 +234,12 @@ export default function LocationSettings({
 		if (actionData?.intent === "save" && "saved" in actionData)
 			toast(t("settings_saved"), "success");
 	}, [actionData, toast, t]);
+
+	// Leaving the page (not saving it) with edits asks first.
+	const blocker = useBlocker(
+		({ currentLocation, nextLocation }) =>
+			dirty && currentLocation.pathname !== nextLocation.pathname,
+	);
 
 	const status = openStatus(hours, location.timezone);
 	const v = draft ?? {
@@ -472,6 +484,31 @@ export default function LocationSettings({
 					</button>
 				</div>
 			</Form>
+			<Dialog
+				open={blocker.state === "blocked"}
+				onClose={() => blocker.reset?.()}
+				title={t("leave_title")}
+				footer={
+					<div className="actions-row">
+						<button
+							type="button"
+							className="btn"
+							onClick={() => blocker.reset?.()}
+						>
+							{t("leave_stay")}
+						</button>
+						<button
+							type="button"
+							className="btn btn--danger"
+							onClick={() => blocker.proceed?.()}
+						>
+							{t("leave_go")}
+						</button>
+					</div>
+				}
+			>
+				<p>{t("leave_body")}</p>
+			</Dialog>
 			<div id="qr" className="anchor">
 				<GuestQr name={location.name} slug={location.slug} />
 			</div>

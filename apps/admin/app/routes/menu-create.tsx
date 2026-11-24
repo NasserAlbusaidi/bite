@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link, redirect, useFetcher } from "react-router";
 import "../menu.css";
+import { PhotoDrop } from "../components/PhotoDrop";
 import { adminApi } from "../lib/api";
 import { AdminApiError } from "../lib/api-types";
 import type { AdminMenu } from "../lib/contracts";
@@ -23,6 +24,9 @@ export async function clientLoader() {
 }
 
 const key = (s: string) => s.trim().toLowerCase();
+/** Photos picked in the preview, by line and name, so edits above don't misplace them. */
+const photoKey = (p: { line: number; nameEn: string }) =>
+	`${p.line}:${key(p.nameEn)}`;
 
 /** Existing category by English name, and the set of names already in it. */
 function existing(menu: AdminMenu) {
@@ -38,6 +42,10 @@ function existing(menu: AdminMenu) {
 export async function clientAction({ request }: Route.ClientActionArgs) {
 	const form = await request.formData();
 	const plan = JSON.parse(String(form.get("plan"))) as ImportResult;
+	const photos = JSON.parse(String(form.get("photos") ?? "{}")) as Record<
+		string,
+		string
+	>;
 	const api = adminApi();
 	let done = 0;
 	try {
@@ -63,6 +71,7 @@ export async function clientAction({ request }: Route.ClientActionArgs) {
 					categoryId: cat.id,
 					name: p.nameAr ? { en: p.nameEn, ar: p.nameAr } : { en: p.nameEn },
 					description: p.descriptionEn ? { en: p.descriptionEn } : null,
+					imageUrl: photos[photoKey(p)] ?? null,
 					price: p.price,
 					sortOrder: sort++,
 				});
@@ -89,6 +98,7 @@ export default function MenuCreate({ loaderData }: Route.ComponentProps) {
 	const [text, setText] = useState("");
 	const [picked, setPicked] = useState<TemplateKey | "blank" | null>(null);
 	const [suggest, setSuggest] = useState(true);
+	const [photos, setPhotos] = useState<Record<string, string>>({});
 	const fetcher = useFetcher<typeof clientAction>();
 
 	const parsed = useMemo(() => {
@@ -269,6 +279,17 @@ export default function MenuCreate({ loaderData }: Route.ComponentProps) {
 													key={p.line}
 													className={`creator-row${p.price === null ? " is-bad" : ""}${dup ? " is-dup" : ""}`}
 												>
+													{!dup && p.price !== null && (
+														<PhotoDrop
+															compact
+															url={photos[photoKey(p)] ?? null}
+															name={p.nameEn}
+															className="creator-thumb"
+															onUploaded={(url) =>
+																setPhotos((m) => ({ ...m, [photoKey(p)]: url }))
+															}
+														/>
+													)}
 													<span className="creator-row__names">
 														<span className="strong">{p.nameEn || "—"}</span>
 														{p.nameAr ? (
@@ -321,6 +342,7 @@ export default function MenuCreate({ loaderData }: Route.ComponentProps) {
 			<div className="editor__bar creator-bar">
 				<fetcher.Form method="post">
 					<input type="hidden" name="plan" value={JSON.stringify(parsed)} />
+					<input type="hidden" name="photos" value={JSON.stringify(photos)} />
 					<button
 						type="submit"
 						className="btn btn--primary"
