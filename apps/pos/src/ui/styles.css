@@ -1023,7 +1023,7 @@ p.strong {
 	color: var(--on-secondary);
 	font-weight: 600;
 }
-.floor-moving button {
+.floor-moving__cancel {
 	margin-inline-start: auto;
 }
 .floor-body {

@@ -252,7 +252,11 @@ export function FloorSheet(props: {
 						{moving && sel && (
 							<p className="floor-moving" role="status">
 								{t("floor.pickTarget", { label: sel.table.label })}
-								<button type="button" onClick={() => setMoving(false)}>
+								<button
+									type="button"
+									className="floor-moving__cancel"
+									onClick={() => setMoving(false)}
+								>
 									{t("floor.cancel")}
 								</button>
 							</p>
