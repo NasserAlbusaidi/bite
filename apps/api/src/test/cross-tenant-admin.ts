@@ -133,6 +133,21 @@ export const adminCases: Record<string, Case> = {
 	"GET /v1/admin/reports/sales": read((h) => `/reports/sales?${range(h)}`, 404),
 	"GET /v1/admin/orders": read((h) => `/orders?${range(h)}`, 404),
 	"GET /v1/admin/orders.csv": read((h) => `/orders.csv?${range(h)}`, 404),
+	"GET /v1/admin/reports/trends": read(
+		(h) => `/reports/trends?${range(h)}`,
+		404,
+	),
+	"GET /v1/admin/cash-sessions": read((h) => `/cash-sessions?${range(h)}`, 404),
+	"GET /v1/admin/orders/:id": async (h) => {
+		const id = uuidv7();
+		await h.owner`insert into orders (id, org_id, location_id, ticket_number, business_date, source, prices_include_tax, subtotal, tax_total, total)
+			values (${id}, ${h.A.org}, ${h.A.loc}, 'X-1', '2026-03-03', 'counter', true, 1000, 48, 1000)`;
+		const res = await send(h, "GET", `/orders/${id}`);
+		expect(res.status).toBe(404);
+		const text = await res.text();
+		expect(text).not.toContain(id);
+		expect(text).not.toContain(h.A.loc);
+	},
 	"GET /v1/admin/staff": async (h) => {
 		const res = await send(h, "GET", "/staff");
 		const text = await res.text();

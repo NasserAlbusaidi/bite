@@ -61,6 +61,7 @@ const paths = {
 	refresh:
 		"M20 11a8 8 0 0 0-14.6-4.5L4 8M4 4v4h4M4 13a8 8 0 0 0 14.6 4.5L20 16M20 20v-4h-4",
 	receipt: "M6 3h12v18l-3-2-3 2-3-2-3 2V3zM9 8h6M9 12h6M9 16h3",
+	cash: "M3 7h18v10H3zM12 9.5a2.5 2.5 0 1 0 0 5a2.5 2.5 0 1 0 0-5M6.5 10v4M17.5 10v4",
 } as const;
 
 export type IconName = keyof typeof paths;

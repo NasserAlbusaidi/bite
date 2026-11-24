@@ -1,10 +1,12 @@
 import type {
+	AdminCashSession,
 	AdminCategory,
 	AdminDevice,
 	AdminLocationSettings,
 	AdminMe,
 	AdminMenu,
 	AdminModifierGroup,
+	AdminOrderDetail,
 	AdminOrderRow,
 	AdminOrdersQuery,
 	AdminProduct,
@@ -23,9 +25,11 @@ import type {
 	PutFloorRequest,
 	RegisterDeviceRequest,
 	RegisterDeviceResponse,
+	Reorder,
 	SalesReport,
 	SalesReportQuery,
 	SetLocationProduct,
+	TrendsReport,
 	UpdateCategory,
 	UpdateLocation,
 	UpdateModifierGroup,
@@ -54,6 +58,9 @@ export interface AdminApi {
 	archiveProduct(id: string): Promise<void>;
 	createCategory(c: CreateCategory): Promise<AdminCategory>;
 	updateCategory(id: string, c: UpdateCategory): Promise<AdminCategory>;
+	/** New sort orders in one go; every id must exist or nothing changes. */
+	reorderCategories(items: Reorder): Promise<void>;
+	reorderProducts(items: Reorder): Promise<void>;
 	createModifierGroup(g: CreateModifierGroup): Promise<AdminModifierGroup>;
 	updateModifierGroup(
 		id: string,
@@ -100,4 +107,7 @@ export interface AdminApi {
 		q: Omit<AdminOrdersQuery, "limit"> & { limit?: number },
 	): Promise<{ items: AdminOrderRow[]; nextCursor?: string | undefined }>;
 	ordersCsv(q: Omit<AdminOrdersQuery, "cursor" | "limit">): Promise<Blob>;
+	trends(q: SalesReportQuery): Promise<TrendsReport>;
+	order(id: string): Promise<AdminOrderDetail>;
+	cashSessions(q: SalesReportQuery): Promise<AdminCashSession[]>;
 }

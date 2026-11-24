@@ -12,6 +12,7 @@ import {
 	LocationRole,
 	Minor,
 	NonNegMinor,
+	OrderSource,
 	OrgRole,
 	PaymentMethod,
 	PaymentStatus,
@@ -385,6 +386,8 @@ export const AdminOrdersQuery = z.object({
 	to: BusinessDate,
 	paymentStatus: PaymentStatus.optional(),
 	fulfillmentStatus: FulfillmentStatus.optional(),
+	/** Ticket number, customer name or phone, or table: contains, any case. */
+	search: z.string().trim().min(1).max(40).optional(),
 	cursor: Cursor.optional(),
 	limit: z.coerce.number().int().min(1).max(200).default(50),
 });
@@ -401,6 +404,135 @@ export const AdminOrderRow = z.object({
 	paidTotal: Minor,
 	customerName: z.string().nullable(),
 	tableLabel: z.string().nullable().optional(),
+});
+
+/**
+ * GET /reports/trends?locationId&from&to: the shapes behind the charts.
+ * Same rules as the sales report: non-cancelled orders, by business date.
+ */
+export const TrendsReport = z.object({
+	locationId: Id,
+	from: BusinessDate,
+	to: BusinessDate,
+	/** Every business date in the range, zero-filled, oldest first. */
+	days: z.array(
+		z.object({ date: BusinessDate, orders: z.int(), net: Minor, total: Minor }),
+	),
+	/**
+	 * Orders by local weekday and hour of placedAt, in the location's time
+	 * zone. weekday 0 = Monday ... 6 = Sunday. Only non-empty cells.
+	 */
+	heat: z.array(
+		z.object({
+			weekday: z.int().min(0).max(6),
+			hour: z.int().min(0).max(23),
+			orders: z.int(),
+			net: Minor,
+		}),
+	),
+	bySource: z.array(
+		z.object({ source: OrderSource, orders: z.int(), net: Minor }),
+	),
+	byType: z.array(z.object({ type: z.string(), orders: z.int(), net: Minor })),
+	/** Line revenue (after promotions, incl. tax per the location's mode). */
+	byCategory: z.array(
+		z.object({
+			categoryId: Id.nullable(),
+			name: LocalizedText,
+			quantity: z.int(),
+			revenue: Minor,
+		}),
+	),
+	/** Minutes from placed to ready, orders that reached ready. */
+	prep: z.object({
+		count: z.int(),
+		medianMinutes: z.number().nullable(),
+		p90Minutes: z.number().nullable(),
+	}),
+});
+
+/** GET /orders/:id: one order with its lines and payments. */
+export const AdminOrderDetail = AdminOrderRow.extend({
+	locationId: Id,
+	subtotal: Minor,
+	discountTotal: Minor,
+	taxTotal: Minor,
+	pricesIncludeTax: z.boolean(),
+	note: z.string().nullable(),
+	customerPhone: z.string().nullable(),
+	readyAt: Instant.nullable(),
+	completedAt: Instant.nullable(),
+	cancelledAt: Instant.nullable(),
+	cancelReason: z.string().nullable(),
+	deviceName: z.string().nullable(),
+	createdByName: z.string().nullable(),
+	lines: z.array(
+		z.object({
+			id: Id,
+			name: LocalizedText,
+			quantity: z.int(),
+			unitPrice: Minor,
+			listUnitPrice: Minor,
+			modifiers: z.array(
+				z.object({ name: LocalizedText, priceDelta: Minor }).loose(),
+			),
+			lineTotal: Minor,
+			lineDiscount: Minor,
+			lineTax: Minor,
+			note: z.string().nullable(),
+			voidedAt: Instant.nullable(),
+			voidReason: z.string().nullable(),
+		}),
+	),
+	payments: z.array(
+		z.object({
+			id: Id,
+			method: PaymentMethod,
+			state: z.string(),
+			amount: Minor,
+			tip: Minor,
+			tendered: Minor.nullable(),
+			reason: z.string().nullable(),
+			businessDate: BusinessDate,
+			createdAt: Instant,
+			createdByName: z.string().nullable(),
+		}),
+	),
+});
+
+/** GET /cash-sessions?locationId&from&to: drawers by business date (Z report). */
+export const CashSessionsQuery = SalesReportQuery;
+export const AdminCashSession = z.object({
+	id: Id,
+	businessDate: BusinessDate,
+	deviceName: z.string(),
+	status: z.enum(["open", "closed"]),
+	openedAt: Instant,
+	openedByName: z.string(),
+	closedAt: Instant.nullable(),
+	closedByName: z.string().nullable(),
+	openingFloat: Minor,
+	/** Cash payments incl. tips (refunds netted). */
+	cashSales: Minor,
+	cashRefunds: Minor,
+	payIns: Minor,
+	payOuts: Minor,
+	drops: Minor,
+	/** Stored at close; computed live while the drawer is open. */
+	expectedCash: Minor,
+	countedCash: Minor.nullable(),
+	/** counted - expected; null while open. */
+	variance: Minor.nullable(),
+	notes: z.string().nullable(),
+	movements: z.array(
+		z.object({
+			kind: z.enum(["pay_in", "pay_out", "drop"]),
+			amount: Minor,
+			reason: z.string(),
+			createdAt: Instant,
+			byName: z.string(),
+		}),
+	),
 });
 
 export type AdminMe = z.infer<typeof AdminMe>;
@@ -435,3 +567,7 @@ export type SalesReportQuery = z.infer<typeof SalesReportQuery>;
 export type SalesReport = z.infer<typeof SalesReport>;
 export type AdminOrdersQuery = z.infer<typeof AdminOrdersQuery>;
 export type AdminOrderRow = z.infer<typeof AdminOrderRow>;
+export type TrendsReport = z.infer<typeof TrendsReport>;
+export type AdminOrderDetail = z.infer<typeof AdminOrderDetail>;
+export type CashSessionsQuery = z.infer<typeof CashSessionsQuery>;
+export type AdminCashSession = z.infer<typeof AdminCashSession>;

@@ -1,9 +1,12 @@
 import {
 	CreateGuestOrderRequest,
 	type CreateGuestOrderResponse,
+	GUEST_TOKEN_HEADER,
+	type GuestProfile,
 	IDEMPOTENCY_KEY_HEADER,
 	type PublicMenuResponse,
 } from "@bite/contracts";
+import { maskPhone } from "@bite/core";
 import { schema, withTenant } from "@bite/db";
 import { eq, sql } from "@bite/db/orm";
 import { Hono } from "hono";
@@ -13,6 +16,11 @@ import { loadEntitlements } from "../lib/entitlements.js";
 import { ApiError } from "../lib/errors.js";
 import { slugTx } from "../lib/public-tenant.js";
 import { validate } from "../lib/validate.js";
+import {
+	customerForToken,
+	loadProgram,
+	recentOrders,
+} from "../loyalty/service.js";
 import { acceptsOrders } from "../menu/hours.js";
 import { loadMenuSnapshot } from "../menu/snapshot.js";
 import { loadOrderDto } from "../orders/dto.js";
@@ -48,8 +56,15 @@ export const publicRoutes = new Hono<AppEnv>()
 					"locationSlug does not match the URL",
 				);
 			const now = c.var.deps.now?.() ?? new Date();
-			const { lines, type, customerName, customerPhone, tableLabel, note } =
-				body;
+			const {
+				lines,
+				type,
+				customerName,
+				customerPhone,
+				tableLabel,
+				note,
+				rewardId,
+			} = body;
 			const input = {
 				lines,
 				type,
@@ -57,6 +72,7 @@ export const publicRoutes = new Hono<AppEnv>()
 				customerPhone,
 				tableLabel,
 				note,
+				rewardId,
 			};
 			const out = await slugTx(c, slug, (tx, ids) =>
 				placeGuestOrder(tx, ids, input, {
@@ -65,9 +81,13 @@ export const publicRoutes = new Hono<AppEnv>()
 					idempotencyKey: key.data,
 					fingerprint: guestFingerprint(input, slug),
 					deps: c.var.deps,
+					guestToken: c.req.header(GUEST_TOKEN_HEADER),
 				}),
 			);
-			const res: CreateGuestOrderResponse = { order: out.view };
+			const res: CreateGuestOrderResponse = {
+				order: out.view,
+				...(out.guest ? { guest: out.guest } : {}),
+			};
 			return c.json(res, out.created ? 201 : 200);
 		},
 	)
@@ -90,6 +110,25 @@ export const publicRoutes = new Hono<AppEnv>()
 			return c.json(toGuestView(dto, token));
 		},
 	)
+	/** The remembered guest behind the token header: points, rewards, last orders. */
+	.get("/locations/:slug/guest", async (c) => {
+		const token = c.req.header(GUEST_TOKEN_HEADER);
+		const body = await slugTx(c, c.req.param("slug"), async (tx, ids) => {
+			const cust = await customerForToken(tx, ids.orgId, token);
+			if (!cust) throw new ApiError("not_found", "no such guest");
+			const res: GuestProfile = {
+				name: cust.name,
+				phoneHint: maskPhone(cust.phone),
+				points: cust.points,
+				visitCount: cust.visitCount,
+				program: await loadProgram(tx, ids.orgId),
+				recentOrders: await recentOrders(tx, cust.id),
+			};
+			return res;
+		});
+		c.header("cache-control", "no-store");
+		return c.json(body);
+	})
 	.get("/locations/:slug/menu", async (c) => {
 		const now = c.var.deps.now?.() ?? new Date();
 		const body = await slugTx(c, c.req.param("slug"), async (tx, ids) => {

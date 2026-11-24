@@ -1,6 +1,7 @@
 export * from "./allocate.js";
 export * from "./cart.js";
 export * from "./clock.js";
+export * from "./loyalty.js";
 export * from "./money.js";
 export * from "./order-status.js";
 export * from "./plans.js";

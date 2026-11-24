@@ -2,11 +2,13 @@ import { ErrorBody, ORG_HEADER } from "@bite/contracts";
 import { z } from "zod";
 import { type AdminApi, AdminApiError } from "./api-types";
 import {
+	AdminCashSession,
 	AdminCategory,
 	AdminDevice,
 	AdminLocationSettings,
 	AdminMe,
 	AdminModifierGroup,
+	AdminOrderDetail,
 	AdminOrderRow,
 	AdminProduct,
 	AdminPromotion,
@@ -17,6 +19,7 @@ import {
 	Page,
 	RegisterDeviceResponse,
 	SalesReport,
+	TrendsReport,
 } from "./contracts";
 
 /** Back office over HTTP, under /v1/admin. Auth is the Better Auth session cookie. */
@@ -112,6 +115,12 @@ export function httpAdminApi(
 		createCategory: (c) => call(AdminCategory, "/categories", send("POST", c)),
 		updateCategory: (id, c) =>
 			call(AdminCategory, `/categories/${enc(id)}`, send("PATCH", c)),
+		reorderCategories: async (items) => {
+			await call(z.unknown(), "/categories/order", send("PATCH", items));
+		},
+		reorderProducts: async (items) => {
+			await call(z.unknown(), "/products/order", send("PATCH", items));
+		},
 		createModifierGroup: (g) =>
 			call(AdminModifierGroup, "/modifier-groups", send("POST", g)),
 		updateModifierGroup: (id, g) =>
@@ -173,6 +182,10 @@ export function httpAdminApi(
 			call(RegisterDeviceResponse, "/devices", send("POST", d)),
 		salesReport: (q) => call(SalesReport, `/reports/sales${qs(q)}`),
 		orders: (q) => call(Page(AdminOrderRow), `/orders${qs(q)}`),
+		trends: (q) => call(TrendsReport, `/reports/trends${qs(q)}`),
+		order: (id) => call(AdminOrderDetail, `/orders/${enc(id)}`),
+		cashSessions: (q) =>
+			call(z.array(AdminCashSession), `/cash-sessions${qs(q)}`),
 		ordersCsv: async (q) => {
 			const res = await fetchImpl(
 				new URL(`/v1/admin/orders.csv${qs(q)}`, baseUrl),

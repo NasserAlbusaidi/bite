@@ -3,7 +3,7 @@
  * State persists in localStorage so edits survive a refresh. Validation is
  * the same schema validation the API does; tenancy and auth are not modelled.
  */
-import { resolveEntitlements } from "@bite/core";
+import { addDays, resolveEntitlements } from "@bite/core";
 import { type AdminApi, AdminApiError } from "./api-types";
 import {
 	type AdminCategory,
@@ -27,6 +27,7 @@ import {
 	type LocationProduct,
 	PutFloorRequest,
 	RegisterDeviceRequest,
+	Reorder,
 	ResetPin,
 	SetLocationProduct,
 	UpdateCategory,
@@ -37,7 +38,14 @@ import {
 	UpdatePromotion,
 	UpdateStaff,
 } from "./contracts";
-import { demoOrders, demoReport, ordersCsv } from "./demo-orders";
+import {
+	demoCashSessions,
+	demoOrderDetail,
+	demoOrders,
+	demoReport,
+	demoTrends,
+	ordersCsv,
+} from "./demo-orders";
 import { starterFloor } from "./floor";
 import { uuidv7 } from "./uuid";
 
@@ -99,14 +107,25 @@ const settings = (l: typeof azaiba): AdminLocationSettings => ({
 	currencyCode: "OMR",
 	pricesIncludeTax: true,
 	taxBps: 500,
-	vatNumber: null,
+	vatNumber: "OM1100234567",
 	dayCutoffMinutes: 240,
-	address: null,
-	phone: null,
+	address:
+		l.name === "Azaiba"
+			? "Way 3025, Al Azaiba, Muscat"
+			: "The Walk, Al Mouj, Muscat",
+	phone: l.name === "Azaiba" ? "+968 2400 1122" : "+968 2400 3344",
 	whatsappNumber: null,
-	businessHours: null,
+	businessHours: {
+		sun: [{ open: "06:30", close: "22:00" }],
+		mon: [{ open: "06:30", close: "22:00" }],
+		tue: [{ open: "06:30", close: "22:00" }],
+		wed: [{ open: "06:30", close: "22:00" }],
+		thu: [{ open: "06:30", close: "23:00" }],
+		fri: [{ open: "08:00", close: "23:00" }],
+		sat: [{ open: "07:00", close: "22:00" }],
+	},
 	theme: {},
-	receiptHeader: null,
+	receiptHeader: "Baked fresh every morning",
 	ordersPausedUntil: null,
 });
 export const DEMO_LOCATIONS: AdminLocationSettings[] = [
@@ -126,6 +145,7 @@ export function demoState(): DemoState {
 		price: number,
 		sortOrder: number,
 		modifierGroupIds: string[] = [],
+		imageUrl: string | null = null,
 	): AdminProduct => ({
 		id: id(n),
 		categoryId,
@@ -133,7 +153,7 @@ export function demoState(): DemoState {
 		description: null,
 		price,
 		taxBps: null,
-		imageUrl: null,
+		imageUrl,
 		isVisible: true,
 		sortOrder,
 		archivedAt: null,
@@ -167,9 +187,27 @@ export function demoState(): DemoState {
 			products: [
 				p(10, breads, "Country sourdough", "خبز العجين المخمر", 2500, 0),
 				p(11, breads, "Seeded rye", "خبز الجاودار بالبذور", 2800, 1),
-				p(20, pastries, "Butter croissant", "كرواسون بالزبدة", 1200, 0),
+				p(
+					20,
+					pastries,
+					"Butter croissant",
+					"كرواسون بالزبدة",
+					1200,
+					0,
+					[],
+					"https://images.unsplash.com/photo-1639667852145-466e29aa49fd?w=800&h=600&fit=crop&q=70&auto=format",
+				),
 				p(21, pastries, "Cardamom bun", "كعكة الهيل", 1350, 1),
-				p(30, drinks, "Flat white", "فلات وايت", 1600, 0, [id(100), id(200)]),
+				p(
+					30,
+					drinks,
+					"Flat white",
+					"فلات وايت",
+					1600,
+					0,
+					[id(100), id(200)],
+					"https://images.unsplash.com/photo-1620052087057-bfd8235f5874?w=800&h=600&fit=crop&q=70&auto=format",
+				),
 			],
 			modifierGroups: [
 				{
@@ -306,6 +344,23 @@ export function demoState(): DemoState {
 }
 
 const KEY = "bite.admin.demo.v5";
+
+/** Like the API: every id must exist, else nothing changes. */
+function reorderIn(
+	list: { id: string; sortOrder: number }[],
+	items: { id: string; sortOrder: number }[],
+) {
+	const v = Reorder.safeParse(items);
+	if (!v.success) throw new AdminApiError("bad_request", 400, v.error);
+	const ids = items.map((i) => i.id);
+	if (new Set(ids).size !== ids.length)
+		throw new AdminApiError("bad_request", 400);
+	const rows = items.map((i) => list.find((x) => x.id === i.id));
+	if (rows.some((r) => !r)) throw new AdminApiError("not_found", 404);
+	items.forEach((i, n) => {
+		(rows[n] as { sortOrder: number }).sortOrder = i.sortOrder;
+	});
+}
 
 export function fixtureAdminApi(
 	initial: DemoState = demoState(),
@@ -494,6 +549,14 @@ export function fixtureAdminApi(
 			persist();
 			return clone(c);
 		},
+		async reorderCategories(items) {
+			reorderIn(state.menu.categories, items);
+			persist();
+		},
+		async reorderProducts(items) {
+			reorderIn(state.menu.products, items);
+			persist();
+		},
 		async createModifierGroup(input) {
 			const v = valid(CreateModifierGroup, input);
 			const g: AdminModifierGroup = { id: uuidv7(), ...v, options: [] };
@@ -662,7 +725,14 @@ export function fixtureAdminApi(
 		async devices(lid) {
 			if (!state.locations.some((x) => x.id === lid))
 				throw new AdminApiError("not_found", 404);
-			return clone(state.devices.filter((d) => d.locationId === lid));
+			// The demo's own tablets are "on" and calling in; new ones stay unpaired.
+			const demoTablets = new Set([id(600), id(601)]);
+			return clone(state.devices.filter((d) => d.locationId === lid)).map(
+				(d) =>
+					demoTablets.has(d.id) && !d.revokedAt
+						? { ...d, lastSeenAt: new Date(Date.now() - 40_000).toISOString() }
+						: d,
+			);
 		},
 		async registerDevice(input) {
 			const v = valid(RegisterDeviceRequest, input);
@@ -713,7 +783,11 @@ export function fixtureAdminApi(
 					(r) =>
 						(!q.paymentStatus || r.paymentStatus === q.paymentStatus) &&
 						(!q.fulfillmentStatus ||
-							r.fulfillmentStatus === q.fulfillmentStatus),
+							r.fulfillmentStatus === q.fulfillmentStatus) &&
+						(!q.search ||
+							[r.ticketNumber, r.customerName ?? "", r.tableLabel ?? ""].some(
+								(v) => v.toLowerCase().includes(q.search?.toLowerCase() ?? ""),
+							)),
 				)
 				.sort((a, b) => b.placedAt.localeCompare(a.placedAt));
 			const start = q.cursor ? Number.parseInt(q.cursor, 10) : 0;
@@ -723,6 +797,30 @@ export function fixtureAdminApi(
 			return next < rows.length
 				? { items, nextCursor: String(next) }
 				: { items };
+		},
+		async trends(q) {
+			if (!state.locations.some((x) => x.id === q.locationId))
+				throw new AdminApiError("not_found", 404);
+			const orders = demoOrders(q.locationId, state.menu, q.from, q.to);
+			return demoTrends(q.locationId, q.from, q.to, orders, state.menu);
+		},
+		async order(id) {
+			// Demo ids aren't indexed: look through the last 90 days per branch.
+			const to = new Date().toISOString().slice(0, 10);
+			for (const l of state.locations) {
+				const o = demoOrders(l.id, state.menu, addDays(to, -90), to).find(
+					(x) => x.row.id === id,
+				);
+				if (o) return demoOrderDetail(l.id, o, state.menu);
+			}
+			throw new AdminApiError("not_found", 404);
+		},
+		async cashSessions(q) {
+			if (!state.locations.some((x) => x.id === q.locationId))
+				throw new AdminApiError("not_found", 404);
+			const orders = demoOrders(q.locationId, state.menu, q.from, q.to);
+			const today = new Date().toISOString().slice(0, 10);
+			return demoCashSessions(q.locationId, q.from, q.to, today, orders);
 		},
 		async ordersCsv(q) {
 			const { items } = await this.orders({ ...q, limit: 100_000 });

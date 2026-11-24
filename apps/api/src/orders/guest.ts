@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import type {
+	CreateGuestOrderResponse,
 	GuestOrderRejectDetails,
 	GuestOrderView,
 	OrderType,
@@ -20,6 +21,16 @@ import { and, eq, sql } from "@bite/db/orm";
 import type { Deps } from "../env.js";
 import { loadEntitlements } from "../lib/entitlements.js";
 import { ApiError } from "../lib/errors.js";
+import {
+	attachCustomer,
+	awardIfPaid,
+	customerForToken,
+	issueGuestToken,
+	loadProgram,
+	pendingPoints,
+	redeemReward,
+	upsertCustomer,
+} from "../loyalty/service.js";
 import { acceptsOrders } from "../menu/hours.js";
 import { loadMenuSnapshot } from "../menu/snapshot.js";
 import { isUniqueViolation } from "../sync/orders.js";
@@ -47,6 +58,8 @@ export type GuestOrderInput = {
 	tableLabel?: string | undefined;
 	note?: string | undefined;
 	lines: readonly GuestLine[];
+	/** Spend points on this reward (needs a guest token for the same guest). */
+	rewardId?: string | undefined;
 };
 
 const REASON: Partial<
@@ -117,8 +130,15 @@ export async function placeGuestOrder(
 		fingerprint: string;
 		/** For the plan check (QR ordering is a paid feature). */
 		deps: Pick<Deps, "planEnforcement" | "now">;
+		/** The guest menu's remembered-guest token, if it sent one. */
+		guestToken?: string | undefined;
 	},
-): Promise<{ view: GuestOrderView; created: boolean; orderId: string }> {
+): Promise<{
+	view: GuestOrderView;
+	created: boolean;
+	orderId: string;
+	guest?: CreateGuestOrderResponse["guest"];
+}> {
 	const [prior] = await tx
 		.select({
 			id: orders.id,
@@ -301,7 +321,74 @@ export async function placeGuestOrder(
 			sortOrder: i,
 		})),
 	);
+	const guest = await linkGuest(tx, ids.orgId, orderId, p.total, input, opts);
 	const dto = await loadOrderDto(tx, orderId);
 	if (!dto) throw new ApiError("internal", "order vanished");
-	return { view: toGuestView(dto, row.token), created: true, orderId };
+	return {
+		view: toGuestView(dto, row.token),
+		created: true,
+		orderId,
+		...(guest ? { guest } : {}),
+	};
+}
+
+/**
+ * Returning guests: a typed phone finds or creates the org's customer; a
+ * remembered token stands in for the phone. A token is handed out only to
+ * the device that first used a number (or that already holds one), so typing
+ * someone else's number earns them points but shows you nothing of theirs.
+ */
+async function linkGuest(
+	tx: Tx,
+	orgId: string,
+	orderId: string,
+	total: number,
+	input: GuestOrderInput,
+	opts: { now: Date; guestToken?: string | undefined },
+): Promise<CreateGuestOrderResponse["guest"]> {
+	const known = await customerForToken(tx, orgId, opts.guestToken);
+	const typed = input.customerPhone
+		? await upsertCustomer(tx, orgId, input.customerPhone, input.customerName)
+		: null;
+	const customer = typed?.customer ?? known;
+	if (!customer) {
+		if (input.rewardId) throw rejectGuest("reward_unavailable");
+		return undefined;
+	}
+	await attachCustomer(tx, orderId, customer, opts.now);
+	const sameGuest = known?.id === customer.id;
+	const token =
+		typed?.created || (!known && !typed)
+			? await issueGuestToken(tx, orgId, customer.id)
+			: undefined;
+	let redeemed: { rewardId: string; amount: number } | undefined;
+	let points = customer.points;
+	if (input.rewardId) {
+		if (!sameGuest) throw rejectGuest("reward_unavailable");
+		try {
+			const r = await redeemReward(tx, {
+				orgId,
+				orderId,
+				customerId: customer.id,
+				rewardId: input.rewardId,
+				now: opts.now,
+			});
+			redeemed = { rewardId: input.rewardId, amount: r.amount };
+			points -= r.points;
+			// A reward that covers the whole bill: the order is paid already.
+			await awardIfPaid(tx, orderId);
+		} catch (err) {
+			if (err instanceof ApiError) throw rejectGuest("reward_unavailable");
+			throw err;
+		}
+	}
+	const program = await loadProgram(tx, orgId);
+	return {
+		...(token ? { token } : {}),
+		points,
+		pointsPending: program.enabled
+			? await pendingPoints(tx, orgId, total - (redeemed?.amount ?? 0))
+			: 0,
+		...(redeemed ? { redeemed } : {}),
+	};
 }

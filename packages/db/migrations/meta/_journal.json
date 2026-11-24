@@ -113,6 +113,20 @@
 			"when": 1795499767486,
 			"tag": "0015_order_table_label",
 			"breakpoints": true
+		},
+		{
+			"idx": 16,
+			"version": "7",
+			"when": 1795504735303,
+			"tag": "0016_loyalty",
+			"breakpoints": true
+		},
+		{
+			"idx": 17,
+			"version": "7",
+			"when": 1795505782578,
+			"tag": "0017_floor_plan",
+			"breakpoints": true
 		}
 	]
 }

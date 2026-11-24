@@ -1,32 +1,31 @@
-import { addDays, businessDate } from "@bite/core";
-import { type ReactNode, useState } from "react";
-import { data, Form, useSearchParams } from "react-router";
+import { businessDate } from "@bite/core";
+import type { ReactNode } from "react";
+import { data, Form, Link } from "react-router";
+import {
+	DayChart,
+	DeltaChip,
+	Heatmap,
+	HourBars,
+	MixList,
+} from "../components/charts";
 import { adminApi } from "../lib/api";
-import type { AdminOrderRow } from "../lib/contracts";
+import type { SalesReport, TrendsReport } from "../lib/contracts";
+import { taken } from "../lib/dashboard";
 import { loc } from "../lib/i18n";
+import {
+	daysIn,
+	delta,
+	heatGrid,
+	presets,
+	previousPeriod,
+} from "../lib/insights";
 import { toDecimal } from "../lib/money";
-import { loadPlaces } from "../lib/places";
+import { loadPlaces, type Place } from "../lib/places";
 import { selectedLocationId } from "../lib/selected-location";
 import { useShell } from "../lib/use-shell";
 import type { Route } from "./+types/reports";
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
-const PAYMENT = [
-	"unpaid",
-	"partially_paid",
-	"paid",
-	"partially_refunded",
-	"refunded",
-] as const;
-const FULFILLMENT = [
-	"pending",
-	"preparing",
-	"ready",
-	"completed",
-	"cancelled",
-] as const;
-type Payment = (typeof PAYMENT)[number];
-type Fulfillment = (typeof FULFILLMENT)[number];
 
 export async function clientLoader({ request }: Route.ClientLoaderArgs) {
 	const api = adminApi();
@@ -41,76 +40,183 @@ export async function clientLoader({ request }: Route.ClientLoaderArgs) {
 	const url = new URL(request.url);
 	const pick = (k: string, d: string) => {
 		const v = url.searchParams.get(k) ?? "";
-		return DATE.test(v) ? v : d;
+		return DATE.test(v) && v <= today ? v : d;
 	};
 	let from = pick("from", today);
 	let to = pick("to", today);
 	if (to < from) [from, to] = [to, from];
-	const pay = url.searchParams.get("payment");
-	const ful = url.searchParams.get("fulfillment");
-	const filters = {
-		...(PAYMENT.includes(pay as Payment)
-			? { paymentStatus: pay as Payment }
-			: {}),
-		...(FULFILLMENT.includes(ful as Fulfillment)
-			? { fulfillmentStatus: ful as Fulfillment }
-			: {}),
-	};
-	const [report, orders] = await Promise.all([
-		api.salesReport({ locationId, from, to }),
-		api.orders({ locationId, from, to, ...filters, limit: 50 }),
+	const prev = previousPeriod(from, to);
+	const q = { locationId, from, to };
+	// The comparison is an extra: a plan's history window may refuse it.
+	const [report, trends, prevReport, prevTrends, branches] = await Promise.all([
+		api.salesReport(q),
+		api.trends(q),
+		api.salesReport({ locationId, ...prev }).catch(() => null),
+		api.trends({ locationId, ...prev }).catch(() => null),
+		places.length > 1
+			? Promise.all(
+					places.map(async (p) => ({
+						place: p,
+						report: await api
+							.salesReport({ locationId: p.id, from, to })
+							.catch(() => null),
+						prev: await api
+							.salesReport({ locationId: p.id, ...prev })
+							.catch(() => null),
+					})),
+				)
+			: Promise.resolve([]),
 	]);
 	return {
 		locationId,
-		timeZone: s.timezone,
 		today,
 		from,
 		to,
-		filters,
+		prev,
 		report,
-		orders,
+		trends,
+		prevReport,
+		prevTrends,
+		branches,
 	};
 }
 
 export default function Reports({ loaderData }: Route.ComponentProps) {
-	const { report, orders, today, from, to, filters, locationId } = loaderData;
+	const { report, trends, today, from, to, prev } = loaderData;
+	// Nothing sold before (new branch, start of history): no comparison.
+	// Also none when the earlier range is mostly before the shop's history
+	// starts: "+2000%" against two days of trading tells nobody anything.
+	const active = (x: TrendsReport | null) =>
+		x ? x.days.filter((d) => d.orders > 0).length : 0;
+	const hasPrev =
+		(loaderData.prevReport?.orderCount ?? 0) > 0 &&
+		active(loaderData.prevTrends) * 5 >= active(trends) * 4;
+	const prevReport = hasPrev ? loaderData.prevReport : null;
+	const prevTrends = hasPrev ? loaderData.prevTrends : null;
+	// Today so far against all of yesterday would always read as a drop.
+	const partial = from === today && to === today;
 	const { t, lang, place } = useShell();
-	const [params] = useSearchParams();
 	const decimals = place?.decimals ?? 3;
 	const currency = place?.currencyCode ?? "OMR";
-	const money = (n: number) => (
+	const money = (
+		n: number,
+		p: Pick<Place, "decimals" | "currencyCode"> = {
+			decimals,
+			currencyCode: currency,
+		},
+	) => (
 		<bdi dir="ltr">
-			{toDecimal(n, decimals)} {currency}
+			{toDecimal(n, p.decimals)} {p.currencyCode}
 		</bdi>
 	);
-	const presets: [string, string, string][] = [
-		[t("today"), today, today],
-		[t("yesterday"), addDays(today, -1), addDays(today, -1)],
-		[t("last_7_days"), addDays(today, -6), today],
-		[t("this_month"), `${today.slice(0, 8)}01`, today],
-	];
-	const link = (f: string, tt: string) => {
-		const p = new URLSearchParams(params);
-		p.set("from", f);
-		p.set("to", tt);
-		return `?${p.toString()}`;
+	const unit = 10 ** decimals;
+	const compact = new Intl.NumberFormat("en", {
+		notation: "compact",
+		maximumFractionDigits: 1,
+	});
+	const short = (n: number) => compact.format(Math.trunc(n / unit));
+	const avg = (r: SalesReport) =>
+		r.orderCount ? Math.trunc(r.total / r.orderCount) : 0;
+	const vs = (cur: number, before: number | undefined) =>
+		before === undefined || partial ? null : (
+			<DeltaChip d={delta(cur, before)} t={t} />
+		);
+	const single = from === to;
+	const grid = heatGrid(trends.heat);
+	const dayFmt = new Intl.DateTimeFormat(lang === "ar" ? "ar-OM" : "en-GB", {
+		day: "numeric",
+		month: "short",
+		year: "numeric",
+		timeZone: "UTC",
+		numberingSystem: "latn",
+	});
+	const fmtDay = (d: string) => dayFmt.format(new Date(`${d}T00:00:00Z`));
+	const rangeLabel = single ? fmtDay(from) : `${fmtDay(from)} – ${fmtDay(to)}`;
+	const wd = new Intl.DateTimeFormat(lang === "ar" ? "ar-OM" : "en-GB", {
+		weekday: "long",
+		timeZone: "UTC",
+	});
+	const busiest = grid.busiest;
+	const weekdayOfFrom = (new Date(`${from}T00:00:00Z`).getUTCDay() + 6) % 7;
+	const hoursOfDay = (h: TrendsReport | null, w: number) => {
+		const out = Array<number>(24).fill(0);
+		for (const c of h?.heat ?? []) if (c.weekday === w) out[c.hour] = c.orders;
+		return out;
+	};
+	const sourceTotal = trends.bySource.reduce((s, r) => s + r.orders, 0);
+	const guestShare = sourceTotal
+		? Math.trunc(
+				(trends.bySource
+					.filter((r) => r.source !== "counter")
+					.reduce((s, r) => s + r.orders, 0) *
+					100) /
+					sourceTotal,
+			)
+		: 0;
+
+	const summaryCsv = () => {
+		const rows = [
+			["date", "orders", `net_${currency}`, `total_${currency}`],
+			...trends.days.map((d) => [
+				d.date,
+				String(d.orders),
+				toDecimal(d.net, decimals),
+				toDecimal(d.total, decimals),
+			]),
+		];
+		const blob = new Blob(
+			[`﻿${rows.map((r) => r.join(",")).join("\r\n")}\r\n`],
+			{
+				type: "text/csv",
+			},
+		);
+		const a = document.createElement("a");
+		a.href = URL.createObjectURL(blob);
+		a.download = `sales-${place?.slug ?? "branch"}-${from}-to-${to}.csv`;
+		a.click();
+		setTimeout(() => URL.revokeObjectURL(a.href), 10_000);
 	};
 
 	return (
-		<>
+		<div className="report">
 			<div className="page-head">
-				<h1>{t("reports_title", { location: place?.name ?? "" })}</h1>
+				<div>
+					<h1>{t("reports_title", { location: place?.name ?? "" })}</h1>
+					<p className="muted small">
+						<bdi dir="ltr">{rangeLabel}</bdi>
+						{prevReport && (
+							<>
+								{" · "}
+								{t("compared_with", {
+									range:
+										prev.from === prev.to
+											? fmtDay(prev.from)
+											: `${fmtDay(prev.from)} – ${fmtDay(prev.to)}`,
+								})}
+							</>
+						)}
+					</p>
+				</div>
+				<div className="actions-row no-print">
+					<button type="button" className="btn" onClick={summaryCsv}>
+						{t("download_csv")}
+					</button>
+					<button type="button" className="btn" onClick={() => window.print()}>
+						{t("print_pdf")}
+					</button>
+				</div>
 			</div>
-			<div className="card presets">
+
+			<div className="card presets no-print">
 				<div className="actions-row">
-					{presets.map(([label, f, tt]) => (
-						<a
-							key={label}
-							href={link(f, tt)}
-							className={`chip${f === from && tt === to ? " chip--on" : ""}`}
+					{presets(today).map((p) => (
+						<Link
+							key={p.key}
+							to={`?from=${p.from}&to=${p.to}`}
+							className={`chip${p.from === from && p.to === to ? " chip--on" : ""}`}
 						>
-							{label}
-						</a>
+							{t(p.key as "today")}
+						</Link>
 					))}
 				</div>
 				<Form method="get" className="inline-form">
@@ -142,281 +248,363 @@ export default function Reports({ loaderData }: Route.ComponentProps) {
 				</Form>
 			</div>
 
-			<section className="stats">
-				<Stat
+			<section className="stats stats--kpi">
+				<Kpi
 					label={t("net_sales")}
 					value={money(report.net)}
-					hint={t("net_sales_hint")}
+					delta={vs(report.net, prevReport?.net)}
+					hint={
+						prevReport && (
+							<>
+								{t(partial ? "yesterday_was" : "before")}{" "}
+								{money(prevReport.net)}
+							</>
+						)
+					}
 				/>
-				<Stat
+				<Kpi
 					label={t("orders")}
 					value={<bdi dir="ltr">{report.orderCount}</bdi>}
+					delta={vs(report.orderCount, prevReport?.orderCount)}
+					hint={
+						prevReport && (
+							<>
+								{t(partial ? "yesterday_was" : "before")}{" "}
+								<bdi dir="ltr">{prevReport.orderCount}</bdi>
+							</>
+						)
+					}
 				/>
-				<Stat
+				<Kpi
 					label={t("avg_order")}
-					value={money(
-						report.orderCount
-							? Math.trunc(report.total / report.orderCount)
-							: 0,
-					)}
+					value={money(avg(report))}
+					delta={vs(avg(report), prevReport ? avg(prevReport) : undefined)}
+					hint={
+						prevReport && (
+							<>
+								{t(partial ? "yesterday_was" : "before")}{" "}
+								{money(avg(prevReport))}
+							</>
+						)
+					}
 				/>
-				<Stat label={t("discounts")} value={money(report.discounts)} />
-				<Stat label={t("vat")} value={money(report.tax)} />
-				<Stat label={t("tips")} value={money(report.tips)} />
+				<Kpi
+					label={t("overview_taken")}
+					value={money(taken(report))}
+					hint={t("taken_hint")}
+				/>
+				<Kpi
+					label={t("discounts")}
+					value={money(report.discounts)}
+					hint={
+						report.gross > 0 && (
+							<>
+								<bdi dir="ltr">
+									{Math.trunc((report.discounts * 100) / report.gross)}%
+								</bdi>{" "}
+								{t("of_gross")}
+							</>
+						)
+					}
+				/>
+				{trends.prep.medianMinutes !== null && (
+					<Kpi
+						label={t("prep_time")}
+						value={
+							<bdi dir="ltr">
+								{t("minutes_short", { n: trends.prep.medianMinutes })}
+							</bdi>
+						}
+						hint={
+							trends.prep.p90Minutes !== null &&
+							t("prep_p90", { n: trends.prep.p90Minutes })
+						}
+					/>
+				)}
 			</section>
+
+			<section className="card">
+				<div className="card-head">
+					<h2>{single ? t("chart_hourly") : t("chart_daily")}</h2>
+					{!single && (
+						<span className="muted small">
+							{t("n_days", { count: daysIn(from, to) })}
+						</span>
+					)}
+				</div>
+				{report.orderCount === 0 ? (
+					<p className="muted empty">{t("no_sales")}</p>
+				) : single ? (
+					<HourBars
+						today={hoursOfDay(trends, weekdayOfFrom)}
+						ref={
+							prevTrends
+								? hoursOfDay(prevTrends, (weekdayOfFrom + 6) % 7)
+								: undefined
+						}
+						nowHour={-1}
+						t={t}
+					/>
+				) : (
+					<DayChart
+						days={trends.days}
+						prev={prevTrends?.days}
+						money={(n) => money(n)}
+						short={short}
+						lang={lang}
+						t={t}
+					/>
+				)}
+			</section>
+
+			{loaderData.branches.length > 1 && (
+				<section className="card">
+					<h2>{t("branch_compare")}</h2>
+					<div className="table-wrap">
+						<table className="table">
+							<thead>
+								<tr>
+									<th>{t("location")}</th>
+									<th className="num">{t("net_sales")}</th>
+									<th className="num">{t("orders")}</th>
+									<th className="num">{t("avg_order")}</th>
+									<th className="num">{t("vs_previous")}</th>
+								</tr>
+							</thead>
+							<tbody>
+								{[...loaderData.branches]
+									.sort((a, b) => (b.report?.net ?? 0) - (a.report?.net ?? 0))
+									.map((b) => {
+										const best = Math.max(
+											1,
+											...loaderData.branches.map((x) => x.report?.net ?? 0),
+										);
+										return (
+											<tr key={b.place.id}>
+												<td>
+													<span
+														className={
+															b.place.id === loaderData.locationId
+																? "strong"
+																: undefined
+														}
+													>
+														{b.place.name}
+													</span>
+													<span
+														className="bar"
+														aria-hidden="true"
+														style={{
+															inlineSize: `${Math.max(2, Math.trunc(((b.report?.net ?? 0) * 100) / best))}%`,
+														}}
+													/>
+												</td>
+												<td className="num strong">
+													{b.report ? money(b.report.net, b.place) : "—"}
+												</td>
+												<td className="num">
+													<bdi dir="ltr">{b.report?.orderCount ?? "—"}</bdi>
+												</td>
+												<td className="num muted">
+													{b.report ? money(avg(b.report), b.place) : "—"}
+												</td>
+												<td className="num">
+													{hasPrev && b.report && b.prev ? (
+														<DeltaChip
+															d={delta(b.report.net, b.prev.net)}
+															t={t}
+														/>
+													) : (
+														"—"
+													)}
+												</td>
+											</tr>
+										);
+									})}
+							</tbody>
+						</table>
+					</div>
+				</section>
+			)}
+
+			<div className="grid2">
+				{daysIn(from, to) >= 7 && (
+					<section className="card">
+						<div className="card-head">
+							<h2>{t("heat_title")}</h2>
+						</div>
+						{busiest && (
+							<p className="callout small">
+								{t("heat_busiest", {
+									day: wd.format(
+										new Date(Date.UTC(2024, 0, 1 + busiest.weekday)),
+									),
+									hour: `${String(busiest.hour).padStart(2, "0")}:00`,
+								})}
+							</p>
+						)}
+						<Heatmap grid={grid} lang={lang} t={t} />
+					</section>
+				)}
+
+				<section className="card">
+					<h2>{t("channels")}</h2>
+					{guestShare > 0 && (
+						<p className="callout small">
+							{t("guest_share", { pct: guestShare })}
+						</p>
+					)}
+					<MixList
+						rows={[...trends.bySource]
+							.sort((a, b) => b.net - a.net)
+							.map((r) => ({
+								key: r.source,
+								label: t(`source_${r.source}`),
+								value: r.net,
+								shown: money(r.net),
+								sub: t("n_orders", { count: r.orders }),
+							}))}
+						empty={t("no_sales")}
+					/>
+					<h3 className="subhead">{t("order_type")}</h3>
+					<MixList
+						rows={[...trends.byType]
+							.sort((a, b) => b.orders - a.orders)
+							.map((r) => ({
+								key: r.type,
+								label: t(
+									r.type === "takeaway" ? "type_takeaway" : "type_dine_in",
+								),
+								value: r.orders,
+								shown: t("n_orders", { count: r.orders }),
+							}))}
+						empty={t("no_sales")}
+					/>
+				</section>
+			</div>
+
+			<div className="grid2">
+				<section className="card">
+					<h2>{t("top_products")}</h2>
+					<MixList
+						rows={report.topProducts.map((p, i) => ({
+							key: p.productId ?? String(i),
+							label: (
+								<>
+									<span className="rank" aria-hidden="true">
+										{i + 1}
+									</span>
+									{loc(p.name, lang)}
+								</>
+							),
+							value: p.revenue,
+							shown: money(p.revenue),
+							sub: <bdi dir="ltr">×{p.quantity}</bdi>,
+						}))}
+						empty={t("no_sales")}
+					/>
+				</section>
+				<section className="card">
+					<h2>{t("by_category")}</h2>
+					<MixList
+						rows={trends.byCategory.map((c, i) => ({
+							key: c.categoryId ?? String(i),
+							label: loc(c.name, lang),
+							value: c.revenue,
+							shown: money(c.revenue),
+							sub: <bdi dir="ltr">×{c.quantity}</bdi>,
+						}))}
+						empty={t("no_sales")}
+					/>
+				</section>
+			</div>
 
 			<div className="grid2">
 				<section className="card">
 					<h2>{t("by_method")}</h2>
-					<table className="table">
-						<tbody>
-							{report.byMethod.length === 0 && (
-								<tr>
-									<td className="muted">{t("no_sales")}</td>
-								</tr>
-							)}
-							{[...report.byMethod]
-								.sort((a, b) => b.amount - a.amount)
-								.map((m) => (
-									<tr key={m.method}>
-										<td>{t(`method_${m.method}`)}</td>
-										<td className="num muted small">
-											<bdi dir="ltr">{m.count}</bdi>
-										</td>
-										<td className="num">{money(m.amount)}</td>
-									</tr>
-								))}
-							{report.refundCount > 0 && (
-								<tr>
-									<td className="muted">{t("refunds_given")}</td>
-									<td className="num muted small">
-										<bdi dir="ltr">{report.refundCount}</bdi>
-									</td>
-									<td className="num muted">{money(-report.refunds)}</td>
-								</tr>
-							)}
-						</tbody>
-					</table>
-					<table className="table summary">
-						<tbody>
-							<tr>
-								<td>{t("gross_sales")}</td>
-								<td className="num">{money(report.gross)}</td>
-							</tr>
-							<tr>
-								<td>{t("discounts")}</td>
-								<td className="num">{money(-report.discounts)}</td>
-							</tr>
-							<tr>
-								<td>{t("total_charged")}</td>
-								<td className="num">{money(report.total)}</td>
-							</tr>
-							<tr>
-								<td>{t("vat")}</td>
-								<td className="num">{money(-report.tax)}</td>
-							</tr>
-							<tr className="strong">
-								<td>{t("net_sales")}</td>
-								<td className="num">{money(report.net)}</td>
-							</tr>
-						</tbody>
-					</table>
+					<MixList
+						rows={[...report.byMethod]
+							.sort((a, b) => b.amount - a.amount)
+							.map((m) => ({
+								key: m.method,
+								label: t(`method_${m.method}`),
+								value: m.amount,
+								shown: money(m.amount),
+								sub: t("n_payments", { count: m.count }),
+							}))}
+						empty={t("no_sales")}
+					/>
+					{report.refundCount > 0 && (
+						<p className="muted small">
+							{t("refunds_given")}: <bdi dir="ltr">{report.refundCount}</bdi> ·{" "}
+							{money(-report.refunds)}
+						</p>
+					)}
 				</section>
 				<section className="card">
-					<h2>{t("top_products")}</h2>
-					<table className="table">
+					<h2>{t("money_summary")}</h2>
+					<table className="table summary">
 						<tbody>
-							{report.topProducts.map((p, i) => (
-								<tr key={p.productId ?? i}>
-									<td>{loc(p.name, lang)}</td>
-									<td className="num muted small">
-										<bdi dir="ltr">×{p.quantity}</bdi>
-									</td>
-									<td className="num">{money(p.revenue)}</td>
-								</tr>
-							))}
+							<Row label={t("gross_sales")} value={money(report.gross)} />
+							<Row label={t("discounts")} value={money(-report.discounts)} />
+							<Row label={t("total_charged")} value={money(report.total)} />
+							<Row label={t("vat")} value={money(-report.tax)} />
+							<Row strong label={t("net_sales")} value={money(report.net)} />
+							<Row label={t("tips")} value={money(report.tips)} />
+							<Row label={t("refunds_given")} value={money(-report.refunds)} />
 						</tbody>
 					</table>
 				</section>
 			</div>
 
-			<OrdersList
-				key={`${from}:${to}:${filters.paymentStatus ?? ""}:${filters.fulfillmentStatus ?? ""}`}
-				first={orders}
-				query={{ locationId, from, to, ...filters }}
-				money={money}
-				timeZone={loaderData.timeZone}
-			/>
-		</>
+			<div className="actions-row no-print">
+				<Link className="btn" to={`/orders?from=${from}&to=${to}`}>
+					{t("see_orders")}
+				</Link>
+				<Link className="btn" to={`/drawers?from=${from}&to=${to}`}>
+					{t("see_drawers")}
+				</Link>
+			</div>
+		</div>
 	);
 }
 
-function Stat({
+function Row({
 	label,
 	value,
+	strong,
+}: {
+	label: string;
+	value: ReactNode;
+	strong?: boolean;
+}) {
+	return (
+		<tr className={strong ? "strong" : undefined}>
+			<td>{label}</td>
+			<td className="num">{value}</td>
+		</tr>
+	);
+}
+
+function Kpi({
+	label,
+	value,
+	delta,
 	hint,
 }: {
 	label: string;
 	value: ReactNode;
-	hint?: string;
+	delta?: ReactNode;
+	hint?: ReactNode;
 }) {
 	return (
 		<div className="card stat">
 			<span className="muted small">{label}</span>
 			<strong>{value}</strong>
-			{hint && <span className="muted small">{hint}</span>}
+			<span className="stat__foot small">
+				{delta}
+				{hint && <span className="muted">{hint}</span>}
+			</span>
 		</div>
-	);
-}
-
-type Query = {
-	locationId: string;
-	from: string;
-	to: string;
-	paymentStatus?: Payment;
-	fulfillmentStatus?: Fulfillment;
-};
-
-function OrdersList({
-	first,
-	query,
-	money,
-	timeZone,
-}: {
-	first: { items: AdminOrderRow[]; nextCursor?: string | undefined };
-	query: Query;
-	money: (n: number) => ReactNode;
-	/** Times show in the shop's zone, not the viewer's. */
-	timeZone: string;
-}) {
-	const { t, lang } = useShell();
-	const [params] = useSearchParams();
-	const [pages, setPages] = useState([first]);
-	const [loading, setLoading] = useState(false);
-	const [csvBusy, setCsvBusy] = useState(false);
-	const rows = pages.flatMap((p) => p.items);
-	const cursor = pages.at(-1)?.nextCursor;
-	const time = (iso: string) =>
-		new Date(iso).toLocaleString(lang === "ar" ? "ar-OM" : "en-GB", {
-			dateStyle: "short",
-			timeStyle: "short",
-			numberingSystem: "latn",
-			timeZone,
-		});
-
-	const more = async () => {
-		if (!cursor) return;
-		setLoading(true);
-		try {
-			const next = await adminApi().orders({ ...query, cursor, limit: 50 });
-			setPages((p) => [...p, next]);
-		} finally {
-			setLoading(false);
-		}
-	};
-	const csv = async () => {
-		setCsvBusy(true);
-		try {
-			const blob = await adminApi().ordersCsv(query);
-			const a = document.createElement("a");
-			a.href = URL.createObjectURL(blob);
-			a.download = `orders-${query.from}-to-${query.to}.csv`;
-			a.click();
-			setTimeout(() => URL.revokeObjectURL(a.href), 10_000);
-		} finally {
-			setCsvBusy(false);
-		}
-	};
-
-	return (
-		<section className="card">
-			<div className="page-head">
-				<h2>{t("orders")}</h2>
-				<button type="button" className="btn" onClick={csv} disabled={csvBusy}>
-					{t("download_csv")}
-				</button>
-			</div>
-			<Form method="get" className="inline-form">
-				<input type="hidden" name="from" value={query.from} />
-				<input type="hidden" name="to" value={query.to} />
-				<label>
-					{t("payment")}
-					<select
-						name="payment"
-						className="input input--sm"
-						defaultValue={params.get("payment") ?? ""}
-						onChange={(e) => e.currentTarget.form?.requestSubmit()}
-					>
-						<option value="">{t("any")}</option>
-						{PAYMENT.map((p) => (
-							<option key={p} value={p}>
-								{t(`pay_${p}`)}
-							</option>
-						))}
-					</select>
-				</label>
-				<label>
-					{t("status")}
-					<select
-						name="fulfillment"
-						className="input input--sm"
-						defaultValue={params.get("fulfillment") ?? ""}
-						onChange={(e) => e.currentTarget.form?.requestSubmit()}
-					>
-						<option value="">{t("any")}</option>
-						{FULFILLMENT.map((f) => (
-							<option key={f} value={f}>
-								{t(`ful_${f}`)}
-							</option>
-						))}
-					</select>
-				</label>
-			</Form>
-			<table className="table">
-				<thead>
-					<tr>
-						<th>{t("ticket")}</th>
-						<th>{t("placed")}</th>
-						<th>{t("status")}</th>
-						<th className="num">{t("total")}</th>
-					</tr>
-				</thead>
-				<tbody>
-					{rows.length === 0 && (
-						<tr>
-							<td colSpan={4} className="muted">
-								{t("no_orders")}
-							</td>
-						</tr>
-					)}
-					{rows.map((o) => (
-						<tr
-							key={o.id}
-							className={o.fulfillmentStatus === "cancelled" ? "row-muted" : ""}
-						>
-							<td>
-								<bdi dir="ltr">{o.ticketNumber}</bdi>
-								{o.customerName && (
-									<div className="muted small">{o.customerName}</div>
-								)}
-							</td>
-							<td className="small">
-								<bdi dir="ltr">{time(o.placedAt)}</bdi>
-							</td>
-							<td className="small">
-								{t(`ful_${o.fulfillmentStatus}`)} ·{" "}
-								{t(`pay_${o.paymentStatus}`)}
-							</td>
-							<td className="num">{money(o.total)}</td>
-						</tr>
-					))}
-				</tbody>
-			</table>
-			{cursor && (
-				<button type="button" className="btn" onClick={more} disabled={loading}>
-					{loading ? t("loading") : t("load_more")}
-				</button>
-			)}
-		</section>
 	);
 }
