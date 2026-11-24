@@ -13,6 +13,7 @@ import { ErrorPanel } from "./components/ErrorPanel";
 import { savedLang, translator } from "./lib/i18n";
 import { BOOT_SCRIPT } from "./lib/theme";
 import "./styles.css";
+import "./kit.css";
 
 export function Layout({ children }: { children: ReactNode }) {
 	return (
