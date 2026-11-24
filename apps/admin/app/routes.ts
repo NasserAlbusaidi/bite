@@ -9,6 +9,11 @@ export default [
 	route("sign-in", "routes/sign-in.tsx"),
 	route("orgs", "routes/orgs.tsx"),
 	route("accept-invite", "routes/accept-invite.tsx"),
+	route("platform", "routes/platform.tsx", [
+		index("routes/platform-orgs.tsx"),
+		route("new", "routes/platform-new.tsx"),
+		route("orgs/:orgId", "routes/platform-org.tsx"),
+	]),
 	layout("routes/shell.tsx", [
 		layout("routes/shell-pages.tsx", [
 			index("routes/home.tsx"),

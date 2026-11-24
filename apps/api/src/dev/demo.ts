@@ -28,6 +28,11 @@ import { hash } from "@node-rs/argon2";
 import { v7 as uuidv7 } from "uuid";
 import { createAuth } from "../auth/better-auth.js";
 import { newSecret, sha256 } from "../lib/tokens.js";
+import {
+	PLATFORM_EMAIL,
+	PLATFORM_PASSWORD,
+	seedPlatform,
+} from "./platform-seed.js";
 
 const root = (p: string) =>
 	fileURLToPath(new URL(`../../../../${p}`, import.meta.url));
@@ -1281,6 +1286,7 @@ function report(tabs: Tablet[]) {
 Back office
   Owner     ${OWNER_EMAIL} / ${OWNER_PASSWORD}  (both branches)
   Manager   ${MANAGER_EMAIL} / ${MANAGER_PASSWORD}  (Qurum only)
+  Bite ops  ${PLATFORM_EMAIL} / ${PLATFORM_PASSWORD}  (platform console: /platform)
 
 Guest menu  /luban-qurum   /luban-almouj   (Arabic: /ar/luban-qurum)
 
@@ -1304,4 +1310,5 @@ DEMO_NEW_TOKENS=1 issues new ones (re-pair the tablets after that).
 const built = await build();
 const tabs = await tablets(built);
 await history(built, tabs);
+await seedPlatform(OWNER_URL, API);
 report(tabs);
