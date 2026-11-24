@@ -59,3 +59,23 @@ The POS dev server is HTTPS with a self-signed certificate. Browsers expose
 
 The browser build stores data in memory (sql.js): a reload loses unsynced
 local data. The native Capacitor build uses SQLite.
+
+## Showcase data (Luban Café)
+
+`pnpm dev:setup` seeds a tiny Demo Cafe. For a demo that looks like a real
+business, with the API running:
+
+```sh
+pnpm --filter @bite/api demo:seed
+```
+
+It adds Luban Café: two Muscat branches (Qurum, Al Mouj), a 26-item
+English/Arabic menu with options, three promotions, staff on both branches,
+a till and a kitchen screen per branch, and three weeks of sales pushed
+through the real sync endpoint (core pricing, cash sessions, card and cash).
+Logins, tablet tokens and PINs go to `.demo-credentials.txt` (gitignored).
+
+Run it again just before a demo: it keeps the tablet tokens (paired tablets
+stay paired) and tops up today's sales to 20 minutes ago, so the overview
+reads like a normal day so far. `DEMO_NEW_TOKENS=1` issues new tablet tokens.
+`DEMO_API_URL` points it at an API that is not on port 3000.
