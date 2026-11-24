@@ -75,6 +75,7 @@ export function navItems(locationId: string | undefined): NavItem[] {
 			to: `/locations/${locationId}/floor`,
 			icon: "layout",
 			group: "business",
+			go: "t",
 		},
 		!!locationId && {
 			key: "location_nav",
