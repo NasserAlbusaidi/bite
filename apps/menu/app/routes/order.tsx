@@ -82,6 +82,7 @@ function statusKey(o: Route.ComponentProps["loaderData"]["order"]): MessageKey {
 	if (o.fulfillmentStatus === "completed") return "status_completed";
 	if (o.fulfillmentStatus === "ready") return "status_ready";
 	if (o.fulfillmentStatus === "preparing") return "status_preparing";
+	if (o.paymentStatus === "partially_paid") return "status_part_paid";
 	return o.paymentStatus === "unpaid" ? "status_unpaid" : "status_paid";
 }
 
@@ -89,6 +90,11 @@ export default function OrderPage({ loaderData }: Route.ComponentProps) {
 	const { lang, order, location, currency } = loaderData;
 	const t = translator(lang);
 	const [params, setParams] = useSearchParams();
+	// Loyalty note from checkout; the URL is cleaned right after, keep it here.
+	const [loyalty] = useState(() => ({
+		pts: Number(params.get("pts") ?? 0) || 0,
+		off: Number(params.get("off") ?? 0) || 0,
+	}));
 	const [, dispatch] = useCart(location.slug);
 	const { revalidate, state } = useRevalidator();
 	const { token } = useParams();
@@ -171,6 +177,18 @@ export default function OrderPage({ loaderData }: Route.ComponentProps) {
 				)}
 				<p className="ticket__status">{t(statusKey(order))}</p>
 				{!done && <Elapsed since={order.placedAt} t={t} />}
+				{(loyalty.pts > 0 || loyalty.off > 0) && (
+					<p className="ticket__points">
+						{loyalty.off > 0 && (
+							<span className="ticket__chip">{t("reward_applied")}</span>
+						)}
+						{loyalty.pts > 0 && (
+							<span className="ticket__chip">
+								{t("points_earned_note", { points: loyalty.pts })}
+							</span>
+						)}
+					</p>
+				)}
 				{order.fulfillmentStatus !== "cancelled" && (
 					<ol className="steps">
 						{orderSteps(order).map(({ step, state }) => (
@@ -231,6 +249,31 @@ export default function OrderPage({ loaderData }: Route.ComponentProps) {
 				t={t}
 				currency={currency}
 			/>
+
+			{order.paymentStatus === "partially_paid" && order.paidTotal ? (
+				<dl className="leftpay">
+					<div>
+						<dt>{t("reward_applied")}</dt>
+						<dd>
+							<Price
+								amount={-order.paidTotal}
+								currency={currency}
+								lang={lang}
+							/>
+						</dd>
+					</div>
+					<div className="leftpay__due">
+						<dt>{t("left_to_pay")}</dt>
+						<dd>
+							<Price
+								amount={order.total - order.paidTotal}
+								currency={currency}
+								lang={lang}
+							/>
+						</dd>
+					</div>
+				</dl>
+			) : null}
 
 			<Link className="btn" to={`/${lang}/${location.slug}`}>
 				{t("back_to_menu")}

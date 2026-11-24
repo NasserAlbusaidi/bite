@@ -20,6 +20,8 @@ export function errorMessageKey(
 				return "group_not_open";
 			case "cart_empty":
 				return "group_empty";
+			case "reward_unavailable":
+				return "reward_unavailable";
 			default:
 				return "generic_error";
 		}

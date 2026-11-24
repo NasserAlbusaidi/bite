@@ -22,6 +22,8 @@ type Props = {
 	defaultName?: string;
 	/** From the table QR. Dine-in shows it, editable; blank means no table. */
 	defaultTable?: string | null;
+	/** A remembered guest's masked number: no need to type it again. */
+	knownPhone?: string | null;
 	onSubmit: (f: CheckoutFields) => void;
 };
 
@@ -34,9 +36,14 @@ export function CheckoutForm({
 	submitLabel,
 	defaultName = "",
 	defaultTable = null,
+	knownPhone = null,
 	onSubmit,
 }: Props) {
 	const [name, setName] = useState(defaultName);
+	// A remembered guest's name arrives after hydration; take it unless typed.
+	useEffect(() => {
+		if (defaultName) setName((v) => v || defaultName);
+	}, [defaultName]);
 	const [table, setTable] = useState(defaultTable ?? "");
 	// The QR's table arrives after hydration; take it unless the guest typed one.
 	useEffect(() => {
@@ -114,21 +121,30 @@ export function CheckoutForm({
 				onChange={(e) => setName(e.target.value)}
 			/>
 
-			<label className="field-label" htmlFor="phone">
-				{t("phone_label")}{" "}
-				<span className="muted small">{t("phone_hint")}</span>
-			</label>
-			<input
-				id="phone"
-				className="input"
-				type="tel"
-				inputMode="tel"
-				autoComplete="tel"
-				dir="ltr"
-				maxLength={20}
-				value={phone}
-				onChange={(e) => setPhone(e.target.value)}
-			/>
+			{knownPhone ? (
+				<p className="muted small">
+					{t("points_go_to", { phone: "" })}
+					<bdi dir="ltr">{knownPhone}</bdi>
+				</p>
+			) : (
+				<>
+					<label className="field-label" htmlFor="phone">
+						{t("phone_label")}{" "}
+						<span className="muted small">{t("phone_hint_points")}</span>
+					</label>
+					<input
+						id="phone"
+						className="input"
+						type="tel"
+						inputMode="tel"
+						autoComplete="tel"
+						dir="ltr"
+						maxLength={20}
+						value={phone}
+						onChange={(e) => setPhone(e.target.value)}
+					/>
+				</>
+			)}
 
 			<label className="field-label" htmlFor="note">
 				{t("order_note_label")}

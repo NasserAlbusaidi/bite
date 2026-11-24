@@ -1219,3 +1219,132 @@ input[type="search"].input {
 	background: var(--danger-bg);
 	color: var(--danger);
 }
+/* ── Returning guests and loyalty ── */
+.guestcard {
+	display: grid;
+	gap: var(--space-2);
+	margin-block-start: var(--space-3);
+	padding: var(--space-3) var(--space-4);
+	border-radius: var(--radius-lg);
+	background: var(--surface);
+	box-shadow: var(--shadow-sm);
+}
+.guestcard__top {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: var(--space-3);
+	color: var(--text-strong);
+}
+.guestcard__pts {
+	padding: var(--space-1) var(--space-3);
+	border-radius: var(--radius-pill);
+	background: var(--action);
+	color: var(--on-action);
+	font-size: var(--fs-sm);
+	font-weight: 600;
+	white-space: nowrap;
+}
+.guestcard__bar {
+	height: 6px;
+	border-radius: var(--radius-pill);
+	background: var(--surface-sunken);
+	overflow: hidden;
+}
+.guestcard__fill {
+	display: block;
+	height: 100%;
+	border-radius: inherit;
+	background: var(--action);
+	transition: width var(--dur-base) var(--ease-out);
+}
+.guestcard p {
+	margin: 0;
+}
+.linklike {
+	justify-self: start;
+	padding: 0;
+	border: 0;
+	background: none;
+	color: var(--text-muted);
+	text-decoration: underline;
+	cursor: pointer;
+	font: inherit;
+}
+.rewards {
+	display: block;
+	min-inline-size: 0;
+	margin: var(--space-4) 0 0;
+	padding: 0;
+	border: 0;
+}
+.rewards legend {
+	display: block;
+	padding: 0;
+	margin-block-end: var(--space-2);
+}
+.reward input {
+	accent-color: var(--action);
+	inline-size: 18px;
+	block-size: 18px;
+}
+.reward {
+	display: flex;
+	align-items: center;
+	gap: var(--space-3);
+	padding: var(--space-3) var(--space-4);
+	border: 1px solid var(--line);
+	border-radius: var(--radius-md);
+	background: var(--surface);
+	cursor: pointer;
+}
+.reward + .reward {
+	margin-block-start: var(--space-2);
+}
+.reward:has(input:checked) {
+	border-color: var(--action);
+	box-shadow: 0 0 0 1px var(--action);
+}
+.reward__name {
+	flex: 1;
+	color: var(--text-strong);
+}
+.points-note {
+	margin: var(--space-2) 0 0;
+}
+.ticket__points {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: center;
+	gap: var(--space-2);
+	margin: 0;
+}
+.ticket__chip {
+	padding: var(--space-1) var(--space-3);
+	border-radius: var(--radius-pill);
+	background: var(--success-bg);
+	color: var(--success);
+	font-size: var(--fs-sm);
+	font-weight: 600;
+}
+.leftpay {
+	display: grid;
+	gap: var(--space-2);
+	margin: 0;
+	padding: var(--space-3) var(--space-4);
+	border-radius: var(--radius-lg);
+	background: var(--surface);
+}
+.leftpay div {
+	display: flex;
+	justify-content: space-between;
+	gap: var(--space-3);
+}
+.leftpay dt,
+.leftpay dd {
+	margin: 0;
+}
+.leftpay__due {
+	font-weight: 700;
+	color: var(--text-strong);
+}

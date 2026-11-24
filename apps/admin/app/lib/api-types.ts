@@ -1,6 +1,10 @@
 import type {
+	AdjustPoints,
 	AdminCashSession,
 	AdminCategory,
+	AdminCustomer,
+	AdminCustomerDetail,
+	AdminCustomersQuery,
 	AdminDevice,
 	AdminLocationSettings,
 	AdminMe,
@@ -22,6 +26,7 @@ import type {
 	InviteStaff,
 	InviteStaffResponse,
 	LocationProduct,
+	LoyaltyProgram,
 	PutFloorRequest,
 	RegisterDeviceRequest,
 	RegisterDeviceResponse,
@@ -114,4 +119,9 @@ export interface AdminApi {
 	trends(q: SalesReportQuery): Promise<TrendsReport>;
 	order(id: string): Promise<AdminOrderDetail>;
 	cashSessions(q: SalesReportQuery): Promise<AdminCashSession[]>;
+	loyalty(): Promise<LoyaltyProgram>;
+	saveLoyalty(p: LoyaltyProgram): Promise<LoyaltyProgram>;
+	customers(q: AdminCustomersQuery): Promise<AdminCustomer[]>;
+	customer(id: string): Promise<AdminCustomerDetail>;
+	adjustPoints(id: string, a: AdjustPoints): Promise<AdminCustomerDetail>;
 }

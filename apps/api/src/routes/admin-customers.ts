@@ -136,7 +136,6 @@ export const adminCustomerRoutes = new Hono<AppEnv>()
 		);
 		return c.json({
 			items: rows.map((r) => toCustomer({ ...r.c, spent: r.spent })),
-			nextCursor: null,
 		});
 	})
 	.get(

@@ -166,7 +166,10 @@ export const GuestOrderView = Order.pick({
 	placedAt: true,
 	readyAt: true,
 	lines: true,
-}).extend({ trackingToken: Id });
+})
+	.extend({ trackingToken: Id })
+	// Older API builds don't send it; a reward paid part of the bill when set.
+	.extend({ paidTotal: Order.shape.paidTotal.optional() });
 
 export const CreateGuestOrderResponse = z.object({
 	order: GuestOrderView,
