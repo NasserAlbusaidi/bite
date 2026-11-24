@@ -135,14 +135,50 @@ export function FloorSheet(props: {
 		await reload();
 	}
 
-	const minutes = (iso: string | null) =>
-		iso ? Math.max(0, Math.floor((now - Date.parse(iso)) / 60_000)) : 0;
+	// Show the part of the room that has tables, with a cell of margin, so
+	// the tables fill the screen instead of a corner of the full grid.
+	const box = useMemo(() => {
+		if (here.length === 0)
+			return { x: 0, y: 0, w: FLOOR_GRID.cols, h: FLOOR_GRID.rows };
+		const x = Math.max(0, Math.min(...here.map((s) => s.table.x)) - 1);
+		const y = Math.max(0, Math.min(...here.map((s) => s.table.y)) - 1);
+		const r = Math.min(
+			FLOOR_GRID.cols,
+			Math.max(...here.map((s) => s.table.x + s.table.w)) + 1,
+		);
+		const b = Math.min(
+			FLOOR_GRID.rows,
+			Math.max(...here.map((s) => s.table.y + s.table.h)) + 1,
+		);
+		// Never narrower than 4:3 tall, so a single row of tables isn't a strip.
+		return { x, y, w: r - x, h: Math.max(b - y, Math.ceil((r - x) / 2.2)) };
+	}, [here]);
+	const busy = states.filter((s) => s.status !== "free");
+	const guests = busy.reduce((n, s) => n + s.table.seats, 0);
+
+	const since = (iso: string | null) => {
+		const n = iso
+			? Math.max(0, Math.floor((now - Date.parse(iso)) / 60_000))
+			: 0;
+		return n < 1 ? t("floor.justNow") : t("floor.minutes", { n });
+	};
 
 	return (
 		<div className="sheet-backdrop">
 			<div className="sheet full floor">
-				<div className="row">
-					<h2>{t("floor.title")}</h2>
+				<div className="row floor-head">
+					<div>
+						<h2>{t("floor.title")}</h2>
+						{floor && (
+							<p className="muted small">
+								{t("floor.summary", {
+									busy: busy.length,
+									tables: states.length,
+									seats: guests,
+								})}
+							</p>
+						)}
+					</div>
 					<span className="spacer" />
 					<label className="check">
 						<input
@@ -184,9 +220,15 @@ export function FloorSheet(props: {
 							<span className="spacer" />
 							<div className="floor-legend">
 								{counts.map(([st, n]) => (
-									<span key={st} className="floor-key" data-status={st}>
+									<span
+										key={st}
+										className="floor-key"
+										data-status={st}
+										data-zero={n === 0 || undefined}
+									>
 										<i />
-										{t(`floor.status.${st}` as MessageKey)} {n}
+										{t(`floor.status.${st}` as MessageKey)}
+										<b>{n}</b>
 									</span>
 								))}
 							</div>
@@ -211,87 +253,98 @@ export function FloorSheet(props: {
 						)}
 
 						<div className="floor-body">
-							<div
-								className="floor-canvas"
-								dir="ltr"
-								style={{
-									aspectRatio: `${FLOOR_GRID.cols} / ${FLOOR_GRID.rows}`,
-								}}
-							>
-								{here.map((s) => {
-									const mine = s.table.serverMemberId === member.memberId;
-									const dim = onlyMine && !mine;
-									const server = nameOf(s.table.serverMemberId);
-									return (
-										<button
-											type="button"
-											key={s.table.id}
-											className="floor-table"
-											data-status={s.status}
-											data-shape={s.table.shape}
-											data-selected={s.table.id === selected || undefined}
-											data-dim={dim || undefined}
-											data-target={
-												(moving && s.table.id !== selected) || undefined
-											}
-											style={{
-												left: `${(s.table.x / FLOOR_GRID.cols) * 100}%`,
-												top: `${(s.table.y / FLOOR_GRID.rows) * 100}%`,
-												width: `${(s.table.w / FLOOR_GRID.cols) * 100}%`,
-												height: `${(s.table.h / FLOOR_GRID.rows) * 100}%`,
-											}}
-											aria-label={t("floor.tableAria", {
-												label: s.table.label,
-												status: t(`floor.status.${s.status}` as MessageKey),
-											})}
-											onClick={() =>
-												moving
-													? void pickTarget(s)
-													: setSelected(
-															s.table.id === selected ? null : s.table.id,
-														)
-											}
-										>
-											<strong className="floor-table__label">
-												{s.table.label}
-											</strong>
-											{s.status !== "free" && (
-												<span className="floor-table__meta">
-													{t("floor.minutes", { n: minutes(s.since) })}
-												</span>
-											)}
-											{s.due > 0 && (
-												<span className="floor-table__due">
-													<Money amount={s.due} currency={OMR} />
-												</span>
-											)}
-											{server && (
-												<span className="floor-table__server">
-													{server.slice(0, 1)}
-												</span>
-											)}
-										</button>
-									);
-								})}
+							<div className="floor-stage">
+								<div
+									className="floor-canvas"
+									dir="ltr"
+									style={{
+										aspectRatio: `${box.w} / ${box.h}`,
+										inlineSize: `min(100cqw, calc(100cqh * ${box.w} / ${box.h}))`,
+									}}
+								>
+									{here.map((s) => {
+										const mine = s.table.serverMemberId === member.memberId;
+										const dim = onlyMine && !mine;
+										const server = nameOf(s.table.serverMemberId);
+										return (
+											<button
+												type="button"
+												key={s.table.id}
+												className="floor-table"
+												data-status={s.status}
+												data-shape={s.table.shape}
+												data-selected={s.table.id === selected || undefined}
+												data-dim={dim || undefined}
+												data-target={
+													(moving && s.table.id !== selected) || undefined
+												}
+												style={{
+													left: `${((s.table.x - box.x) / box.w) * 100}%`,
+													top: `${((s.table.y - box.y) / box.h) * 100}%`,
+													width: `${(s.table.w / box.w) * 100}%`,
+													height: `${(s.table.h / box.h) * 100}%`,
+												}}
+												aria-label={t("floor.tableAria", {
+													label: s.table.label,
+													status: t(`floor.status.${s.status}` as MessageKey),
+												})}
+												onClick={() =>
+													moving
+														? void pickTarget(s)
+														: setSelected(
+																s.table.id === selected ? null : s.table.id,
+															)
+												}
+											>
+												<Chairs seats={s.table.seats} shape={s.table.shape} />
+												<strong className="floor-table__label">
+													{s.table.label}
+												</strong>
+												{s.status !== "free" ? (
+													<span className="floor-table__meta">
+														{t(`floor.status.${s.status}` as MessageKey)}
+														<span className="floor-table__time">
+															{since(s.since)}
+														</span>
+													</span>
+												) : (
+													<span className="floor-table__meta floor-table__meta--free">
+														{t("floor.seats", { n: s.table.seats })}
+													</span>
+												)}
+												{s.due > 0 && (
+													<span className="floor-table__due">
+														<Money amount={s.due} currency={OMR} />
+													</span>
+												)}
+												{server && (
+													<span className="floor-table__server">
+														{server.slice(0, 1)}
+													</span>
+												)}
+											</button>
+										);
+									})}
+								</div>
 							</div>
-
 							<aside className="floor-panel">
 								{!sel ? (
-									<p className="muted">{t("floor.pick")}</p>
+									<div className="floor-pick">
+										<span className="floor-pick__icon" aria-hidden="true" />
+										<p>{t("floor.pick")}</p>
+									</div>
 								) : (
 									<>
 										<div className="row">
 											<h3>{t("floor.table", { label: sel.table.label })}</h3>
 											<span className="spacer" />
-											<span className="floor-key" data-status={sel.status}>
-												<i />
+											<span className="floor-status" data-status={sel.status}>
 												{t(`floor.status.${sel.status}` as MessageKey)}
 											</span>
 										</div>
 										<p className="muted small">
 											{t("floor.seats", { n: sel.table.seats })}
-											{sel.since &&
-												` · ${t("floor.minutes", { n: minutes(sel.since) })}`}
+											{sel.since && ` · ${since(sel.since)}`}
 										</p>
 
 										<label className="floor-server">
@@ -366,7 +419,7 @@ export function FloorSheet(props: {
 										</div>
 
 										{sel.due > 0 && (
-											<div className="row strong">
+											<div className="row strong floor-due">
 												<span>{t("floor.due")}</span>
 												<span className="spacer" />
 												<Money amount={sel.due} currency={OMR} />
@@ -382,30 +435,32 @@ export function FloorSheet(props: {
 													? t("floor.addOrder")
 													: t("floor.seat")}
 											</button>
-											{sel.due > 0 && (
-												<button
-													type="button"
-													className="big"
-													onClick={() => {
-														const first = sel.orders.find((o) => o.due > 0);
-														if (first) setOpenOrder(first.order.id);
-													}}
-												>
-													{t("floor.pay")}
-												</button>
-											)}
-											{sel.orders.length > 0 && (
-												<button
-													type="button"
-													className="big"
-													onClick={() => {
-														setNotice(null);
-														setMoving(true);
-													}}
-												>
-													{t("floor.moveMerge")}
-												</button>
-											)}
+											<div className="floor-actions__pair">
+												{sel.due > 0 && (
+													<button
+														type="button"
+														className="big"
+														onClick={() => {
+															const first = sel.orders.find((o) => o.due > 0);
+															if (first) setOpenOrder(first.order.id);
+														}}
+													>
+														{t("floor.pay")}
+													</button>
+												)}
+												{sel.orders.length > 0 && (
+													<button
+														type="button"
+														className="big"
+														onClick={() => {
+															setNotice(null);
+															setMoving(true);
+														}}
+													>
+														{t("floor.moveMerge")}
+													</button>
+												)}
+											</div>
 										</div>
 									</>
 								)}
@@ -425,5 +480,44 @@ export function FloorSheet(props: {
 				/>
 			)}
 		</div>
+	);
+}
+
+/** Chairs around a table, so the plan reads like the room. Decoration only. */
+function Chairs({ seats, shape }: { seats: number; shape: string }) {
+	const n = Math.min(seats, 12);
+	if (shape === "round") {
+		return (
+			<span className="floor-chairs" aria-hidden="true">
+				{Array.from({ length: n }, (_, i) => {
+					const a = (i / n) * 2 * Math.PI - Math.PI / 2;
+					return (
+						<i
+							// biome-ignore lint/suspicious/noArrayIndexKey: fixed decoration
+							key={i}
+							style={{
+								left: `${50 + 58 * Math.cos(a)}%`,
+								top: `${50 + 58 * Math.sin(a)}%`,
+							}}
+						/>
+					);
+				})}
+			</span>
+		);
+	}
+	const top = Math.ceil(n / 2);
+	const side = (count: number, y: string) =>
+		Array.from({ length: count }, (_, i) => (
+			<i
+				// biome-ignore lint/suspicious/noArrayIndexKey: fixed decoration
+				key={`${y}${i}`}
+				style={{ left: `${((i + 1) / (count + 1)) * 100}%`, top: y }}
+			/>
+		));
+	return (
+		<span className="floor-chairs" aria-hidden="true">
+			{side(top, "-10%")}
+			{side(n - top, "110%")}
+		</span>
 	);
 }

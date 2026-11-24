@@ -215,6 +215,7 @@ const en = {
 	"problems.kind.table.assign": "Table server",
 	"floor.open": "Floor",
 	"floor.title": "Floor",
+	"floor.summary": "{busy} of {tables} tables busy · {seats} seats in use",
 	"floor.close": "Close",
 	"floor.cancel": "Cancel",
 	"floor.none":
@@ -240,6 +241,7 @@ const en = {
 	"floor.payFirst": "Take payment first, then mark it served.",
 	"floor.tableAria": "Table {label}, {status}",
 	"floor.minutes": "{n} min",
+	"floor.justNow": "just now",
 	"floor.pick":
 		"Tap a table to see its orders, take an order there, pay, move it or give it a server.",
 	"floor.table": "Table {label}",
@@ -496,6 +498,7 @@ const ar: Record<MessageKey, string> = {
 	"problems.kind.table.assign": "نادل الطاولة",
 	"floor.open": "الصالة",
 	"floor.title": "الصالة",
+	"floor.summary": "{busy} من {tables} طاولة مشغولة · {seats} مقعد مستخدم",
 	"floor.close": "إغلاق",
 	"floor.cancel": "إلغاء",
 	"floor.none":
@@ -521,6 +524,7 @@ const ar: Record<MessageKey, string> = {
 	"floor.payFirst": "خذ الدفع أولاً ثم علّمه مقدَّماً.",
 	"floor.tableAria": "طاولة {label}، {status}",
 	"floor.minutes": "{n} د",
+	"floor.justNow": "الآن",
 	"floor.pick":
 		"اضغط طاولة لترى طلباتها، أو تأخذ طلباً عليها، أو تدفع، أو تنقلها، أو تعيّن لها نادلاً.",
 	"floor.table": "طاولة {label}",
