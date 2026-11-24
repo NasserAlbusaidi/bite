@@ -222,6 +222,16 @@ export function fixtureApi(
 		async getOrder(token) {
 			return orders.get(token) ?? null;
 		},
+		async callService(slug, kind, tableLabel) {
+			if (slug !== source().location.slug) throw new GuestApiError("not_found");
+			return {
+				id: uuidv7(),
+				kind,
+				tableLabel,
+				createdAt: new Date().toISOString(),
+				calls: 1,
+			};
+		},
 		async placeOrder(input, key) {
 			const req = CreateGuestOrderRequest.parse(input);
 			const body = JSON.stringify(req);
