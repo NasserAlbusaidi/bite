@@ -21,6 +21,7 @@ import type {
 	LocationProduct,
 	RegisterDeviceRequest,
 	RegisterDeviceResponse,
+	Reorder,
 	SalesReport,
 	SalesReportQuery,
 	SetLocationProduct,
@@ -52,6 +53,9 @@ export interface AdminApi {
 	archiveProduct(id: string): Promise<void>;
 	createCategory(c: CreateCategory): Promise<AdminCategory>;
 	updateCategory(id: string, c: UpdateCategory): Promise<AdminCategory>;
+	/** New sort orders in one go; every id must exist or nothing changes. */
+	reorderCategories(items: Reorder): Promise<void>;
+	reorderProducts(items: Reorder): Promise<void>;
 	createModifierGroup(g: CreateModifierGroup): Promise<AdminModifierGroup>;
 	updateModifierGroup(
 		id: string,

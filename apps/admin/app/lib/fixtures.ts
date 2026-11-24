@@ -25,6 +25,7 @@ import {
 	type InviteStaffResponse,
 	type LocationProduct,
 	RegisterDeviceRequest,
+	Reorder,
 	ResetPin,
 	SetLocationProduct,
 	UpdateCategory,
@@ -121,6 +122,7 @@ export function demoState(): DemoState {
 		price: number,
 		sortOrder: number,
 		modifierGroupIds: string[] = [],
+		imageUrl: string | null = null,
 	): AdminProduct => ({
 		id: id(n),
 		categoryId,
@@ -128,7 +130,7 @@ export function demoState(): DemoState {
 		description: null,
 		price,
 		taxBps: null,
-		imageUrl: null,
+		imageUrl,
 		isVisible: true,
 		sortOrder,
 		archivedAt: null,
@@ -162,9 +164,27 @@ export function demoState(): DemoState {
 			products: [
 				p(10, breads, "Country sourdough", "خبز العجين المخمر", 2500, 0),
 				p(11, breads, "Seeded rye", "خبز الجاودار بالبذور", 2800, 1),
-				p(20, pastries, "Butter croissant", "كرواسون بالزبدة", 1200, 0),
+				p(
+					20,
+					pastries,
+					"Butter croissant",
+					"كرواسون بالزبدة",
+					1200,
+					0,
+					[],
+					"https://images.unsplash.com/photo-1639667852145-466e29aa49fd?w=800&h=600&fit=crop&q=70&auto=format",
+				),
 				p(21, pastries, "Cardamom bun", "كعكة الهيل", 1350, 1),
-				p(30, drinks, "Flat white", "فلات وايت", 1600, 0, [id(100), id(200)]),
+				p(
+					30,
+					drinks,
+					"Flat white",
+					"فلات وايت",
+					1600,
+					0,
+					[id(100), id(200)],
+					"https://images.unsplash.com/photo-1620052087057-bfd8235f5874?w=800&h=600&fit=crop&q=70&auto=format",
+				),
 			],
 			modifierGroups: [
 				{
@@ -301,6 +321,23 @@ export function demoState(): DemoState {
 }
 
 const KEY = "bite.admin.demo.v5";
+
+/** Like the API: every id must exist, else nothing changes. */
+function reorderIn(
+	list: { id: string; sortOrder: number }[],
+	items: { id: string; sortOrder: number }[],
+) {
+	const v = Reorder.safeParse(items);
+	if (!v.success) throw new AdminApiError("bad_request", 400, v.error);
+	const ids = items.map((i) => i.id);
+	if (new Set(ids).size !== ids.length)
+		throw new AdminApiError("bad_request", 400);
+	const rows = items.map((i) => list.find((x) => x.id === i.id));
+	if (rows.some((r) => !r)) throw new AdminApiError("not_found", 404);
+	items.forEach((i, n) => {
+		(rows[n] as { sortOrder: number }).sortOrder = i.sortOrder;
+	});
+}
 
 export function fixtureAdminApi(
 	initial: DemoState = demoState(),
@@ -488,6 +525,14 @@ export function fixtureAdminApi(
 				if (v !== undefined) Object.assign(c, { [k]: v });
 			persist();
 			return clone(c);
+		},
+		async reorderCategories(items) {
+			reorderIn(state.menu.categories, items);
+			persist();
+		},
+		async reorderProducts(items) {
+			reorderIn(state.menu.products, items);
+			persist();
 		},
 		async createModifierGroup(input) {
 			const v = valid(CreateModifierGroup, input);

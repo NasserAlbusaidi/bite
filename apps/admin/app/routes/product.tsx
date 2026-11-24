@@ -16,14 +16,22 @@ async function currencyDecimals() {
 	return places.find((l) => l.id === id)?.decimals ?? 3;
 }
 
-export async function clientLoader({ params }: Route.ClientLoaderArgs) {
+export async function clientLoader({
+	params,
+	request,
+}: Route.ClientLoaderArgs) {
 	const menu = await adminApi().menu();
+	// "Add product" on a category opens the form with that category picked.
+	const preset = new URL(request.url).searchParams.get("category");
+	const presetCategory = menu.categories.some((c) => c.id === preset)
+		? preset
+		: null;
 	const product =
 		params.productId === "new"
 			? undefined
 			: menu.products.find((p) => p.id === params.productId);
 	if (params.productId !== "new" && !product) throw data(null, { status: 404 });
-	return { menu, product };
+	return { menu, product, presetCategory };
 }
 
 export async function clientAction({
@@ -47,7 +55,7 @@ export default function ProductPage({
 	loaderData,
 	actionData,
 }: Route.ComponentProps) {
-	const { menu, product } = loaderData;
+	const { menu, product, presetCategory } = loaderData;
 	const { t, lang, place, me } = useShell();
 	const nav = useNavigation();
 	if (!catalogPowers(me).canEditMenu)
@@ -59,6 +67,7 @@ export default function ProductPage({
 		);
 	const decimals = place?.decimals ?? 3;
 	const d = productFormDefaults(product, decimals);
+	if (!product && presetCategory) d.categoryId = presetCategory;
 	const errors = actionData?.errors ?? {};
 	const err = (k: string) => {
 		const e = errors[k];
