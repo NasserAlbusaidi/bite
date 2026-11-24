@@ -816,3 +816,40 @@ a.menu-item__name:hover {
 	block-size: 40px;
 	font-size: var(--fs-sm);
 }
+
+/* Dietary tags: chip checkboxes in the editor, small tags elsewhere. */
+.diet-picks {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-2);
+}
+.form label.diet-pick {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-2);
+	font-weight: 500;
+	padding: var(--space-1) var(--space-3);
+	border: 1px solid var(--line);
+	border-radius: 999px;
+	cursor: pointer;
+}
+.diet-pick:has(input:checked) {
+	border-color: var(--success);
+	background: var(--success-bg);
+	color: var(--text-strong);
+}
+.diet-pick:has(input:focus-visible) {
+	outline: 3px solid var(--focus);
+	outline-offset: 1px;
+}
+.diet-tags {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-1);
+	margin: 0;
+}
+.tag--diet {
+	background: var(--success-bg);
+	color: var(--success);
+	margin-inline-start: 0;
+}

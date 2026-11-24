@@ -1,4 +1,9 @@
-import type { AdminProduct, CreateProduct } from "./contracts";
+import {
+	type AdminProduct,
+	type CreateProduct,
+	DIETARY_TAGS,
+	type DietaryTag,
+} from "./contracts";
 import type { MessageKey } from "./i18n";
 import { fromDecimal, toDecimal } from "./money";
 
@@ -73,6 +78,7 @@ export function parseProductForm(f: FormData, decimals: number): ParseResult {
 			modifierGroupIds: f
 				.getAll("modifierGroupIds")
 				.filter((v): v is string => typeof v === "string"),
+			dietaryTags: dietaryFrom(f),
 		},
 	};
 }
@@ -94,5 +100,12 @@ export function productFormDefaults(
 		isVisible: p?.isVisible ?? true,
 		sortOrder: String(p?.sortOrder ?? 0),
 		modifierGroupIds: p?.modifierGroupIds ?? [],
+		dietaryTags: p?.dietaryTags ?? [],
 	};
+}
+
+/** Ticked dietary tags in canonical order. Unknown values are dropped. */
+export function dietaryFrom(f: FormData): DietaryTag[] {
+	const picked = new Set(f.getAll("dietaryTags").map(String));
+	return DIETARY_TAGS.filter((t) => picked.has(t));
 }

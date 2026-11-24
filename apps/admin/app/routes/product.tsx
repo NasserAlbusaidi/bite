@@ -11,13 +11,21 @@ import "../menu.css";
 import { PhotoDrop } from "../components/PhotoDrop";
 import { Thumb } from "../components/Thumb";
 import { adminApi } from "../lib/api";
-import type { AdminModifierGroup } from "../lib/contracts";
+import {
+	type AdminModifierGroup,
+	DIETARY_TAGS,
+	type DietaryTag,
+} from "../lib/contracts";
 import { type Lang, loc } from "../lib/i18n";
 import { ruleLabel } from "../lib/modifier-form";
 import { fromDecimal, toDecimal } from "../lib/money";
 import { catalogPowers } from "../lib/permissions";
 import { loadPlaces } from "../lib/places";
-import { parseProductForm, productFormDefaults } from "../lib/product-form";
+import {
+	dietaryFrom,
+	parseProductForm,
+	productFormDefaults,
+} from "../lib/product-form";
 import { selectedLocationId } from "../lib/selected-location";
 import { useShell } from "../lib/use-shell";
 import type { Route } from "./+types/product";
@@ -84,6 +92,7 @@ type Draft = {
 	imageUrl: string;
 	isVisible: boolean;
 	modifierGroupIds: string[];
+	dietaryTags: DietaryTag[];
 };
 const readDraft = (f: HTMLFormElement): Draft => {
 	const d = new FormData(f);
@@ -97,6 +106,7 @@ const readDraft = (f: HTMLFormElement): Draft => {
 		imageUrl: s("imageUrl"),
 		isVisible: d.get("isVisible") === "on",
 		modifierGroupIds: d.getAll("modifierGroupIds").map(String),
+		dietaryTags: dietaryFrom(d),
 	};
 };
 
@@ -122,6 +132,7 @@ function ProductEditor({ loaderData, actionData }: Route.ComponentProps) {
 		imageUrl: d.imageUrl,
 		isVisible: d.isVisible,
 		modifierGroupIds: d.modifierGroupIds,
+		dietaryTags: d.dietaryTags,
 	}));
 	const [imageUrl, setImageUrl] = useState(d.imageUrl);
 	const [previewLang, setPreviewLang] = useState<Lang>(lang);
@@ -325,6 +336,24 @@ function ProductEditor({ loaderData, actionData }: Route.ComponentProps) {
 					</section>
 
 					<section className="card form">
+						<h2>{t("section_diet")}</h2>
+						<p className="muted small">{t("diet_hint")}</p>
+						<div className="diet-picks">
+							{DIETARY_TAGS.map((tag) => (
+								<label key={tag} className="diet-pick">
+									<input
+										type="checkbox"
+										name="dietaryTags"
+										value={tag}
+										defaultChecked={d.dietaryTags.includes(tag)}
+									/>
+									<span>{t(`diet_${tag}`)}</span>
+								</label>
+							))}
+						</div>
+					</section>
+
+					<section className="card form">
 						<h2>{t("modifier_groups")}</h2>
 						{menu.modifierGroups.length === 0 && (
 							<p className="muted small">{t("options_none")}</p>
@@ -484,6 +513,15 @@ function GuestPreview({
 					</bdi>
 				</div>
 				{desc && <p className="muted small">{desc}</p>}
+				{draft.dietaryTags.length > 0 && (
+					<p className="diet-tags">
+						{draft.dietaryTags.map((tag) => (
+							<span key={tag} className="tag tag--diet">
+								{t(`diet_${tag}`)}
+							</span>
+						))}
+					</p>
+				)}
 				{chosen.map((g) => (
 					<div key={g.id} className="guest-card__group">
 						<span className="small strong">{loc(g.name, lang)}</span>
