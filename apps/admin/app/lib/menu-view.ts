@@ -98,6 +98,7 @@ export function duplicateOf(
 		isVisible: false,
 		sortOrder,
 		modifierGroupIds: [...p.modifierGroupIds],
+		dietaryTags: [...(p.dietaryTags ?? [])],
 	};
 }
 

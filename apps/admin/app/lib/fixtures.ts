@@ -185,8 +185,14 @@ export function demoState(): DemoState {
 				},
 			],
 			products: [
-				p(10, breads, "Country sourdough", "خبز العجين المخمر", 2500, 0),
-				p(11, breads, "Seeded rye", "خبز الجاودار بالبذور", 2800, 1),
+				{
+					...p(10, breads, "Country sourdough", "خبز العجين المخمر", 2500, 0),
+					dietaryTags: ["vegan", "dairy_free"],
+				},
+				{
+					...p(11, breads, "Seeded rye", "خبز الجاودار بالبذور", 2800, 1),
+					dietaryTags: ["vegan"],
+				},
 				p(
 					20,
 					pastries,
@@ -197,7 +203,10 @@ export function demoState(): DemoState {
 					[],
 					"https://images.unsplash.com/photo-1639667852145-466e29aa49fd?w=800&h=600&fit=crop&q=70&auto=format",
 				),
-				p(21, pastries, "Cardamom bun", "كعكة الهيل", 1350, 1),
+				{
+					...p(21, pastries, "Cardamom bun", "كعكة الهيل", 1350, 1),
+					dietaryTags: ["vegetarian"],
+				},
 				p(
 					30,
 					drinks,
@@ -509,6 +518,7 @@ export function fixtureAdminApi(
 				isVisible: p.isVisible ?? true,
 				sortOrder: p.sortOrder ?? state.menu.products.length,
 				modifierGroupIds: p.modifierGroupIds ?? [],
+				dietaryTags: p.dietaryTags ?? [],
 				archivedAt: null,
 			};
 			state.menu.products.push(created);

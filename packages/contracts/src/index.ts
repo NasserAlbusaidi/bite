@@ -12,6 +12,7 @@ export * from "./menu.js";
 export * from "./orders.js";
 export * from "./pairing.js";
 export * from "./payments.js";
+export * from "./platform.js";
 export * from "./public.js";
 export * from "./realtime.js";
 export * from "./service.js";

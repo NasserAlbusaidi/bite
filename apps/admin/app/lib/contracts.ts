@@ -19,6 +19,8 @@ export {
 	CreatePinStaff,
 	CreateProduct,
 	CreatePromotion,
+	DIETARY_TAGS,
+	DietaryTag,
 	Floor,
 	FloorArea,
 	FloorTable,

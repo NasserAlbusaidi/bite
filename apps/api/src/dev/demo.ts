@@ -28,6 +28,11 @@ import { hash } from "@node-rs/argon2";
 import { v7 as uuidv7 } from "uuid";
 import { createAuth } from "../auth/better-auth.js";
 import { newSecret, sha256 } from "../lib/tokens.js";
+import {
+	PLATFORM_EMAIL,
+	PLATFORM_PASSWORD,
+	seedPlatform,
+} from "./platform-seed.js";
 
 const root = (p: string) =>
 	fileURLToPath(new URL(`../../../../${p}`, import.meta.url));
@@ -1785,6 +1790,7 @@ function report(tabs: Tablet[]) {
 Back office
   Owner     ${OWNER_EMAIL} / ${OWNER_PASSWORD}  (both branches)
   Manager   ${MANAGER_EMAIL} / ${MANAGER_PASSWORD}  (Qurum only)
+  Bite ops  ${PLATFORM_EMAIL} / ${PLATFORM_PASSWORD}  (platform console: /platform)
 
 Guest menu  /luban-qurum   /luban-almouj   (Arabic: /ar/luban-qurum)
 
@@ -1812,4 +1818,5 @@ await loyalty(built.orgId);
 await history(built, tabs);
 await liveTables(built, tabs);
 await finish(built);
+await seedPlatform(OWNER_URL, API);
 report(tabs);

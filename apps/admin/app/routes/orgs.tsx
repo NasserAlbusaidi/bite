@@ -5,6 +5,7 @@ import { account } from "../lib/api";
 import { AdminApiError } from "../lib/api-types";
 import { AuthFrame, useAuthLang } from "../lib/auth-page";
 import type { MessageKey } from "../lib/i18n";
+import { platform } from "../lib/platform";
 import type { Route } from "./+types/orgs";
 
 /** Pick which business to work in, or set up the first one. */
@@ -18,6 +19,14 @@ export async function clientLoader({ request }: Route.ClientLoaderArgs) {
 			`/sign-in?next=${encodeURIComponent(url.pathname + url.search)}`,
 		);
 	const { items } = await acc.orgs();
+	// A Bite operator with no business of their own goes to the console.
+	if (
+		items.length === 0 &&
+		(await platform()
+			?.me()
+			.catch(() => null))
+	)
+		throw redirect("/platform");
 	const denied = url.searchParams.get("denied") === "1";
 	// One org and nothing went wrong: no point asking (unless switching).
 	const switching = url.searchParams.has("switch");

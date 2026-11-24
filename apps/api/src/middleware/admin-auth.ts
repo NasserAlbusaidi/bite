@@ -3,8 +3,10 @@ import { schema, type Tx, withTenant } from "@bite/db";
 import { and, asc, eq, sql } from "@bite/db/orm";
 import type { Context } from "hono";
 import { createMiddleware } from "hono/factory";
-import type { AdminCtx, AppEnv } from "../env.js";
+import { v7 as uuidv7 } from "uuid";
+import type { AdminCtx, AppEnv, SessionCtx } from "../env.js";
 import { ApiError } from "../lib/errors.js";
+import { audit, isPlatformAdmin, UUID_RE } from "../lib/platform.js";
 
 const { members, memberLocations, locations } = schema;
 
@@ -51,6 +53,16 @@ export const adminAuth = createMiddleware<AppEnv>(async (c, next) => {
 		throw new ApiError("bad_request", `${ORG_HEADER} header required`, {
 			orgIds: all.map((x) => x.org_id),
 		});
+	if (!m && wanted) {
+		// Platform support view: a Bite operator opening an org they don't
+		// belong to. Read-only, and every visit lands in the org's audit log.
+		const support = await supportContext(c, session, wanted);
+		if (support) {
+			c.set("admin", support);
+			await next();
+			return;
+		}
+	}
 	// Unknown org and "not a member" look identical on purpose.
 	if (!m) throw new ApiError("forbidden", "not a member of this org");
 	const { org_id: orgId, member_id: memberId } = m;
@@ -85,6 +97,41 @@ export const adminAuth = createMiddleware<AppEnv>(async (c, next) => {
 	c.set("admin", ctx);
 	await next();
 });
+
+async function supportContext(
+	c: Context<AppEnv>,
+	session: SessionCtx,
+	orgId: string,
+): Promise<AdminCtx | null> {
+	const sys = c.var.deps.systemDb;
+	if (!sys || !UUID_RE.test(orgId)) return null;
+	if (!(await isPlatformAdmin(sys, session.userId))) return null;
+	const [org] = (await sys.execute(
+		sql`select id from orgs where id = ${orgId}`,
+	)) as unknown as { id: string }[];
+	if (!org) return null;
+	if (c.req.method !== "GET" && c.req.method !== "HEAD") {
+		throw new ApiError("forbidden", "support view is read-only");
+	}
+	const locs = await withTenant(c.var.deps.db, orgId, (tx) =>
+		locationsFor(tx, "", true),
+	);
+	if (c.req.path.endsWith("/v1/admin/me")) {
+		await audit(sys, orgId, session, "platform.support_view", {});
+	}
+	return {
+		...session,
+		orgId,
+		// Not a member: a throwaway id, never written anywhere (read-only).
+		memberId: uuidv7(),
+		displayName: session.name,
+		orgRole: "owner",
+		locations: locs,
+		manages: new Set(locs.map((l) => l.location.id)),
+		orgWide: true,
+		support: true,
+	};
+}
 
 async function locationsFor(tx: Tx, memberId: string, orgWide: boolean) {
 	const cols = {
