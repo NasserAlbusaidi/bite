@@ -6,6 +6,7 @@ import type {
 import { schema, withTenant } from "@bite/db";
 import { and, asc, eq, gte, inArray, or, sql } from "@bite/db/orm";
 import type { Deps, DeviceCtx } from "../env.js";
+import { loadFloor } from "../floor/service.js";
 import { loadEntitlements } from "../lib/entitlements.js";
 import { ApiError } from "../lib/errors.js";
 import { loadMenuSnapshot } from "../menu/snapshot.js";
@@ -122,6 +123,7 @@ export async function pullChanges(
 			orders: await loadOrderDtos(tx, rows),
 			cashSession,
 			entitlements: await loadEntitlements(tx, deps, device.orgId),
+			floor: await loadFloor(tx, device.locationId),
 		};
 	});
 }

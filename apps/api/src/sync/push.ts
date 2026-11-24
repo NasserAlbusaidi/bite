@@ -7,6 +7,7 @@ import type {
 import { schema, type Tx, withTenant } from "@bite/db";
 import { and, eq } from "@bite/db/orm";
 import type { Deps, DeviceCtx, StaffCtx } from "../env.js";
+import { assignTable, setOrderTable } from "../floor/service.js";
 import { ApiError, errorBody } from "../lib/errors.js";
 import { setAvailability } from "../menu/availability.js";
 import { addCashMovement, closeCashSession, openCashSession } from "./cash.js";
@@ -58,6 +59,14 @@ const RULES: Record<SyncMutation["kind"], Rule> = {
 		roles: ["manager", "cashier"],
 		entity: (m) => (m.payload as { orderId: string }).orderId,
 	},
+	"order.setTable": {
+		roles: ["manager", "cashier", "server"],
+		entity: (m) => (m.payload as { orderId: string }).orderId,
+	},
+	"table.assign": {
+		roles: ["manager", "cashier", "server"],
+		entity: (m) => (m.payload as { tableId: string }).tableId,
+	},
 	"cash.open": {
 		roles: ["manager", "cashier"],
 		entity: (m) => (m.payload as { id: string }).id,
@@ -89,6 +98,10 @@ function apply(ctx: MutationCtx, m: SyncMutation): Promise<MutationOutcome> {
 			return setFulfillment(ctx, m.payload);
 		case "order.voidLine":
 			return voidLine(ctx, m.payload);
+		case "order.setTable":
+			return setOrderTable(ctx, m.payload);
+		case "table.assign":
+			return assignTable(ctx, m.payload);
 		case "cash.open":
 			return openCashSession(ctx, m.payload);
 		case "cash.movement":

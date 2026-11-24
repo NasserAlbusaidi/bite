@@ -5,6 +5,7 @@ export * from "./billing.js";
 export * from "./cash.js";
 export * from "./common.js";
 export * from "./errors.js";
+export * from "./floor.js";
 export * from "./group-carts.js";
 export * from "./menu.js";
 export * from "./orders.js";
