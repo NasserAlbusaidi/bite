@@ -54,24 +54,24 @@ export function PhotoDrop({
 	return (
 		<div
 			className={`photo-drop${over ? " is-over" : ""}${busy ? " is-busy" : ""}${compact ? " photo-drop--compact" : ""} ${className}`}
-			onDragOver={(e) => {
-				if (![...e.dataTransfer.types].includes("Files")) return;
-				e.preventDefault();
-				e.stopPropagation();
-				setOver(true);
-			}}
-			onDragLeave={() => setOver(false)}
-			onDrop={(e) => {
-				if (!e.dataTransfer.files.length) return;
-				e.preventDefault();
-				e.stopPropagation();
-				setOver(false);
-				void take(e.dataTransfer.files[0]);
-			}}
 		>
 			<button
 				type="button"
 				className="photo-drop__btn"
+				onDragOver={(e) => {
+					if (![...e.dataTransfer.types].includes("Files")) return;
+					e.preventDefault();
+					e.stopPropagation();
+					setOver(true);
+				}}
+				onDragLeave={() => setOver(false)}
+				onDrop={(e) => {
+					if (!e.dataTransfer.files.length) return;
+					e.preventDefault();
+					e.stopPropagation();
+					setOver(false);
+					void take(e.dataTransfer.files[0]);
+				}}
 				onClick={() => input.current?.click()}
 				disabled={busy}
 				aria-label={url ? t("photo_change", { name }) : t("photo_add")}
