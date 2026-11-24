@@ -1116,10 +1116,11 @@ input[type="search"].input {
 		transform var(--dur-fast) var(--ease-out),
 		background var(--dur-base) var(--ease-out);
 }
+/* The hero flips light/dark with the theme: tint from its own text colour. */
 .hero .service__btn {
-	border-color: transparent;
-	background: color-mix(in srgb, var(--brand-white) 12%, transparent);
-	color: var(--brand-white);
+	border-color: color-mix(in srgb, currentColor 22%, transparent);
+	background: color-mix(in srgb, currentColor 10%, transparent);
+	color: inherit;
 }
 .service__btn:active:not(:disabled) {
 	transform: scale(0.97);
@@ -1139,9 +1140,82 @@ input[type="search"].input {
 	animation: pop var(--dur-slow) var(--ease-bounce);
 }
 .hero .service__btn.is-sent {
-	background: var(--brand-white);
-	color: var(--brand-forest);
+	background: var(--text-inverse);
+	color: var(--surface-inverse);
+	border-color: transparent;
 }
 .service__btn:disabled:not(.is-sent) {
 	cursor: progress;
+}
+
+/* ── Dietary filters and tags ── */
+/* Wraps instead of scrolling: six short chips, nothing hidden off the edge. */
+.diet {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-2);
+	margin: 0;
+	padding: 0;
+	border: 0;
+	min-inline-size: 0;
+}
+.diet__chip {
+	position: relative;
+	gap: var(--space-1);
+	min-block-size: 36px;
+	padding-inline: var(--space-3);
+	font-weight: 600;
+	cursor: pointer;
+	user-select: none;
+	transition:
+		background var(--dur-fast) var(--ease-out),
+		color var(--dur-fast) var(--ease-out);
+}
+.diet__chip input {
+	position: absolute;
+	opacity: 0;
+	pointer-events: none;
+}
+.diet__chip:has(input:focus-visible) {
+	outline: 3px solid var(--focus);
+	outline-offset: 2px;
+}
+.diet__chip.is-on {
+	background: var(--success-bg);
+	color: var(--success);
+	border-color: var(--success);
+}
+.diet__chip .bite-icon {
+	inline-size: 14px;
+	block-size: 14px;
+}
+.item__tags {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-1);
+	margin: 0;
+}
+.tag {
+	font-size: var(--fs-xs);
+	font-weight: 600;
+	line-height: 1;
+	padding: 4px 6px;
+	border-radius: var(--radius-sm);
+	background: var(--surface-sunken);
+	color: var(--text-muted);
+}
+.tag--vegan,
+.tag--vegetarian {
+	background: var(--success-bg);
+	color: var(--success);
+}
+.tag--spicy {
+	background: var(--danger-bg);
+	color: var(--danger);
+}
+.hero .service .error {
+	padding: var(--space-2) var(--space-3);
+	border-radius: var(--radius-md);
+	background: var(--danger-bg);
+	color: var(--danger);
 }

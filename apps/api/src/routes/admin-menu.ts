@@ -8,6 +8,7 @@ import {
 	CreateModifierOption,
 	CreateProduct,
 	CreatePromotion,
+	DIETARY_TAGS,
 	type LocationProduct,
 	Reorder,
 	SetLocationProduct,
@@ -67,6 +68,8 @@ const categoryDto = (r: CategoryRow): AdminCategory => ({
 	isActive: r.isActive,
 });
 
+const uniq = <T>(xs: T[]): T[] => [...new Set(xs)];
+
 type ProductRow = typeof products.$inferSelect;
 const productDto = (r: ProductRow, groupIds: string[]): AdminProduct => ({
 	id: r.id,
@@ -76,6 +79,7 @@ const productDto = (r: ProductRow, groupIds: string[]): AdminProduct => ({
 	price: r.price,
 	taxBps: r.taxBps,
 	imageUrl: r.imageUrl,
+	dietaryTags: DIETARY_TAGS.filter((t) => r.dietaryTags.includes(t)),
 	isVisible: r.isVisible,
 	sortOrder: r.sortOrder,
 	modifierGroupIds: groupIds,
@@ -362,6 +366,7 @@ export const adminMenuRoutes = new Hono<AppEnv>()
 					price: b.price,
 					taxBps: b.taxBps ?? null,
 					imageUrl: b.imageUrl ?? null,
+					dietaryTags: uniq(b.dietaryTags ?? []),
 					...defined({ isVisible: b.isVisible, sortOrder: b.sortOrder }),
 				})
 				.returning({ id: products.id });
@@ -400,6 +405,7 @@ export const adminMenuRoutes = new Hono<AppEnv>()
 					price: b.price,
 					taxBps: b.taxBps,
 					imageUrl: b.imageUrl,
+					dietaryTags: b.dietaryTags && uniq(b.dietaryTags),
 					isVisible: b.isVisible,
 					sortOrder: b.sortOrder,
 				});

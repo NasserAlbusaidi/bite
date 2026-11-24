@@ -66,6 +66,11 @@ export const products = pgTable(
 		/** Overrides the location's tax rate when set. Basis points. */
 		taxBps: integer("tax_bps"),
 		imageUrl: text("image_url"),
+		/** Dietary tags shown to guests and used for menu filters. See DIETARY_TAGS in @bite/contracts. */
+		dietaryTags: text("dietary_tags")
+			.array()
+			.notNull()
+			.default(sql`'{}'::text[]`),
 		isVisible: boolean("is_visible").notNull().default(true),
 		sortOrder: integer("sort_order").notNull().default(0),
 		/** Soft delete: order lines keep pointing at archived products. */

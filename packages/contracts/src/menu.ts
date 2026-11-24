@@ -43,6 +43,25 @@ export const MenuModifierGroup = z.object({
 	options: z.array(MenuModifierOption),
 });
 
+/**
+ * Dietary tags a product can carry. Guests filter the menu by them.
+ * Order here is the display order.
+ */
+export const DIETARY_TAGS = [
+	"vegetarian",
+	"vegan",
+	"gluten_free",
+	"dairy_free",
+	"nut_free",
+	"spicy",
+] as const;
+export const DietaryTag = z.enum(DIETARY_TAGS);
+export type DietaryTag = z.infer<typeof DietaryTag>;
+/** Unique, known tags. Unknown tags from a newer server are dropped, not fatal. */
+export const DietaryTags = z
+	.array(z.string())
+	.transform((tags) => DIETARY_TAGS.filter((t) => tags.includes(t)));
+
 export const MenuProduct = z.object({
 	id: Id,
 	categoryId: Id,
@@ -53,6 +72,8 @@ export const MenuProduct = z.object({
 	/** Null = use LocationPricing.taxBps. */
 	taxBps: Bps.nullable(),
 	imageUrl: z.string().nullable(),
+	/** Absent from older servers. */
+	dietaryTags: DietaryTags.optional(),
 	/** False = 86'd at this location. */
 	isAvailable: z.boolean(),
 	sortOrder: z.int(),
