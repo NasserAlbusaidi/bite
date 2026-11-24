@@ -39,6 +39,13 @@ import {
 	UpdateStaff,
 } from "./contracts";
 import {
+	demoAdjust,
+	demoCustomer,
+	demoCustomers,
+	demoProgram,
+	demoSaveProgram,
+} from "./demo-guests";
+import {
 	demoCashSessions,
 	demoOrderDetail,
 	demoOrders,
@@ -929,6 +936,30 @@ export function fixtureAdminApi(
 			if (s.orgRole === "owner") throw new AdminApiError("forbidden", 403);
 			s.isActive = false;
 			persist();
+		},
+		async loyalty() {
+			return demoProgram();
+		},
+		async saveLoyalty(p) {
+			if (!DEMO_ME.member.orgRole || DEMO_ME.member.orgRole === "staff")
+				throw new AdminApiError("forbidden", 403);
+			const saved = demoSaveProgram(p);
+			if (!saved) throw new AdminApiError("bad_request", 400);
+			return saved;
+		},
+		async customers(q) {
+			return demoCustomers(q);
+		},
+		async customer(cid) {
+			const g = demoCustomer(cid);
+			if (!g) throw new AdminApiError("not_found", 404);
+			return g;
+		},
+		async adjustPoints(cid, a) {
+			const g = demoAdjust(cid, a);
+			if (g === undefined) throw new AdminApiError("not_found", 404);
+			if (g === "invalid") throw new AdminApiError("unprocessable", 422);
+			return g;
 		},
 	};
 }

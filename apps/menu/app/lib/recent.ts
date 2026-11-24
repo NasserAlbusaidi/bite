@@ -127,7 +127,8 @@ export function orderSteps(o: {
 	fulfillmentStatus: string;
 }): { step: Step; state: StepState }[] {
 	const f = o.fulfillmentStatus;
-	const paid = o.paymentStatus !== "unpaid";
+	const paid =
+		o.paymentStatus !== "unpaid" && o.paymentStatus !== "partially_paid";
 	return [
 		{ step: "sent", state: "done" },
 		{

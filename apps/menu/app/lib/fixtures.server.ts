@@ -10,6 +10,7 @@ import {
 	CreateGuestOrderRequest,
 	type GroupCartView,
 	type GuestOrderView,
+	type GuestProfile,
 	type PublicMenuResponse,
 } from "./contracts";
 import { clockFor, menuPricing } from "./pricing";
@@ -207,14 +208,106 @@ export function demoMenu(): PublicMenuResponse {
 	};
 }
 
+/** Loyalty as the demo shop runs it. */
+export const FIXTURE_PROGRAM: GuestProfile["program"] = {
+	enabled: true,
+	pointsPerRial: 10,
+	rewards: [
+		{
+			id: "coffee",
+			name: { en: "Free coffee", ar: "قهوة مجانية" },
+			points: 60,
+			value: 1600,
+		},
+		{
+			id: "dessert",
+			name: { en: "Free dessert", ar: "حلى مجاني" },
+			points: 120,
+			value: 2500,
+		},
+	],
+};
+
 export function fixtureApi(
 	source: () => PublicMenuResponse = demoMenu,
 ): GuestApi {
 	const orders = new Map<string, GuestOrderView>();
 	const byKey = new Map<string, { body: string; order: GuestOrderView }>();
 	const carts = new Map<string, FixtureCart>();
+	/** token -> remembered guest. Points land at once (no till here). */
+	const guests = new Map<string, GuestProfile>();
+	const byPhone = new Map<string, string>();
 
 	const api: GuestApi = {
+		async getGuest(slug, token) {
+			if (slug !== source().location.slug) return null;
+			const g = guests.get(token);
+			return g ? structuredClone(g) : null;
+		},
+		async checkout(req, key, token) {
+			let g = token ? guests.get(token) : undefined;
+			if (req.rewardId && !g)
+				throw new GuestApiError("unprocessable", {
+					reason: "reward_unavailable",
+				});
+			const reward = req.rewardId
+				? FIXTURE_PROGRAM.rewards.find((r) => r.id === req.rewardId)
+				: undefined;
+			if (req.rewardId && (!reward || (g?.points ?? 0) < reward.points))
+				throw new GuestApiError("unprocessable", {
+					reason: "reward_unavailable",
+				});
+			const order = await api.placeOrder(req, key);
+			let issued: string | undefined;
+			if (!g && req.customerPhone) {
+				const known = byPhone.get(req.customerPhone);
+				if (known) return { order };
+				issued = `bg_fixture_${uuidv7()}`;
+				g = {
+					name: req.customerName ?? null,
+					phoneHint: `•••• ${req.customerPhone.slice(-4)}`,
+					points: 0,
+					visitCount: 0,
+					program: FIXTURE_PROGRAM,
+					recentOrders: [],
+				};
+				guests.set(issued, g);
+				byPhone.set(req.customerPhone, issued);
+			}
+			if (!g) return { order };
+			const off = reward ? Math.min(reward.value, order.total) : 0;
+			const earned = Math.floor(((order.total - off) * 10) / 1000);
+			g.points += earned - (reward?.points ?? 0);
+			g.visitCount += 1;
+			g.recentOrders = [
+				{
+					ticketNumber: order.ticketNumber,
+					placedAt: order.placedAt,
+					total: order.total,
+					paymentStatus: (off >= order.total
+						? "paid"
+						: off > 0
+							? "partially_paid"
+							: "unpaid") as GuestOrderView["paymentStatus"],
+					lines: order.lines.map((l) => ({
+						productId: l.productId,
+						name: l.name,
+						quantity: l.quantity,
+						modifierOptionIds: l.modifiers.map((m) => m.optionId),
+					})),
+				},
+				...g.recentOrders,
+			].slice(0, 5);
+			return {
+				order,
+				guest: {
+					...(issued ? { token: issued } : {}),
+					points: g.points - earned,
+					pointsPending: earned,
+					...(reward ? { redeemed: { rewardId: reward.id, amount: off } } : {}),
+				},
+			};
+		},
 		async getMenu(slug) {
 			const m = source();
 			return slug === m.location.slug ? m : null;

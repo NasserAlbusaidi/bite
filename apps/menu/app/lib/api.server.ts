@@ -11,8 +11,10 @@ import {
 	ErrorBody,
 	type ErrorCode,
 	GroupCartView,
+	GUEST_TOKEN_HEADER,
 	GuestOrderRejectDetails,
 	GuestOrderView,
+	GuestProfile,
 	IDEMPOTENCY_KEY_HEADER,
 	JoinGroupCartResponse,
 	PARTICIPANT_SECRET_HEADER,
@@ -52,6 +54,14 @@ export interface GuestApi {
 		kind: ServiceRequestKind,
 		tableLabel: string,
 	): Promise<ServiceRequest>;
+	/** Checkout with the remembered-guest token; returns loyalty info too. */
+	checkout(
+		req: CreateGuestOrderRequest,
+		idempotencyKey: string,
+		guestToken: string | null,
+	): Promise<CreateGuestOrderResponse>;
+	/** The remembered guest, or null for an unknown token. */
+	getGuest(slug: string, guestToken: string): Promise<GuestProfile | null>;
 
 	createGroupCart(
 		slug: string,
@@ -166,6 +176,19 @@ export function httpApi(
 			);
 			return res.order;
 		},
+		checkout: (req, key, token) =>
+			must(
+				CreateGuestOrderResponse,
+				`/v1/public/locations/${enc(req.locationSlug)}/orders`,
+				json(req, {
+					[IDEMPOTENCY_KEY_HEADER]: key,
+					...(token ? { [GUEST_TOKEN_HEADER]: token } : {}),
+				}),
+			),
+		getGuest: (slug, token) =>
+			call(GuestProfile, `/v1/public/locations/${enc(slug)}/guest`, {
+				headers: { [GUEST_TOKEN_HEADER]: token },
+			}),
 
 		createGroupCart: (slug, displayName) =>
 			must(

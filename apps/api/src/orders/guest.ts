@@ -106,6 +106,7 @@ export function toGuestView(
 		discountTotal: o.discountTotal,
 		taxTotal: o.taxTotal,
 		total: o.total,
+		paidTotal: o.paidTotal,
 		placedAt: o.placedAt,
 		readyAt: o.readyAt,
 		lines: o.lines,

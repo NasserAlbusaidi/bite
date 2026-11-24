@@ -1,6 +1,7 @@
 import { Icon } from "@bite/ui";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useFetcher } from "react-router";
+import { GuestCard, usualCart } from "../components/GuestCard";
 import { MenuHeader } from "../components/MenuHeader";
 import { MenuList } from "../components/MenuList";
 import { Price } from "../components/Price";
@@ -22,6 +23,7 @@ import {
 	useRemembered,
 } from "../lib/recent";
 import { useTable } from "../lib/table";
+import { useGuest } from "../lib/use-guest";
 import type { Route } from "./+types/menu";
 
 export async function loader({ params }: Route.LoaderArgs) {
@@ -77,12 +79,17 @@ export default function Menu({ loaderData }: Route.ComponentProps) {
 	const activeRaw = useRemembered(activeKey(location.slug));
 	const lastRaw = useRemembered(lastKey(location.slug));
 	const active = useMemo(() => parseActive(activeRaw, Date.now()), [activeRaw]);
-	// Only what can still be ordered exactly as it was last time.
+	const { guest, forget } = useGuest(lang, location.slug);
+	// Only what can still be ordered exactly as it was last time. A
+	// remembered guest's last order (any device, any branch) wins over this
+	// phone's own memory.
 	const again = useMemo((): Cart | null => {
+		const usual = guest ? usualCart(guest, idx) : null;
+		if (usual) return usual;
 		const last = parseLast(lastRaw, Date.now());
 		const lines = last ? reorderable(last, idx) : [];
 		return lines.length > 0 ? { lines } : null;
-	}, [lastRaw, idx]);
+	}, [lastRaw, idx, guest]);
 	const againQuote = useMemo(
 		() => (again ? quoteCart(pricing, again, at) : null),
 		[again, pricing, at],
@@ -119,6 +126,9 @@ export default function Menu({ loaderData }: Route.ComponentProps) {
 				{table && (
 					<ServiceBar lang={lang} slug={location.slug} table={table} t={t} />
 				)}
+				{guest && (
+					<GuestCard guest={guest} lang={lang} t={t} onForget={forget} />
+				)}
 				{canOrder && <OrderTogether lang={lang} slug={location.slug} t={t} />}
 			</MenuHeader>
 
@@ -144,7 +154,11 @@ export default function Menu({ loaderData }: Route.ComponentProps) {
 					againQuote?.order && (
 						<section className="again" aria-labelledby="again-title">
 							<div className="again__body">
-								<h2 id="again-title">{t("again_title")}</h2>
+								<h2 id="again-title">
+									{guest?.recentOrders.length
+										? t("your_usual")
+										: t("again_title")}
+								</h2>
 								<p className="muted small">
 									{again.lines
 										.map(

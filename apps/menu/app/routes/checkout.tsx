@@ -1,5 +1,5 @@
 import { Icon } from "@bite/ui";
-import { useMemo, useRef } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
 	data,
 	Link,
@@ -9,6 +9,7 @@ import {
 } from "react-router";
 import { CartLines } from "../components/CartLines";
 import { type CheckoutFields, CheckoutForm } from "../components/CheckoutForm";
+import { Price } from "../components/Price";
 import { Totals } from "../components/Totals";
 import { GuestApiError, guestApi } from "../lib/api.server";
 import { indexMenu, toLineInputs } from "../lib/cart";
@@ -20,10 +21,12 @@ import {
 } from "../lib/contracts";
 import { errorMessageKey } from "../lib/errors";
 import { loadMenu, MENU_CACHE } from "../lib/guest.server";
-import { isLang, translator } from "../lib/i18n";
+import { guestToken, rememberGuest } from "../lib/guest-token.server";
+import { isLang, loc, translator } from "../lib/i18n";
 import { isNetworkError, isOffline, OFFLINE } from "../lib/offline";
 import { menuPricing, quoteCart, usePricingClock } from "../lib/pricing";
 import { useTable } from "../lib/table";
+import { useGuest } from "../lib/use-guest";
 import { uuidv7 } from "../lib/uuid";
 import type { Route } from "./+types/checkout";
 
@@ -69,9 +72,24 @@ export async function action({ request, params }: Route.ActionArgs) {
 		);
 	}
 	try {
-		const order = await guestApi().placeOrder(parsed.data, key);
+		const token = await guestToken(request, params.slug);
+		const { order, guest } = await guestApi().checkout(parsed.data, key, token);
+		const q = new URLSearchParams({ placed: "1" });
+		if (guest?.pointsPending) q.set("pts", String(guest.pointsPending));
+		if (guest?.redeemed) q.set("off", String(guest.redeemed.amount));
 		return redirect(
-			`/${params.lang}/${params.slug}/orders/${order.trackingToken}?placed=1`,
+			`/${params.lang}/${params.slug}/orders/${order.trackingToken}?${q}`,
+			guest?.token
+				? {
+						headers: {
+							"set-cookie": await rememberGuest(
+								request,
+								params.slug,
+								guest.token,
+							),
+						},
+					}
+				: undefined,
 		);
 	} catch (e) {
 		if (!(e instanceof GuestApiError)) throw e;
@@ -118,6 +136,16 @@ export default function Checkout({ loaderData }: Route.ComponentProps) {
 	};
 	const [cart, dispatch] = useCart(location.slug);
 	const table = useTable(location.slug);
+	const { guest } = useGuest(lang, location.slug);
+	const [rewardId, setRewardId] = useState<string | null>(null);
+	const program = guest?.program;
+	const rewards =
+		program?.enabled && guest
+			? program.rewards
+					.filter((r) => r.points <= guest.points)
+					.sort((a, b) => a.points - b.points)
+			: [];
+	const reward = rewards.find((r) => r.id === rewardId) ?? null;
 	const fetcher = useFetcher<typeof action>();
 	// One idempotency key per distinct payload: a retry of the same order reuses it.
 	const attempt = useRef<
@@ -152,14 +180,15 @@ export default function Checkout({ loaderData }: Route.ComponentProps) {
 	}
 
 	const submit = (fields: CheckoutFields) => {
-		const fingerprint = JSON.stringify({ fields, cart: cart.lines });
+		const all = { ...fields, ...(reward ? { rewardId: reward.id } : {}) };
+		const fingerprint = JSON.stringify({ fields: all, cart: cart.lines });
 		if (attempt.current?.fingerprint !== fingerprint) {
 			attempt.current = { fingerprint, key: uuidv7(), ...toLineInputs(cart) };
 		}
 		// Same payload (line ids included) + same key: a retry after a lost response is safe.
 		fetcher.submit(
 			{
-				order: JSON.stringify({ ...fields, lines: attempt.current.lines }),
+				order: JSON.stringify({ ...all, lines: attempt.current.lines }),
 				idempotencyKey: attempt.current.key,
 			},
 			{ method: "post" },
@@ -214,6 +243,53 @@ export default function Checkout({ loaderData }: Route.ComponentProps) {
 
 			<Totals order={quote.order} lang={lang} t={t} currency={currency} />
 
+			{rewards.length > 0 && quote.order && (
+				<fieldset className="rewards">
+					<legend className="field-label">
+						{t("use_reward")}{" "}
+						<span className="muted small">
+							{t("points_balance", { points: guest?.points ?? 0 })}
+						</span>
+					</legend>
+					{[null, ...rewards].map((r) => (
+						<label key={r?.id ?? "none"} className="reward">
+							<input
+								type="radio"
+								name="reward"
+								checked={(reward?.id ?? null) === (r?.id ?? null)}
+								onChange={() => setRewardId(r?.id ?? null)}
+							/>
+							<span className="reward__name">
+								{r ? loc(r.name, lang) : t("no_reward")}
+							</span>
+							{r && (
+								<span className="reward__meta muted small">
+									−
+									<Price
+										amount={Math.min(r.value, quote.order?.total ?? 0)}
+										currency={currency}
+										lang={lang}
+									/>{" "}
+									· {t("reward_cost", { points: r.points })}
+								</span>
+							)}
+						</label>
+					))}
+				</fieldset>
+			)}
+			{program?.enabled && quote.order && (
+				<p className="muted small points-note">
+					{t("points_will_earn", {
+						points: Math.floor(
+							((quote.order.total -
+								(reward ? Math.min(reward.value, quote.order.total) : 0)) *
+								program.pointsPerRial) /
+								1000,
+						),
+					})}
+				</p>
+			)}
+
 			<CheckoutForm
 				t={t}
 				busy={busy}
@@ -227,6 +303,8 @@ export default function Checkout({ loaderData }: Route.ComponentProps) {
 				}
 				submitLabel={t("place_order")}
 				defaultTable={table}
+				defaultName={guest?.name?.trim().split(/\s+/)[0] ?? ""}
+				knownPhone={guest?.phoneHint ?? null}
 				onSubmit={submit}
 			/>
 		</main>
