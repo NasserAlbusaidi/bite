@@ -1,7 +1,7 @@
 import type { IconName } from "@bite/ui";
 import type { MessageKey } from "./i18n";
 
-export type NavGroup = "main" | "menu" | "business";
+export type NavGroup = "home" | "sales" | "menu" | "people" | "branch";
 
 export type NavItem = {
 	key: MessageKey;
@@ -12,34 +12,60 @@ export type NavItem = {
 	end?: boolean;
 	/** Keyboard shortcut: press G, then this key. */
 	go?: string;
+	/** Not listed in the panel (it has its own spot); search and G still reach it. */
+	unlisted?: boolean;
 };
 
-/** The sidebar, in order. Branch pages need a branch. */
+/**
+ * The rail: one labelled button per group, in order. Picking one shows that
+ * group's pages in the panel next to it.
+ */
+export const NAV_GROUPS: readonly {
+	id: NavGroup;
+	label: MessageKey;
+	icon: IconName;
+}[] = [
+	{ id: "home", label: "overview", icon: "home" },
+	{ id: "sales", label: "nav_group_sales", icon: "receipt" },
+	{ id: "menu", label: "menu", icon: "book" },
+	{ id: "people", label: "nav_group_people", icon: "users" },
+	{ id: "branch", label: "branch", icon: "store" },
+];
+
+/** The sidebar pages, in order. Branch pages need a branch. */
 export function navItems(locationId: string | undefined): NavItem[] {
 	const items: (NavItem | false)[] = [
 		{
 			key: "overview",
 			to: "/",
 			icon: "home",
-			group: "main",
+			group: "home",
 			end: true,
 			go: "h",
 		},
-		{ key: "reports", to: "/reports", icon: "chart", group: "main", go: "r" },
+		{
+			key: "setup_guide",
+			to: "/setup",
+			icon: "check",
+			group: "home",
+			go: "u",
+			unlisted: true,
+		},
 		{
 			key: "orders_title",
 			to: "/orders",
 			icon: "receipt",
-			group: "main",
+			group: "sales",
 			go: "o",
 		},
 		{
 			key: "drawers_title",
 			to: "/drawers",
 			icon: "cash",
-			group: "main",
+			group: "sales",
 			go: "c",
 		},
+		{ key: "reports", to: "/reports", icon: "chart", group: "sales", go: "r" },
 		{
 			key: "menu",
 			to: "/menu",
@@ -73,47 +99,49 @@ export function navItems(locationId: string | undefined): NavItem[] {
 			key: "guests_title",
 			to: "/guests",
 			icon: "user",
-			group: "business",
+			group: "people",
 			go: "g",
 		},
 		{
 			key: "loyalty_title",
 			to: "/loyalty",
 			icon: "star",
-			group: "business",
+			group: "people",
 			go: "l",
 		},
-		{ key: "staff", to: "/staff", icon: "users", group: "business", go: "s" },
-		!!locationId && {
-			key: "dv_nav",
-			to: "/devices",
-			icon: "tablet",
-			group: "business",
-			go: "v",
-		},
+		{ key: "staff", to: "/staff", icon: "users", group: "people", go: "s" },
 		!!locationId && {
 			key: "floor_nav",
 			to: `/locations/${locationId}/floor`,
 			icon: "layout",
-			group: "business",
+			group: "branch",
 			go: "t",
+		},
+		!!locationId && {
+			key: "dv_nav",
+			to: "/devices",
+			icon: "tablet",
+			group: "branch",
+			go: "v",
 		},
 		!!locationId && {
 			key: "location_nav",
 			to: `/locations/${locationId}/settings`,
 			icon: "store",
-			group: "business",
+			group: "branch",
 			go: "b",
-		},
-		{
-			key: "setup_guide",
-			to: "/setup",
-			icon: "check",
-			group: "business",
-			go: "u",
 		},
 	];
 	return items.filter((x): x is NavItem => x !== false);
+}
+
+/** The rail groups that have pages, each with its pages in order. */
+export function navGroups(items: readonly NavItem[]) {
+	return NAV_GROUPS.flatMap((g) => {
+		const list = items.filter((i) => i.group === g.id && !i.unlisted);
+		const [first] = list;
+		return first ? [{ ...g, items: list, first }] : [];
+	});
 }
 
 /**

@@ -1,11 +1,36 @@
 import { describe, expect, it } from "vitest";
-import { currentNav, goTarget, matchScore, navItems } from "./nav";
+import {
+	currentNav,
+	goTarget,
+	matchScore,
+	NAV_GROUPS,
+	navGroups,
+	navItems,
+} from "./nav";
 
 describe("navItems", () => {
 	it("hides branch pages until there is a branch", () => {
 		const keys = navItems(undefined).map((i) => i.key);
 		expect(keys).not.toContain("location_nav");
 		expect(navItems("b1").map((i) => i.key)).toContain("location_nav");
+	});
+});
+
+describe("navGroups", () => {
+	it("puts every page in a rail group, in rail order", () => {
+		const groups = navGroups(navItems("b1"));
+		expect(groups.map((g) => g.id)).toEqual(NAV_GROUPS.map((g) => g.id));
+		expect(groups.flatMap((g) => g.items).length).toBe(
+			navItems("b1").filter((i) => !i.unlisted).length,
+		);
+		expect(
+			groups.find((g) => g.id === "sales")?.items.map((i) => i.key),
+		).toEqual(["orders_title", "drawers_title", "reports"]);
+	});
+	it("drops the branch group until there is a branch", () => {
+		const ids = navGroups(navItems(undefined)).map((g) => g.id);
+		expect(ids).not.toContain("branch");
+		expect(ids).toContain("menu");
 	});
 });
 

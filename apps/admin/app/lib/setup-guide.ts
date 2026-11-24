@@ -117,3 +117,10 @@ export function setTicked(
 		// private mode: forgotten next visit
 	}
 }
+
+/** The step to suggest next: the first open must-do step, else any open one. */
+export function nextStep(steps: readonly GuideStep[]): GuideStep | undefined {
+	return (
+		steps.find((s) => !s.done && !s.optional) ?? steps.find((s) => !s.done)
+	);
+}
