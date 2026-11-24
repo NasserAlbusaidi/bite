@@ -124,8 +124,15 @@
 		{
 			"idx": 17,
 			"version": "7",
-			"when": 1795505664375,
-			"tag": "0017_platform_admins",
+			"when": 1795505934746,
+			"tag": "0017_product_dietary_tags",
+			"breakpoints": true
+		},
+		{
+			"idx": 18,
+			"version": "7",
+			"when": 1795506405553,
+			"tag": "0018_platform_admins",
 			"breakpoints": true
 		}
 	]

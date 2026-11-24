@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import type { MenuSnapshot } from "@bite/contracts";
+import { DIETARY_TAGS, type MenuSnapshot } from "@bite/contracts";
 import { schema, type Tx } from "@bite/db";
 import { and, asc, eq, isNull, or } from "@bite/db/orm";
 
@@ -122,6 +122,7 @@ export async function loadMenuSnapshot(
 			price: overridePrice ?? p.price,
 			taxBps: p.taxBps,
 			imageUrl: p.imageUrl,
+			dietaryTags: DIETARY_TAGS.filter((t) => p.dietaryTags.includes(t)),
 			isAvailable: isAvailable ?? true,
 			sortOrder: p.sortOrder,
 			modifierGroupIds: groupsByProduct.get(p.id) ?? [],

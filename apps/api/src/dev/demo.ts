@@ -527,16 +527,46 @@ type Built = {
 	created: boolean;
 };
 
+/** Dietary tags per menu key, re-applied on every run (like PHOTOS). */
+const DIETARY: Record<string, string[]> = {
+	karak: ["vegetarian", "gluten_free", "nut_free"],
+	kahwa: ["vegan", "gluten_free", "dairy_free", "nut_free"],
+	spanish: ["vegetarian", "gluten_free", "nut_free"],
+	saffron: ["vegetarian", "gluten_free", "nut_free"],
+	flatwhite: ["vegetarian", "gluten_free", "nut_free"],
+	v60: ["vegan", "gluten_free", "dairy_free", "nut_free"],
+	iced: ["vegetarian", "gluten_free", "nut_free"],
+	omani: ["vegetarian", "nut_free"],
+	shakshuka: ["vegetarian", "nut_free", "spicy"],
+	balaleet: ["vegetarian", "nut_free"],
+	avotoast: ["vegetarian", "dairy_free", "nut_free"],
+	croissant: ["vegetarian", "nut_free"],
+	machboos: ["gluten_free", "dairy_free", "spicy"],
+	shuwa: ["gluten_free", "dairy_free", "nut_free", "spicy"],
+	mishkak: ["gluten_free", "dairy_free", "nut_free", "spicy"],
+	shawarma: ["dairy_free", "nut_free"],
+	salad: ["vegetarian", "gluten_free"],
+	fries: ["vegetarian", "gluten_free", "nut_free"],
+	datecake: ["vegetarian", "nut_free"],
+	kunafa: ["vegetarian"],
+	halwa: ["vegetarian"],
+	orange: ["vegan", "gluten_free", "dairy_free", "nut_free"],
+	lemonmint: ["vegan", "gluten_free", "dairy_free", "nut_free"],
+	mango: ["vegetarian", "gluten_free", "nut_free"],
+	water: ["vegan", "gluten_free", "dairy_free", "nut_free"],
+};
+
 /** Sets image_url on an existing Luban menu from PHOTOS (matched by English name). */
 async function applyPhotos(o: any, orgId: string) {
 	let n = 0;
 	for (const { items } of MENU) {
 		for (const it of items) {
 			const url = PHOTOS[it.key];
-			if (!url) continue;
+			const dietaryTags = DIETARY[it.key] ?? [];
+			if (!url && dietaryTags.length === 0) continue;
 			const done = await o
 				.update(s.products)
-				.set({ imageUrl: url })
+				.set({ ...(url ? { imageUrl: url } : {}), dietaryTags })
 				.where(
 					and(
 						eq(s.products.orgId, orgId),
@@ -748,6 +778,7 @@ async function build(): Promise<Built> {
 						description: it.desc,
 						price: it.price,
 						imageUrl: PHOTOS[it.key] ?? null,
+						dietaryTags: DIETARY[it.key] ?? [],
 						sortOrder: pi,
 					});
 					for (const [gi, g] of (it.groups ?? []).entries()) {

@@ -1,5 +1,5 @@
 {
-	"id": "337d8bb0-be7d-43d8-bba5-e31d38b13a85",
+	"id": "e8c7ee1f-6e59-4a26-9a44-56f232b9fb0b",
 	"prevId": "419c648b-4656-4a58-aea1-74a816d83bfc",
 	"version": "7",
 	"dialect": "postgresql",
@@ -101,20 +101,20 @@
 						}
 					],
 					"isUnique": false,
-					"with": {},
+					"concurrently": false,
 					"method": "btree",
-					"concurrently": false
+					"with": {}
 				}
 			},
 			"foreignKeys": {
 				"auth_accounts_user_id_auth_users_id_fk": {
 					"name": "auth_accounts_user_id_auth_users_id_fk",
 					"tableFrom": "auth_accounts",
-					"columnsFrom": ["user_id"],
 					"tableTo": "auth_users",
+					"columnsFrom": ["user_id"],
 					"columnsTo": ["id"],
-					"onUpdate": "no action",
-					"onDelete": "cascade"
+					"onDelete": "cascade",
+					"onUpdate": "no action"
 				}
 			},
 			"compositePrimaryKeys": {},
@@ -190,28 +190,28 @@
 						}
 					],
 					"isUnique": false,
-					"with": {},
+					"concurrently": false,
 					"method": "btree",
-					"concurrently": false
+					"with": {}
 				}
 			},
 			"foreignKeys": {
 				"auth_sessions_user_id_auth_users_id_fk": {
 					"name": "auth_sessions_user_id_auth_users_id_fk",
 					"tableFrom": "auth_sessions",
-					"columnsFrom": ["user_id"],
 					"tableTo": "auth_users",
+					"columnsFrom": ["user_id"],
 					"columnsTo": ["id"],
-					"onUpdate": "no action",
-					"onDelete": "cascade"
+					"onDelete": "cascade",
+					"onUpdate": "no action"
 				}
 			},
 			"compositePrimaryKeys": {},
 			"uniqueConstraints": {
 				"auth_sessions_token_unique": {
 					"name": "auth_sessions_token_unique",
-					"columns": ["token"],
-					"nullsNotDistinct": false
+					"nullsNotDistinct": false,
+					"columns": ["token"]
 				}
 			},
 			"policies": {},
@@ -274,8 +274,8 @@
 			"uniqueConstraints": {
 				"auth_users_email_unique": {
 					"name": "auth_users_email_unique",
-					"columns": ["email"],
-					"nullsNotDistinct": false
+					"nullsNotDistinct": false,
+					"columns": ["email"]
 				}
 			},
 			"policies": {},
@@ -337,9 +337,9 @@
 						}
 					],
 					"isUnique": false,
-					"with": {},
+					"concurrently": false,
 					"method": "btree",
-					"concurrently": false
+					"with": {}
 				}
 			},
 			"foreignKeys": {},
@@ -409,20 +409,20 @@
 				"cash_movements_org_id_cash_session_id_cash_sessions_org_id_id_fk": {
 					"name": "cash_movements_org_id_cash_session_id_cash_sessions_org_id_id_fk",
 					"tableFrom": "cash_movements",
-					"columnsFrom": ["org_id", "cash_session_id"],
 					"tableTo": "cash_sessions",
+					"columnsFrom": ["org_id", "cash_session_id"],
 					"columnsTo": ["org_id", "id"],
-					"onUpdate": "no action",
-					"onDelete": "restrict"
+					"onDelete": "restrict",
+					"onUpdate": "no action"
 				},
 				"cash_movements_org_id_created_by_members_org_id_id_fk": {
 					"name": "cash_movements_org_id_created_by_members_org_id_id_fk",
 					"tableFrom": "cash_movements",
-					"columnsFrom": ["org_id", "created_by"],
 					"tableTo": "members",
+					"columnsFrom": ["org_id", "created_by"],
 					"columnsTo": ["org_id", "id"],
-					"onUpdate": "no action",
-					"onDelete": "restrict"
+					"onDelete": "restrict",
+					"onUpdate": "no action"
 				}
 			},
 			"compositePrimaryKeys": {},
@@ -562,10 +562,10 @@
 						}
 					],
 					"isUnique": true,
-					"with": {},
-					"method": "btree",
 					"where": "\"cash_sessions\".\"status\" = 'open'",
-					"concurrently": false
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
 				},
 				"cash_sessions_location_day_idx": {
 					"name": "cash_sessions_location_day_idx",
@@ -584,55 +584,55 @@
 						}
 					],
 					"isUnique": false,
-					"with": {},
+					"concurrently": false,
 					"method": "btree",
-					"concurrently": false
+					"with": {}
 				}
 			},
 			"foreignKeys": {
 				"cash_sessions_org_id_location_id_locations_org_id_id_fk": {
 					"name": "cash_sessions_org_id_location_id_locations_org_id_id_fk",
 					"tableFrom": "cash_sessions",
-					"columnsFrom": ["org_id", "location_id"],
 					"tableTo": "locations",
+					"columnsFrom": ["org_id", "location_id"],
 					"columnsTo": ["org_id", "id"],
-					"onUpdate": "no action",
-					"onDelete": "restrict"
+					"onDelete": "restrict",
+					"onUpdate": "no action"
 				},
 				"cash_sessions_org_id_device_id_devices_org_id_id_fk": {
 					"name": "cash_sessions_org_id_device_id_devices_org_id_id_fk",
 					"tableFrom": "cash_sessions",
-					"columnsFrom": ["org_id", "device_id"],
 					"tableTo": "devices",
+					"columnsFrom": ["org_id", "device_id"],
 					"columnsTo": ["org_id", "id"],
-					"onUpdate": "no action",
-					"onDelete": "restrict"
+					"onDelete": "restrict",
+					"onUpdate": "no action"
 				},
 				"cash_sessions_org_id_opened_by_members_org_id_id_fk": {
 					"name": "cash_sessions_org_id_opened_by_members_org_id_id_fk",
 					"tableFrom": "cash_sessions",
-					"columnsFrom": ["org_id", "opened_by"],
 					"tableTo": "members",
+					"columnsFrom": ["org_id", "opened_by"],
 					"columnsTo": ["org_id", "id"],
-					"onUpdate": "no action",
-					"onDelete": "restrict"
+					"onDelete": "restrict",
+					"onUpdate": "no action"
 				},
 				"cash_sessions_org_id_closed_by_members_org_id_id_fk": {
 					"name": "cash_sessions_org_id_closed_by_members_org_id_id_fk",
 					"tableFrom": "cash_sessions",
-					"columnsFrom": ["org_id", "closed_by"],
 					"tableTo": "members",
+					"columnsFrom": ["org_id", "closed_by"],
 					"columnsTo": ["org_id", "id"],
-					"onUpdate": "no action",
-					"onDelete": "restrict"
+					"onDelete": "restrict",
+					"onUpdate": "no action"
 				}
 			},
 			"compositePrimaryKeys": {},
 			"uniqueConstraints": {
 				"cash_sessions_org_id_id_unique": {
 					"name": "cash_sessions_org_id_id_unique",
-					"columns": ["org_id", "id"],
-					"nullsNotDistinct": false
+					"nullsNotDistinct": false,
+					"columns": ["org_id", "id"]
 				}
 			},
 			"policies": {
@@ -717,20 +717,20 @@
 						}
 					],
 					"isUnique": true,
-					"with": {},
+					"concurrently": false,
 					"method": "btree",
-					"concurrently": false
+					"with": {}
 				}
 			},
 			"foreignKeys": {
 				"customer_devices_org_id_customer_id_customers_org_id_id_fk": {
 					"name": "customer_devices_org_id_customer_id_customers_org_id_id_fk",
 					"tableFrom": "customer_devices",
-					"columnsFrom": ["org_id", "customer_id"],
 					"tableTo": "customers",
+					"columnsFrom": ["org_id", "customer_id"],
 					"columnsTo": ["org_id", "id"],
-					"onUpdate": "no action",
-					"onDelete": "cascade"
+					"onDelete": "cascade",
+					"onUpdate": "no action"
 				}
 			},
 			"compositePrimaryKeys": {},
@@ -834,24 +834,24 @@
 				"customers_org_id_orgs_id_fk": {
 					"name": "customers_org_id_orgs_id_fk",
 					"tableFrom": "customers",
-					"columnsFrom": ["org_id"],
 					"tableTo": "orgs",
+					"columnsFrom": ["org_id"],
 					"columnsTo": ["id"],
-					"onUpdate": "no action",
-					"onDelete": "restrict"
+					"onDelete": "restrict",
+					"onUpdate": "no action"
 				}
 			},
 			"compositePrimaryKeys": {},
 			"uniqueConstraints": {
 				"customers_org_id_id_unique": {
 					"name": "customers_org_id_id_unique",
-					"columns": ["org_id", "id"],
-					"nullsNotDistinct": false
+					"nullsNotDistinct": false,
+					"columns": ["org_id", "id"]
 				},
 				"customers_org_id_phone_unique": {
 					"name": "customers_org_id_phone_unique",
-					"columns": ["org_id", "phone"],
-					"nullsNotDistinct": false
+					"nullsNotDistinct": false,
+					"columns": ["org_id", "phone"]
 				}
 			},
 			"policies": {
@@ -966,9 +966,9 @@
 						}
 					],
 					"isUnique": false,
-					"with": {},
+					"concurrently": false,
 					"method": "btree",
-					"concurrently": false
+					"with": {}
 				},
 				"loyalty_ledger_earn_once": {
 					"name": "loyalty_ledger_earn_once",
@@ -987,21 +987,21 @@
 						}
 					],
 					"isUnique": true,
-					"with": {},
-					"method": "btree",
 					"where": "\"loyalty_ledger\".\"kind\" = 'earn'",
-					"concurrently": false
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
 				}
 			},
 			"foreignKeys": {
 				"loyalty_ledger_org_id_customer_id_customers_org_id_id_fk": {
 					"name": "loyalty_ledger_org_id_customer_id_customers_org_id_id_fk",
 					"tableFrom": "loyalty_ledger",
-					"columnsFrom": ["org_id", "customer_id"],
 					"tableTo": "customers",
+					"columnsFrom": ["org_id", "customer_id"],
 					"columnsTo": ["org_id", "id"],
-					"onUpdate": "no action",
-					"onDelete": "restrict"
+					"onDelete": "restrict",
+					"onUpdate": "no action"
 				}
 			},
 			"compositePrimaryKeys": {},
@@ -1078,11 +1078,11 @@
 				"loyalty_programs_org_id_orgs_id_fk": {
 					"name": "loyalty_programs_org_id_orgs_id_fk",
 					"tableFrom": "loyalty_programs",
-					"columnsFrom": ["org_id"],
 					"tableTo": "orgs",
+					"columnsFrom": ["org_id"],
 					"columnsTo": ["id"],
-					"onUpdate": "no action",
-					"onDelete": "restrict"
+					"onDelete": "restrict",
+					"onUpdate": "no action"
 				}
 			},
 			"compositePrimaryKeys": {},
@@ -1185,38 +1185,38 @@
 						}
 					],
 					"isUnique": false,
-					"with": {},
+					"concurrently": false,
 					"method": "btree",
-					"concurrently": false
+					"with": {}
 				}
 			},
 			"foreignKeys": {
 				"group_cart_items_org_id_cart_id_group_carts_org_id_id_fk": {
 					"name": "group_cart_items_org_id_cart_id_group_carts_org_id_id_fk",
 					"tableFrom": "group_cart_items",
-					"columnsFrom": ["org_id", "cart_id"],
 					"tableTo": "group_carts",
+					"columnsFrom": ["org_id", "cart_id"],
 					"columnsTo": ["org_id", "id"],
-					"onUpdate": "no action",
-					"onDelete": "cascade"
+					"onDelete": "cascade",
+					"onUpdate": "no action"
 				},
 				"group_cart_items_org_id_participant_id_group_cart_participants_org_id_id_fk": {
 					"name": "group_cart_items_org_id_participant_id_group_cart_participants_org_id_id_fk",
 					"tableFrom": "group_cart_items",
-					"columnsFrom": ["org_id", "participant_id"],
 					"tableTo": "group_cart_participants",
+					"columnsFrom": ["org_id", "participant_id"],
 					"columnsTo": ["org_id", "id"],
-					"onUpdate": "no action",
-					"onDelete": "cascade"
+					"onDelete": "cascade",
+					"onUpdate": "no action"
 				},
 				"group_cart_items_org_id_product_id_products_org_id_id_fk": {
 					"name": "group_cart_items_org_id_product_id_products_org_id_id_fk",
 					"tableFrom": "group_cart_items",
-					"columnsFrom": ["org_id", "product_id"],
 					"tableTo": "products",
+					"columnsFrom": ["org_id", "product_id"],
 					"columnsTo": ["org_id", "id"],
-					"onUpdate": "no action",
-					"onDelete": "cascade"
+					"onDelete": "cascade",
+					"onUpdate": "no action"
 				}
 			},
 			"compositePrimaryKeys": {},
@@ -1300,29 +1300,29 @@
 						}
 					],
 					"isUnique": true,
-					"with": {},
-					"method": "btree",
 					"where": "\"group_cart_participants\".\"is_host\"",
-					"concurrently": false
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
 				}
 			},
 			"foreignKeys": {
 				"group_cart_participants_org_id_cart_id_group_carts_org_id_id_fk": {
 					"name": "group_cart_participants_org_id_cart_id_group_carts_org_id_id_fk",
 					"tableFrom": "group_cart_participants",
-					"columnsFrom": ["org_id", "cart_id"],
 					"tableTo": "group_carts",
+					"columnsFrom": ["org_id", "cart_id"],
 					"columnsTo": ["org_id", "id"],
-					"onUpdate": "no action",
-					"onDelete": "cascade"
+					"onDelete": "cascade",
+					"onUpdate": "no action"
 				}
 			},
 			"compositePrimaryKeys": {},
 			"uniqueConstraints": {
 				"group_cart_participants_org_id_id_unique": {
 					"name": "group_cart_participants_org_id_id_unique",
-					"columns": ["org_id", "id"],
-					"nullsNotDistinct": false
+					"nullsNotDistinct": false,
+					"columns": ["org_id", "id"]
 				}
 			},
 			"policies": {
@@ -1433,10 +1433,10 @@
 						}
 					],
 					"isUnique": true,
-					"with": {},
-					"method": "btree",
 					"where": "\"group_carts\".\"order_id\" is not null",
-					"concurrently": false
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
 				},
 				"group_carts_expiry_idx": {
 					"name": "group_carts_expiry_idx",
@@ -1449,43 +1449,43 @@
 						}
 					],
 					"isUnique": false,
-					"with": {},
-					"method": "btree",
 					"where": "\"group_carts\".\"status\" in ('open', 'locked')",
-					"concurrently": false
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
 				}
 			},
 			"foreignKeys": {
 				"group_carts_org_id_location_id_locations_org_id_id_fk": {
 					"name": "group_carts_org_id_location_id_locations_org_id_id_fk",
 					"tableFrom": "group_carts",
-					"columnsFrom": ["org_id", "location_id"],
 					"tableTo": "locations",
+					"columnsFrom": ["org_id", "location_id"],
 					"columnsTo": ["org_id", "id"],
-					"onUpdate": "no action",
-					"onDelete": "cascade"
+					"onDelete": "cascade",
+					"onUpdate": "no action"
 				},
 				"group_carts_org_id_order_id_orders_org_id_id_fk": {
 					"name": "group_carts_org_id_order_id_orders_org_id_id_fk",
 					"tableFrom": "group_carts",
-					"columnsFrom": ["org_id", "order_id"],
 					"tableTo": "orders",
+					"columnsFrom": ["org_id", "order_id"],
 					"columnsTo": ["org_id", "id"],
-					"onUpdate": "no action",
-					"onDelete": "restrict"
+					"onDelete": "restrict",
+					"onUpdate": "no action"
 				}
 			},
 			"compositePrimaryKeys": {},
 			"uniqueConstraints": {
 				"group_carts_token_unique": {
 					"name": "group_carts_token_unique",
-					"columns": ["token"],
-					"nullsNotDistinct": false
+					"nullsNotDistinct": false,
+					"columns": ["token"]
 				},
 				"group_carts_org_id_id_unique": {
 					"name": "group_carts_org_id_id_unique",
-					"columns": ["org_id", "id"],
-					"nullsNotDistinct": false
+					"nullsNotDistinct": false,
+					"columns": ["org_id", "id"]
 				}
 			},
 			"policies": {
@@ -1574,28 +1574,28 @@
 				"categories_org_id_orgs_id_fk": {
 					"name": "categories_org_id_orgs_id_fk",
 					"tableFrom": "categories",
-					"columnsFrom": ["org_id"],
 					"tableTo": "orgs",
+					"columnsFrom": ["org_id"],
 					"columnsTo": ["id"],
-					"onUpdate": "no action",
-					"onDelete": "restrict"
+					"onDelete": "restrict",
+					"onUpdate": "no action"
 				},
 				"categories_org_id_parent_id_categories_org_id_id_fk": {
 					"name": "categories_org_id_parent_id_categories_org_id_id_fk",
 					"tableFrom": "categories",
-					"columnsFrom": ["org_id", "parent_id"],
 					"tableTo": "categories",
+					"columnsFrom": ["org_id", "parent_id"],
 					"columnsTo": ["org_id", "id"],
-					"onUpdate": "no action",
-					"onDelete": "restrict"
+					"onDelete": "restrict",
+					"onUpdate": "no action"
 				}
 			},
 			"compositePrimaryKeys": {},
 			"uniqueConstraints": {
 				"categories_org_id_id_unique": {
 					"name": "categories_org_id_id_unique",
-					"columns": ["org_id", "id"],
-					"nullsNotDistinct": false
+					"nullsNotDistinct": false,
+					"columns": ["org_id", "id"]
 				}
 			},
 			"policies": {
@@ -1673,19 +1673,19 @@
 				"modifier_groups_org_id_orgs_id_fk": {
 					"name": "modifier_groups_org_id_orgs_id_fk",
 					"tableFrom": "modifier_groups",
-					"columnsFrom": ["org_id"],
 					"tableTo": "orgs",
+					"columnsFrom": ["org_id"],
 					"columnsTo": ["id"],
-					"onUpdate": "no action",
-					"onDelete": "restrict"
+					"onDelete": "restrict",
+					"onUpdate": "no action"
 				}
 			},
 			"compositePrimaryKeys": {},
 			"uniqueConstraints": {
 				"modifier_groups_org_id_id_unique": {
 					"name": "modifier_groups_org_id_id_unique",
-					"columns": ["org_id", "id"],
-					"nullsNotDistinct": false
+					"nullsNotDistinct": false,
+					"columns": ["org_id", "id"]
 				}
 			},
 			"policies": {
@@ -1781,19 +1781,19 @@
 				"modifier_options_org_id_group_id_modifier_groups_org_id_id_fk": {
 					"name": "modifier_options_org_id_group_id_modifier_groups_org_id_id_fk",
 					"tableFrom": "modifier_options",
-					"columnsFrom": ["org_id", "group_id"],
 					"tableTo": "modifier_groups",
+					"columnsFrom": ["org_id", "group_id"],
 					"columnsTo": ["org_id", "id"],
-					"onUpdate": "no action",
-					"onDelete": "cascade"
+					"onDelete": "cascade",
+					"onUpdate": "no action"
 				}
 			},
 			"compositePrimaryKeys": {},
 			"uniqueConstraints": {
 				"modifier_options_org_id_id_unique": {
 					"name": "modifier_options_org_id_id_unique",
-					"columns": ["org_id", "id"],
-					"nullsNotDistinct": false
+					"nullsNotDistinct": false,
+					"columns": ["org_id", "id"]
 				}
 			},
 			"policies": {
@@ -1857,20 +1857,20 @@
 				"product_location_settings_org_id_product_id_products_org_id_id_fk": {
 					"name": "product_location_settings_org_id_product_id_products_org_id_id_fk",
 					"tableFrom": "product_location_settings",
-					"columnsFrom": ["org_id", "product_id"],
 					"tableTo": "products",
+					"columnsFrom": ["org_id", "product_id"],
 					"columnsTo": ["org_id", "id"],
-					"onUpdate": "no action",
-					"onDelete": "cascade"
+					"onDelete": "cascade",
+					"onUpdate": "no action"
 				},
 				"product_location_settings_org_id_location_id_locations_org_id_id_fk": {
 					"name": "product_location_settings_org_id_location_id_locations_org_id_id_fk",
 					"tableFrom": "product_location_settings",
-					"columnsFrom": ["org_id", "location_id"],
 					"tableTo": "locations",
+					"columnsFrom": ["org_id", "location_id"],
 					"columnsTo": ["org_id", "id"],
-					"onUpdate": "no action",
-					"onDelete": "cascade"
+					"onDelete": "cascade",
+					"onUpdate": "no action"
 				}
 			},
 			"compositePrimaryKeys": {
@@ -1933,20 +1933,20 @@
 				"product_modifier_groups_org_id_product_id_products_org_id_id_fk": {
 					"name": "product_modifier_groups_org_id_product_id_products_org_id_id_fk",
 					"tableFrom": "product_modifier_groups",
-					"columnsFrom": ["org_id", "product_id"],
 					"tableTo": "products",
+					"columnsFrom": ["org_id", "product_id"],
 					"columnsTo": ["org_id", "id"],
-					"onUpdate": "no action",
-					"onDelete": "cascade"
+					"onDelete": "cascade",
+					"onUpdate": "no action"
 				},
 				"product_modifier_groups_org_id_group_id_modifier_groups_org_id_id_fk": {
 					"name": "product_modifier_groups_org_id_group_id_modifier_groups_org_id_id_fk",
 					"tableFrom": "product_modifier_groups",
-					"columnsFrom": ["org_id", "group_id"],
 					"tableTo": "modifier_groups",
+					"columnsFrom": ["org_id", "group_id"],
 					"columnsTo": ["org_id", "id"],
-					"onUpdate": "no action",
-					"onDelete": "cascade"
+					"onDelete": "cascade",
+					"onUpdate": "no action"
 				}
 			},
 			"compositePrimaryKeys": {
@@ -2021,6 +2021,13 @@
 					"primaryKey": false,
 					"notNull": false
 				},
+				"dietary_tags": {
+					"name": "dietary_tags",
+					"type": "text[]",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "'{}'::text[]"
+				},
 				"is_visible": {
 					"name": "is_visible",
 					"type": "boolean",
@@ -2067,19 +2074,19 @@
 				"products_org_id_category_id_categories_org_id_id_fk": {
 					"name": "products_org_id_category_id_categories_org_id_id_fk",
 					"tableFrom": "products",
-					"columnsFrom": ["org_id", "category_id"],
 					"tableTo": "categories",
+					"columnsFrom": ["org_id", "category_id"],
 					"columnsTo": ["org_id", "id"],
-					"onUpdate": "no action",
-					"onDelete": "restrict"
+					"onDelete": "restrict",
+					"onUpdate": "no action"
 				}
 			},
 			"compositePrimaryKeys": {},
 			"uniqueConstraints": {
 				"products_org_id_id_unique": {
 					"name": "products_org_id_id_unique",
-					"columns": ["org_id", "id"],
-					"nullsNotDistinct": false
+					"nullsNotDistinct": false,
+					"columns": ["org_id", "id"]
 				}
 			},
 			"policies": {
@@ -2223,38 +2230,38 @@
 				"promotions_org_id_orgs_id_fk": {
 					"name": "promotions_org_id_orgs_id_fk",
 					"tableFrom": "promotions",
-					"columnsFrom": ["org_id"],
 					"tableTo": "orgs",
+					"columnsFrom": ["org_id"],
 					"columnsTo": ["id"],
-					"onUpdate": "no action",
-					"onDelete": "restrict"
+					"onDelete": "restrict",
+					"onUpdate": "no action"
 				},
 				"promotions_org_id_location_id_locations_org_id_id_fk": {
 					"name": "promotions_org_id_location_id_locations_org_id_id_fk",
 					"tableFrom": "promotions",
-					"columnsFrom": ["org_id", "location_id"],
 					"tableTo": "locations",
+					"columnsFrom": ["org_id", "location_id"],
 					"columnsTo": ["org_id", "id"],
-					"onUpdate": "no action",
-					"onDelete": "cascade"
+					"onDelete": "cascade",
+					"onUpdate": "no action"
 				},
 				"promotions_org_id_product_id_products_org_id_id_fk": {
 					"name": "promotions_org_id_product_id_products_org_id_id_fk",
 					"tableFrom": "promotions",
-					"columnsFrom": ["org_id", "product_id"],
 					"tableTo": "products",
+					"columnsFrom": ["org_id", "product_id"],
 					"columnsTo": ["org_id", "id"],
-					"onUpdate": "no action",
-					"onDelete": "cascade"
+					"onDelete": "cascade",
+					"onUpdate": "no action"
 				},
 				"promotions_org_id_category_id_categories_org_id_id_fk": {
 					"name": "promotions_org_id_category_id_categories_org_id_id_fk",
 					"tableFrom": "promotions",
-					"columnsFrom": ["org_id", "category_id"],
 					"tableTo": "categories",
+					"columnsFrom": ["org_id", "category_id"],
 					"columnsTo": ["org_id", "id"],
-					"onUpdate": "no action",
-					"onDelete": "cascade"
+					"onDelete": "cascade",
+					"onUpdate": "no action"
 				}
 			},
 			"compositePrimaryKeys": {},
@@ -2330,11 +2337,11 @@
 				"order_feedback_org_id_order_id_orders_org_id_id_fk": {
 					"name": "order_feedback_org_id_order_id_orders_org_id_id_fk",
 					"tableFrom": "order_feedback",
-					"columnsFrom": ["org_id", "order_id"],
 					"tableTo": "orders",
+					"columnsFrom": ["org_id", "order_id"],
 					"columnsTo": ["org_id", "id"],
-					"onUpdate": "no action",
-					"onDelete": "cascade"
+					"onDelete": "cascade",
+					"onUpdate": "no action"
 				}
 			},
 			"compositePrimaryKeys": {},
@@ -2504,9 +2511,9 @@
 						}
 					],
 					"isUnique": false,
-					"with": {},
+					"concurrently": false,
 					"method": "btree",
-					"concurrently": false
+					"with": {}
 				},
 				"order_lines_product_idx": {
 					"name": "order_lines_product_idx",
@@ -2519,38 +2526,38 @@
 						}
 					],
 					"isUnique": false,
-					"with": {},
+					"concurrently": false,
 					"method": "btree",
-					"concurrently": false
+					"with": {}
 				}
 			},
 			"foreignKeys": {
 				"order_lines_org_id_order_id_orders_org_id_id_fk": {
 					"name": "order_lines_org_id_order_id_orders_org_id_id_fk",
 					"tableFrom": "order_lines",
-					"columnsFrom": ["org_id", "order_id"],
 					"tableTo": "orders",
+					"columnsFrom": ["org_id", "order_id"],
 					"columnsTo": ["org_id", "id"],
-					"onUpdate": "no action",
-					"onDelete": "cascade"
+					"onDelete": "cascade",
+					"onUpdate": "no action"
 				},
 				"order_lines_org_id_product_id_products_org_id_id_fk": {
 					"name": "order_lines_org_id_product_id_products_org_id_id_fk",
 					"tableFrom": "order_lines",
-					"columnsFrom": ["org_id", "product_id"],
 					"tableTo": "products",
+					"columnsFrom": ["org_id", "product_id"],
 					"columnsTo": ["org_id", "id"],
-					"onUpdate": "no action",
-					"onDelete": "restrict"
+					"onDelete": "restrict",
+					"onUpdate": "no action"
 				},
 				"order_lines_org_id_voided_by_members_org_id_id_fk": {
 					"name": "order_lines_org_id_voided_by_members_org_id_id_fk",
 					"tableFrom": "order_lines",
-					"columnsFrom": ["org_id", "voided_by"],
 					"tableTo": "members",
+					"columnsFrom": ["org_id", "voided_by"],
 					"columnsTo": ["org_id", "id"],
-					"onUpdate": "no action",
-					"onDelete": "restrict"
+					"onDelete": "restrict",
+					"onUpdate": "no action"
 				}
 			},
 			"compositePrimaryKeys": {},
@@ -2831,9 +2838,9 @@
 						}
 					],
 					"isUnique": false,
-					"with": {},
+					"concurrently": false,
 					"method": "btree",
-					"concurrently": false
+					"with": {}
 				},
 				"orders_kitchen_idx": {
 					"name": "orders_kitchen_idx",
@@ -2852,10 +2859,10 @@
 						}
 					],
 					"isUnique": false,
-					"with": {},
-					"method": "btree",
 					"where": "\"orders\".\"fulfillment_status\" in ('pending', 'preparing', 'ready')",
-					"concurrently": false
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
 				},
 				"orders_expiry_idx": {
 					"name": "orders_expiry_idx",
@@ -2868,10 +2875,10 @@
 						}
 					],
 					"isUnique": false,
-					"with": {},
-					"method": "btree",
 					"where": "\"orders\".\"payment_status\" = 'unpaid' and \"orders\".\"expires_at\" is not null",
-					"concurrently": false
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
 				},
 				"orders_customer_idx": {
 					"name": "orders_customer_idx",
@@ -2890,9 +2897,9 @@
 						}
 					],
 					"isUnique": false,
-					"with": {},
+					"concurrently": false,
 					"method": "btree",
-					"concurrently": false
+					"with": {}
 				},
 				"orders_location_change_idx": {
 					"name": "orders_location_change_idx",
@@ -2917,70 +2924,70 @@
 						}
 					],
 					"isUnique": false,
-					"with": {},
+					"concurrently": false,
 					"method": "btree",
-					"concurrently": false
+					"with": {}
 				}
 			},
 			"foreignKeys": {
 				"orders_org_id_location_id_locations_org_id_id_fk": {
 					"name": "orders_org_id_location_id_locations_org_id_id_fk",
 					"tableFrom": "orders",
-					"columnsFrom": ["org_id", "location_id"],
 					"tableTo": "locations",
+					"columnsFrom": ["org_id", "location_id"],
 					"columnsTo": ["org_id", "id"],
-					"onUpdate": "no action",
-					"onDelete": "restrict"
+					"onDelete": "restrict",
+					"onUpdate": "no action"
 				},
 				"orders_org_id_device_id_devices_org_id_id_fk": {
 					"name": "orders_org_id_device_id_devices_org_id_id_fk",
 					"tableFrom": "orders",
-					"columnsFrom": ["org_id", "device_id"],
 					"tableTo": "devices",
+					"columnsFrom": ["org_id", "device_id"],
 					"columnsTo": ["org_id", "id"],
-					"onUpdate": "no action",
-					"onDelete": "restrict"
+					"onDelete": "restrict",
+					"onUpdate": "no action"
 				},
 				"orders_org_id_customer_id_customers_org_id_id_fk": {
 					"name": "orders_org_id_customer_id_customers_org_id_id_fk",
 					"tableFrom": "orders",
-					"columnsFrom": ["org_id", "customer_id"],
 					"tableTo": "customers",
+					"columnsFrom": ["org_id", "customer_id"],
 					"columnsTo": ["org_id", "id"],
-					"onUpdate": "no action",
-					"onDelete": "restrict"
+					"onDelete": "restrict",
+					"onUpdate": "no action"
 				},
 				"orders_org_id_created_by_members_org_id_id_fk": {
 					"name": "orders_org_id_created_by_members_org_id_id_fk",
 					"tableFrom": "orders",
-					"columnsFrom": ["org_id", "created_by"],
 					"tableTo": "members",
+					"columnsFrom": ["org_id", "created_by"],
 					"columnsTo": ["org_id", "id"],
-					"onUpdate": "no action",
-					"onDelete": "restrict"
+					"onDelete": "restrict",
+					"onUpdate": "no action"
 				}
 			},
 			"compositePrimaryKeys": {},
 			"uniqueConstraints": {
 				"orders_tracking_token_unique": {
 					"name": "orders_tracking_token_unique",
-					"columns": ["tracking_token"],
-					"nullsNotDistinct": false
+					"nullsNotDistinct": false,
+					"columns": ["tracking_token"]
 				},
 				"orders_org_id_id_unique": {
 					"name": "orders_org_id_id_unique",
-					"columns": ["org_id", "id"],
-					"nullsNotDistinct": false
+					"nullsNotDistinct": false,
+					"columns": ["org_id", "id"]
 				},
 				"orders_ticket_uq": {
 					"name": "orders_ticket_uq",
-					"columns": ["location_id", "business_date", "ticket_number"],
-					"nullsNotDistinct": false
+					"nullsNotDistinct": false,
+					"columns": ["location_id", "business_date", "ticket_number"]
 				},
 				"orders_idempotency_uq": {
 					"name": "orders_idempotency_uq",
-					"columns": ["org_id", "idempotency_key"],
-					"nullsNotDistinct": false
+					"nullsNotDistinct": false,
+					"columns": ["org_id", "idempotency_key"]
 				}
 			},
 			"policies": {
@@ -3042,11 +3049,11 @@
 				"ticket_counters_org_id_location_id_locations_org_id_id_fk": {
 					"name": "ticket_counters_org_id_location_id_locations_org_id_id_fk",
 					"tableFrom": "ticket_counters",
-					"columnsFrom": ["org_id", "location_id"],
 					"tableTo": "locations",
+					"columnsFrom": ["org_id", "location_id"],
 					"columnsTo": ["org_id", "id"],
-					"onUpdate": "no action",
-					"onDelete": "cascade"
+					"onDelete": "cascade",
+					"onUpdate": "no action"
 				}
 			},
 			"compositePrimaryKeys": {
@@ -3217,10 +3224,10 @@
 						}
 					],
 					"isUnique": true,
-					"with": {},
-					"method": "btree",
 					"where": "\"payments\".\"provider_reference\" is not null",
-					"concurrently": false
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
 				},
 				"payments_order_idx": {
 					"name": "payments_order_idx",
@@ -3233,9 +3240,9 @@
 						}
 					],
 					"isUnique": false,
-					"with": {},
+					"concurrently": false,
 					"method": "btree",
-					"concurrently": false
+					"with": {}
 				},
 				"payments_location_day_idx": {
 					"name": "payments_location_day_idx",
@@ -3254,9 +3261,9 @@
 						}
 					],
 					"isUnique": false,
-					"with": {},
+					"concurrently": false,
 					"method": "btree",
-					"concurrently": false
+					"with": {}
 				},
 				"payments_cash_session_idx": {
 					"name": "payments_cash_session_idx",
@@ -3269,73 +3276,73 @@
 						}
 					],
 					"isUnique": false,
-					"with": {},
+					"concurrently": false,
 					"method": "btree",
-					"concurrently": false
+					"with": {}
 				}
 			},
 			"foreignKeys": {
 				"payments_org_id_order_id_orders_org_id_id_fk": {
 					"name": "payments_org_id_order_id_orders_org_id_id_fk",
 					"tableFrom": "payments",
-					"columnsFrom": ["org_id", "order_id"],
 					"tableTo": "orders",
+					"columnsFrom": ["org_id", "order_id"],
 					"columnsTo": ["org_id", "id"],
-					"onUpdate": "no action",
-					"onDelete": "restrict"
+					"onDelete": "restrict",
+					"onUpdate": "no action"
 				},
 				"payments_org_id_location_id_locations_org_id_id_fk": {
 					"name": "payments_org_id_location_id_locations_org_id_id_fk",
 					"tableFrom": "payments",
-					"columnsFrom": ["org_id", "location_id"],
 					"tableTo": "locations",
+					"columnsFrom": ["org_id", "location_id"],
 					"columnsTo": ["org_id", "id"],
-					"onUpdate": "no action",
-					"onDelete": "restrict"
+					"onDelete": "restrict",
+					"onUpdate": "no action"
 				},
 				"payments_org_id_cash_session_id_cash_sessions_org_id_id_fk": {
 					"name": "payments_org_id_cash_session_id_cash_sessions_org_id_id_fk",
 					"tableFrom": "payments",
-					"columnsFrom": ["org_id", "cash_session_id"],
 					"tableTo": "cash_sessions",
+					"columnsFrom": ["org_id", "cash_session_id"],
 					"columnsTo": ["org_id", "id"],
-					"onUpdate": "no action",
-					"onDelete": "restrict"
+					"onDelete": "restrict",
+					"onUpdate": "no action"
 				},
 				"payments_org_id_reverses_payment_id_payments_org_id_id_fk": {
 					"name": "payments_org_id_reverses_payment_id_payments_org_id_id_fk",
 					"tableFrom": "payments",
-					"columnsFrom": ["org_id", "reverses_payment_id"],
 					"tableTo": "payments",
+					"columnsFrom": ["org_id", "reverses_payment_id"],
 					"columnsTo": ["org_id", "id"],
-					"onUpdate": "no action",
-					"onDelete": "restrict"
+					"onDelete": "restrict",
+					"onUpdate": "no action"
 				},
 				"payments_org_id_created_by_members_org_id_id_fk": {
 					"name": "payments_org_id_created_by_members_org_id_id_fk",
 					"tableFrom": "payments",
-					"columnsFrom": ["org_id", "created_by"],
 					"tableTo": "members",
+					"columnsFrom": ["org_id", "created_by"],
 					"columnsTo": ["org_id", "id"],
-					"onUpdate": "no action",
-					"onDelete": "restrict"
+					"onDelete": "restrict",
+					"onUpdate": "no action"
 				},
 				"payments_org_id_device_id_devices_org_id_id_fk": {
 					"name": "payments_org_id_device_id_devices_org_id_id_fk",
 					"tableFrom": "payments",
-					"columnsFrom": ["org_id", "device_id"],
 					"tableTo": "devices",
+					"columnsFrom": ["org_id", "device_id"],
 					"columnsTo": ["org_id", "id"],
-					"onUpdate": "no action",
-					"onDelete": "restrict"
+					"onDelete": "restrict",
+					"onUpdate": "no action"
 				}
 			},
 			"compositePrimaryKeys": {},
 			"uniqueConstraints": {
 				"payments_org_id_id_unique": {
 					"name": "payments_org_id_id_unique",
-					"columns": ["org_id", "id"],
-					"nullsNotDistinct": false
+					"nullsNotDistinct": false,
+					"columns": ["org_id", "id"]
 				}
 			},
 			"policies": {
@@ -3450,9 +3457,9 @@
 						}
 					],
 					"isUnique": false,
-					"with": {},
+					"concurrently": false,
 					"method": "btree",
-					"concurrently": false
+					"with": {}
 				},
 				"sync_mutations_device_time_idx": {
 					"name": "sync_mutations_device_time_idx",
@@ -3471,29 +3478,29 @@
 						}
 					],
 					"isUnique": false,
-					"with": {},
+					"concurrently": false,
 					"method": "btree",
-					"concurrently": false
+					"with": {}
 				}
 			},
 			"foreignKeys": {
 				"sync_mutations_org_id_device_id_devices_org_id_id_fk": {
 					"name": "sync_mutations_org_id_device_id_devices_org_id_id_fk",
 					"tableFrom": "sync_mutations",
-					"columnsFrom": ["org_id", "device_id"],
 					"tableTo": "devices",
+					"columnsFrom": ["org_id", "device_id"],
 					"columnsTo": ["org_id", "id"],
-					"onUpdate": "no action",
-					"onDelete": "restrict"
+					"onDelete": "restrict",
+					"onUpdate": "no action"
 				},
 				"sync_mutations_org_id_member_id_members_org_id_id_fk": {
 					"name": "sync_mutations_org_id_member_id_members_org_id_id_fk",
 					"tableFrom": "sync_mutations",
-					"columnsFrom": ["org_id", "member_id"],
 					"tableTo": "members",
+					"columnsFrom": ["org_id", "member_id"],
 					"columnsTo": ["org_id", "id"],
-					"onUpdate": "no action",
-					"onDelete": "restrict"
+					"onDelete": "restrict",
+					"onUpdate": "no action"
 				}
 			},
 			"compositePrimaryKeys": {
@@ -3606,9 +3613,9 @@
 						}
 					],
 					"isUnique": false,
-					"with": {},
+					"concurrently": false,
 					"method": "btree",
-					"concurrently": false
+					"with": {}
 				},
 				"audit_log_entity_idx": {
 					"name": "audit_log_entity_idx",
@@ -3627,20 +3634,20 @@
 						}
 					],
 					"isUnique": false,
-					"with": {},
+					"concurrently": false,
 					"method": "btree",
-					"concurrently": false
+					"with": {}
 				}
 			},
 			"foreignKeys": {
 				"audit_log_org_id_orgs_id_fk": {
 					"name": "audit_log_org_id_orgs_id_fk",
 					"tableFrom": "audit_log",
-					"columnsFrom": ["org_id"],
 					"tableTo": "orgs",
+					"columnsFrom": ["org_id"],
 					"columnsTo": ["id"],
-					"onUpdate": "no action",
-					"onDelete": "restrict"
+					"onDelete": "restrict",
+					"onUpdate": "no action"
 				}
 			},
 			"compositePrimaryKeys": {},
@@ -3743,19 +3750,19 @@
 				"billing_subscriptions_org_id_orgs_id_fk": {
 					"name": "billing_subscriptions_org_id_orgs_id_fk",
 					"tableFrom": "billing_subscriptions",
-					"columnsFrom": ["org_id"],
 					"tableTo": "orgs",
+					"columnsFrom": ["org_id"],
 					"columnsTo": ["id"],
-					"onUpdate": "no action",
-					"onDelete": "restrict"
+					"onDelete": "restrict",
+					"onUpdate": "no action"
 				}
 			},
 			"compositePrimaryKeys": {},
 			"uniqueConstraints": {
 				"billing_subscriptions_provider_provider_subscription_id_unique": {
 					"name": "billing_subscriptions_provider_provider_subscription_id_unique",
-					"columns": ["provider", "provider_subscription_id"],
-					"nullsNotDistinct": false
+					"nullsNotDistinct": false,
+					"columns": ["provider", "provider_subscription_id"]
 				}
 			},
 			"policies": {
@@ -3825,8 +3832,8 @@
 			"uniqueConstraints": {
 				"webhook_events_provider_event_id_unique": {
 					"name": "webhook_events_provider_event_id_unique",
-					"columns": ["provider", "event_id"],
-					"nullsNotDistinct": false
+					"nullsNotDistinct": false,
+					"columns": ["provider", "event_id"]
 				}
 			},
 			"policies": {},
@@ -3912,29 +3919,29 @@
 				"devices_org_id_location_id_locations_org_id_id_fk": {
 					"name": "devices_org_id_location_id_locations_org_id_id_fk",
 					"tableFrom": "devices",
-					"columnsFrom": ["org_id", "location_id"],
 					"tableTo": "locations",
+					"columnsFrom": ["org_id", "location_id"],
 					"columnsTo": ["org_id", "id"],
-					"onUpdate": "no action",
-					"onDelete": "restrict"
+					"onDelete": "restrict",
+					"onUpdate": "no action"
 				}
 			},
 			"compositePrimaryKeys": {},
 			"uniqueConstraints": {
 				"devices_token_hash_unique": {
 					"name": "devices_token_hash_unique",
-					"columns": ["token_hash"],
-					"nullsNotDistinct": false
+					"nullsNotDistinct": false,
+					"columns": ["token_hash"]
 				},
 				"devices_org_id_id_unique": {
 					"name": "devices_org_id_id_unique",
-					"columns": ["org_id", "id"],
-					"nullsNotDistinct": false
+					"nullsNotDistinct": false,
+					"columns": ["org_id", "id"]
 				},
 				"devices_location_id_ticket_prefix_unique": {
 					"name": "devices_location_id_ticket_prefix_unique",
-					"columns": ["location_id", "ticket_prefix"],
-					"nullsNotDistinct": false
+					"nullsNotDistinct": false,
+					"columns": ["location_id", "ticket_prefix"]
 				}
 			},
 			"policies": {
@@ -4102,24 +4109,24 @@
 				"locations_org_id_orgs_id_fk": {
 					"name": "locations_org_id_orgs_id_fk",
 					"tableFrom": "locations",
-					"columnsFrom": ["org_id"],
 					"tableTo": "orgs",
+					"columnsFrom": ["org_id"],
 					"columnsTo": ["id"],
-					"onUpdate": "no action",
-					"onDelete": "restrict"
+					"onDelete": "restrict",
+					"onUpdate": "no action"
 				}
 			},
 			"compositePrimaryKeys": {},
 			"uniqueConstraints": {
 				"locations_slug_unique": {
 					"name": "locations_slug_unique",
-					"columns": ["slug"],
-					"nullsNotDistinct": false
+					"nullsNotDistinct": false,
+					"columns": ["slug"]
 				},
 				"locations_org_id_id_unique": {
 					"name": "locations_org_id_id_unique",
-					"columns": ["org_id", "id"],
-					"nullsNotDistinct": false
+					"nullsNotDistinct": false,
+					"columns": ["org_id", "id"]
 				}
 			},
 			"policies": {
@@ -4207,34 +4214,34 @@
 						}
 					],
 					"isUnique": true,
-					"with": {},
-					"method": "btree",
 					"where": "\"member_invites\".\"accepted_at\" is null",
-					"concurrently": false
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
 				}
 			},
 			"foreignKeys": {
 				"member_invites_org_id_member_id_members_org_id_id_fk": {
 					"name": "member_invites_org_id_member_id_members_org_id_id_fk",
 					"tableFrom": "member_invites",
-					"columnsFrom": ["org_id", "member_id"],
 					"tableTo": "members",
+					"columnsFrom": ["org_id", "member_id"],
 					"columnsTo": ["org_id", "id"],
-					"onUpdate": "no action",
-					"onDelete": "cascade"
+					"onDelete": "cascade",
+					"onUpdate": "no action"
 				}
 			},
 			"compositePrimaryKeys": {},
 			"uniqueConstraints": {
 				"member_invites_token_hash_unique": {
 					"name": "member_invites_token_hash_unique",
-					"columns": ["token_hash"],
-					"nullsNotDistinct": false
+					"nullsNotDistinct": false,
+					"columns": ["token_hash"]
 				},
 				"member_invites_org_id_id_unique": {
 					"name": "member_invites_org_id_id_unique",
-					"columns": ["org_id", "id"],
-					"nullsNotDistinct": false
+					"nullsNotDistinct": false,
+					"columns": ["org_id", "id"]
 				}
 			},
 			"policies": {
@@ -4292,28 +4299,28 @@
 				"member_locations_org_id_member_id_members_org_id_id_fk": {
 					"name": "member_locations_org_id_member_id_members_org_id_id_fk",
 					"tableFrom": "member_locations",
-					"columnsFrom": ["org_id", "member_id"],
 					"tableTo": "members",
+					"columnsFrom": ["org_id", "member_id"],
 					"columnsTo": ["org_id", "id"],
-					"onUpdate": "no action",
-					"onDelete": "cascade"
+					"onDelete": "cascade",
+					"onUpdate": "no action"
 				},
 				"member_locations_org_id_location_id_locations_org_id_id_fk": {
 					"name": "member_locations_org_id_location_id_locations_org_id_id_fk",
 					"tableFrom": "member_locations",
-					"columnsFrom": ["org_id", "location_id"],
 					"tableTo": "locations",
+					"columnsFrom": ["org_id", "location_id"],
 					"columnsTo": ["org_id", "id"],
-					"onUpdate": "no action",
-					"onDelete": "cascade"
+					"onDelete": "cascade",
+					"onUpdate": "no action"
 				}
 			},
 			"compositePrimaryKeys": {},
 			"uniqueConstraints": {
 				"member_locations_member_id_location_id_unique": {
 					"name": "member_locations_member_id_location_id_unique",
-					"columns": ["member_id", "location_id"],
-					"nullsNotDistinct": false
+					"nullsNotDistinct": false,
+					"columns": ["member_id", "location_id"]
 				}
 			},
 			"policies": {
@@ -4417,38 +4424,38 @@
 						}
 					],
 					"isUnique": true,
-					"with": {},
-					"method": "btree",
 					"where": "\"members\".\"user_id\" is not null",
-					"concurrently": false
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
 				}
 			},
 			"foreignKeys": {
 				"members_org_id_orgs_id_fk": {
 					"name": "members_org_id_orgs_id_fk",
 					"tableFrom": "members",
-					"columnsFrom": ["org_id"],
 					"tableTo": "orgs",
+					"columnsFrom": ["org_id"],
 					"columnsTo": ["id"],
-					"onUpdate": "no action",
-					"onDelete": "restrict"
+					"onDelete": "restrict",
+					"onUpdate": "no action"
 				},
 				"members_user_id_auth_users_id_fk": {
 					"name": "members_user_id_auth_users_id_fk",
 					"tableFrom": "members",
-					"columnsFrom": ["user_id"],
 					"tableTo": "auth_users",
+					"columnsFrom": ["user_id"],
 					"columnsTo": ["id"],
-					"onUpdate": "no action",
-					"onDelete": "set null"
+					"onDelete": "set null",
+					"onUpdate": "no action"
 				}
 			},
 			"compositePrimaryKeys": {},
 			"uniqueConstraints": {
 				"members_org_id_id_unique": {
 					"name": "members_org_id_id_unique",
-					"columns": ["org_id", "id"],
-					"nullsNotDistinct": false
+					"nullsNotDistinct": false,
+					"columns": ["org_id", "id"]
 				}
 			},
 			"policies": {
@@ -4533,8 +4540,8 @@
 			"uniqueConstraints": {
 				"orgs_slug_unique": {
 					"name": "orgs_slug_unique",
-					"columns": ["slug"],
-					"nullsNotDistinct": false
+					"nullsNotDistinct": false,
+					"columns": ["slug"]
 				}
 			},
 			"policies": {
@@ -4657,10 +4664,10 @@
 		}
 	},
 	"schemas": {},
-	"views": {},
 	"sequences": {},
 	"roles": {},
 	"policies": {},
+	"views": {},
 	"_meta": {
 		"columns": {},
 		"schemas": {},

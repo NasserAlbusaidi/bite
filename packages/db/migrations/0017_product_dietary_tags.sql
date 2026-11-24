@@ -1,0 +1,1 @@
+ALTER TABLE "products" ADD COLUMN "dietary_tags" text[] DEFAULT '{}'::text[] NOT NULL;

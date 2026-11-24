@@ -1,7 +1,8 @@
 import type { LocalClock } from "@bite/core";
 import { Icon, Logo } from "@bite/ui";
 import { type ReactNode, useEffect, useRef, useState } from "react";
-import type { MenuProduct, MenuSnapshot } from "../lib/contracts";
+import type { DietaryTag, MenuProduct, MenuSnapshot } from "../lib/contracts";
+import { DIET_ORDER } from "../lib/diet";
 import { type Lang, loc, type T } from "../lib/i18n";
 import type { Currency } from "../lib/money";
 import { cardPrice, type MenuPricing } from "../lib/pricing";
@@ -39,15 +40,22 @@ export function MenuList({
 	added = null,
 }: Props) {
 	const [query, setQuery] = useState("");
+	const [diet, setDiet] = useState<DietaryTag[]>([]);
 	const match = matcher(query);
-	const q = match !== null;
+	const q = match !== null || diet.length > 0;
+	// Only offer filters some product actually carries.
+	const tagsInMenu = DIET_ORDER.filter((tag) =>
+		menu.products.some((p) => p.dietaryTags?.includes(tag)),
+	);
+	const fits = (p: MenuProduct) =>
+		diet.every((tag) => p.dietaryTags?.includes(tag));
 	const sections = [...menu.categories]
 		.sort((a, b) => a.sortOrder - b.sortOrder)
 		.map((c) => ({
 			category: c,
 			products: menu.products
 				.filter((p) => p.categoryId === c.id)
-				.filter((p) => !match || match(p))
+				.filter((p) => (!match || match(p)) && fits(p))
 				.sort((a, b) => a.sortOrder - b.sortOrder),
 		}))
 		.filter((s) => s.products.length > 0);
@@ -131,6 +139,33 @@ export function MenuList({
 						</button>
 					)}
 				</div>
+				{tagsInMenu.length > 0 && (
+					<fieldset className="diet">
+						<legend className="bite-sr-only">{t("diet_filters")}</legend>
+						{tagsInMenu.map((tag) => {
+							const on = diet.includes(tag);
+							return (
+								<label
+									key={tag}
+									className={`chip diet__chip${on ? " is-on" : ""}`}
+								>
+									<input
+										type="checkbox"
+										checked={on}
+										onChange={() =>
+											setDiet((cur) =>
+												on ? cur.filter((x) => x !== tag) : [...cur, tag],
+											)
+										}
+									/>
+									{on && <Icon name="check" />}
+									{t(`diet_${tag}`)}
+								</label>
+							);
+						})}
+					</fieldset>
+				)}
+
 				{q && results > 0 && (
 					<p className="muted small" aria-live="polite">
 						{t("search_results", { count: results })}
@@ -187,14 +222,23 @@ export function MenuList({
 				{sections.length === 0 && (
 					<div className="empty" aria-live="polite">
 						<Icon name="search" />
-						<p>{q ? t("no_search_results") : t("no_items_available")}</p>
+						<p>
+							{match
+								? t("no_search_results")
+								: diet.length > 0
+									? t("no_filter_results")
+									: t("no_items_available")}
+						</p>
 						{q && (
 							<button
 								type="button"
 								className="btn"
-								onClick={() => setQuery("")}
+								onClick={() => {
+									setQuery("");
+									setDiet([]);
+								}}
 							>
-								{t("clear_search")}
+								{t(diet.length > 0 ? "clear_filters" : "clear_search")}
 							</button>
 						)}
 					</div>
@@ -231,6 +275,23 @@ export function MenuList({
 											{p.description && (
 												<span className="item__desc muted">
 													{loc(p.description, lang)}
+												</span>
+											)}
+											{p.dietaryTags && p.dietaryTags.length > 0 && (
+												<span className="item__tags">
+													{p.dietaryTags
+														.filter(
+															(tag) =>
+																!(
+																	tag === "vegetarian" &&
+																	p.dietaryTags?.includes("vegan")
+																),
+														)
+														.map((tag) => (
+															<span key={tag} className={`tag tag--${tag}`}>
+																{t(`diet_${tag}`)}
+															</span>
+														))}
 												</span>
 											)}
 											<span className="item__price">

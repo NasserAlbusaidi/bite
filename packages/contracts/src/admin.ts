@@ -17,6 +17,7 @@ import {
 	PaymentMethod,
 	PaymentStatus,
 } from "./common.js";
+import { DIETARY_TAGS, DietaryTag } from "./menu.js";
 
 /**
  * Back office, under /v1/admin. Auth: Better Auth session cookie (sign-in
@@ -83,6 +84,8 @@ export const AdminProduct = z.object({
 	/** Null = location default rate. 0 is a real override. */
 	taxBps: Bps.nullable(),
 	imageUrl: z.url().nullable(),
+	/** Absent = none. */
+	dietaryTags: z.array(DietaryTag).max(DIETARY_TAGS.length).optional(),
 	isVisible: z.boolean(),
 	sortOrder: z.int(),
 	modifierGroupIds: z.array(Id),
@@ -95,6 +98,7 @@ export const CreateProduct = AdminProduct.omit({
 	description: true,
 	taxBps: true,
 	imageUrl: true,
+	dietaryTags: true,
 	isVisible: true,
 	sortOrder: true,
 	modifierGroupIds: true,
