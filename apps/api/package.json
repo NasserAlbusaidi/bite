@@ -9,7 +9,8 @@
 		"typecheck": "tsc --noEmit",
 		"worker": "tsx --env-file-if-exists=.env src/worker.ts",
 		"dev:setup": "tsx --env-file-if-exists=.env src/dev/setup.ts",
-		"demo:seed": "tsx --env-file-if-exists=.env src/dev/demo.ts"
+		"demo:seed": "tsx --env-file-if-exists=.env src/dev/demo.ts",
+		"platform:seed": "tsx --env-file-if-exists=.env src/dev/platform-seed.ts"
 	},
 	"dependencies": {
 		"@bite/contracts": "workspace:*",

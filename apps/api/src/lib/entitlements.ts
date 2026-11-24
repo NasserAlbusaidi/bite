@@ -20,7 +20,7 @@ const { orgs, billingSubscriptions } = schema;
  * Subscription rows that can still grant a plan. `canceled` runs to the end
  * of what was paid and gets no grace period.
  */
-const LIVE = ["active", "past_due", "canceled"];
+export const LIVE = ["active", "past_due", "canceled"];
 
 /**
  * What the org in this tenant transaction may use right now.

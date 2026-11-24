@@ -7,6 +7,7 @@ import { accountRoutes } from "./routes/account.js";
 import { adminRoutes } from "./routes/admin.js";
 import { cartRoutes } from "./routes/carts.js";
 import { deviceRoutes } from "./routes/device.js";
+import { platformRoutes } from "./routes/platform.js";
 import { publicRoutes } from "./routes/public.js";
 import { realtimeRoutes } from "./routes/realtime.js";
 import { deviceServiceRoutes, publicServiceRoutes } from "./routes/service.js";
@@ -31,12 +32,14 @@ export function createApp(deps: Deps) {
 		.use("/v1/auth/*", backOfficeCors)
 		.use("/v1/account/*", backOfficeCors)
 		.use("/v1/admin/*", backOfficeCors)
+		.use("/v1/platform/*", backOfficeCors)
 		.on(["GET", "POST"], "/v1/auth/*", (c) => {
 			if (!deps.auth) return c.notFound();
 			return deps.auth.handler(c.req.raw);
 		})
 		.route("/v1/account", accountRoutes)
 		.route("/v1/admin", adminRoutes)
+		.route("/v1/platform", platformRoutes)
 		.route("/v1/device", deviceRoutes)
 		.route("/v1/device", deviceServiceRoutes)
 		.route("/v1/public", publicRoutes)

@@ -50,8 +50,9 @@ custom deals:
 Only the system role. Migration 0014 revokes writes on `billing_subscriptions`
 from `bite_app` and limits its `UPDATE` on `orgs` to `name`, `slug` and
 `updated_at`. An owner's session cannot extend its own trial or grant itself a
-plan, even with a bug in a route. Until there is an internal admin, set plans
-with SQL as the owner or a `bite_system` login:
+plan, even with a bug in a route. Platform admins set plans and trials from
+the platform console (`docs/platform.md`). By hand, use SQL as the owner or a
+`bite_system` login:
 
 ```sql
 insert into billing_subscriptions (id, org_id, provider, plan, status, current_period_end)

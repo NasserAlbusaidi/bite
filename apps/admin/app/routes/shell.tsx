@@ -12,6 +12,7 @@ import {
 import { type Command, CommandPalette } from "../components/CommandPalette";
 import { FlashToasts } from "../components/FlashToasts";
 import { ShortcutsDialog } from "../components/ShortcutsDialog";
+import { SupportBanner } from "../components/SupportBanner";
 import { adminGate, saveOrg } from "../lib/account";
 import { account, adminApi, isDemo } from "../lib/api";
 import { toastNow } from "../lib/flash";
@@ -510,6 +511,13 @@ export default function Shell({ loaderData }: Route.ComponentProps) {
 					</aside>
 					<div className="main">
 						{demo && <p className="demo">{t("demo_banner")}</p>}
+						{me.support && (
+							<SupportBanner
+								orgId={me.org.id}
+								orgName={me.org.name}
+								lang={lang}
+							/>
+						)}
 						<main className="content">
 							<ShellPrefsContext value={prefs}>
 								<Outlet />

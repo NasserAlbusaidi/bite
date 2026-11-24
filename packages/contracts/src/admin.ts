@@ -52,6 +52,8 @@ export const AdminMe = z.object({
 	locations: z.array(z.object({ location: AdminLocation, role: LocationRole })),
 	/** The org's plan: which features are on and what its limits are. */
 	entitlements: Entitlements,
+	/** A Bite operator's read-only support view of this org (not a member). */
+	support: z.boolean().optional(),
 });
 
 // ---------------------------------------------------------------- menu (org-level)

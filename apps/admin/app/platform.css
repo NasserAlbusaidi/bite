@@ -1,0 +1,224 @@
+/* Platform console (routes/platform*.tsx). Semantic tokens only. */
+.pf {
+	min-block-size: 100dvh;
+	background: var(--bg);
+	color: var(--text);
+}
+.pf-bar {
+	position: sticky;
+	inset-block-start: 0;
+	z-index: 5;
+	display: flex;
+	align-items: center;
+	gap: var(--space-6);
+	padding: var(--space-3) var(--space-6);
+	background: var(--surface);
+	border-block-end: 1px solid var(--line);
+	color: var(--text);
+}
+.pf-bar__brand {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-2);
+	color: inherit;
+	text-decoration: none;
+}
+.pf-bar__tag {
+	padding: 2px var(--space-2);
+	border-radius: var(--radius-pill);
+	background: var(--secondary);
+	color: var(--on-secondary);
+	font-size: var(--fs-xs, var(--fs-sm));
+	font-weight: 700;
+	letter-spacing: 0.02em;
+}
+.pf-bar__nav {
+	display: flex;
+	gap: var(--space-1);
+}
+.pf-bar__nav a {
+	padding: var(--space-1) var(--space-3);
+	border-radius: var(--radius-pill);
+	color: var(--text-muted);
+	text-decoration: none;
+	font-weight: 600;
+	font-size: var(--fs-sm);
+}
+.pf-bar__nav a[aria-current="page"] {
+	background: var(--surface-sunken);
+	color: var(--text-strong);
+}
+.pf-bar__me {
+	display: flex;
+	align-items: center;
+	gap: var(--space-3);
+	margin-inline-start: auto;
+	font-size: var(--fs-sm);
+}
+.pf-bar__email {
+	color: var(--text-muted);
+}
+.pf-bar__btn {
+	border: 1px solid var(--line);
+	border-radius: var(--radius-pill);
+	background: transparent;
+	color: var(--text);
+	padding: var(--space-1) var(--space-3);
+	font: inherit;
+	font-weight: 600;
+	cursor: pointer;
+}
+.pf-main {
+	max-inline-size: 1240px;
+	margin-inline: auto;
+	padding: var(--space-6);
+}
+.pf-kpis {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+	gap: var(--space-3);
+	margin-block: var(--space-4);
+}
+.pf-kpi {
+	display: grid;
+	gap: var(--space-1);
+	align-content: start;
+}
+.pf-kpi strong {
+	font-size: var(--fs-xl, var(--fs-lg));
+	color: var(--text-strong);
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+}
+.pf-note {
+	margin-block: 0 var(--space-3);
+	padding: var(--space-2) var(--space-3);
+	border-radius: var(--radius-md, 8px);
+	background: var(--surface-sunken);
+	color: var(--text-muted);
+}
+.pf-filters {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-2);
+	margin-block-end: var(--space-3);
+}
+.pf-filters .input[type="search"] {
+	flex: 1 1 320px;
+}
+.pf-busy {
+	opacity: 0.6;
+}
+.pf-table .num {
+	text-align: end;
+}
+.pf-org {
+	font-weight: 700;
+	color: var(--text-strong);
+}
+.pf-title {
+	display: flex;
+	align-items: center;
+	gap: var(--space-3);
+}
+.pf-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(min(100%, 460px), 1fr));
+	gap: var(--space-4);
+	align-items: start;
+}
+.pf-inline {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--space-2);
+}
+.pf-sub {
+	margin-block: var(--space-4) var(--space-2);
+	font-size: var(--fs-md, var(--fs-sm));
+}
+.pf-field {
+	display: grid;
+	gap: var(--space-1);
+}
+.pf-confirm {
+	display: grid;
+	gap: var(--space-3);
+	margin-block-end: var(--space-4);
+}
+.pf-people li,
+.pf-activity li {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: space-between;
+	gap: var(--space-1) var(--space-3);
+	padding-block: var(--space-2);
+	border-block-end: 1px solid var(--line);
+}
+.pf-people li:last-child,
+.pf-activity li:last-child {
+	border-block-end: 0;
+}
+.pf-form {
+	max-inline-size: 820px;
+}
+.pf-created {
+	max-inline-size: 640px;
+	margin-inline: auto;
+}
+.pf-copy {
+	display: flex;
+	gap: var(--space-2);
+}
+.pf-copy .input {
+	flex: 1;
+}
+.pf-support {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--space-2) var(--space-4);
+	margin: 0;
+	padding: var(--space-2) var(--space-6);
+	background: var(--danger-bg);
+	color: var(--danger);
+	font-size: var(--fs-sm);
+	font-weight: 600;
+}
+.pf-support button {
+	border: 1px solid currentColor;
+	border-radius: var(--radius-pill);
+	background: transparent;
+	color: inherit;
+	padding: var(--space-1) var(--space-3);
+	font: inherit;
+	cursor: pointer;
+}
+@media (max-width: 720px) {
+	.pf-bar {
+		flex-wrap: wrap;
+		gap: var(--space-3);
+		padding-inline: var(--space-4);
+	}
+	.pf-bar__email {
+		display: none;
+	}
+	.pf-main {
+		padding: var(--space-4);
+	}
+}
+.pf-filters .input,
+.pf-inline .input {
+	inline-size: auto;
+	width: auto;
+}
+.pf-filters .input[type="search"] {
+	min-inline-size: min(100%, 320px);
+}
+.pf-kpi strong {
+	font-size: var(--fs-lg);
+}
+.pf-grid .table th {
+	white-space: normal;
+}
