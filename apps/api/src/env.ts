@@ -20,6 +20,11 @@ export type Deps = {
 	 * every org then gets every feature, unlimited.
 	 */
 	planEnforcement?: boolean;
+	/**
+	 * A bite_system (BYPASSRLS) connection for the platform console
+	 * (/v1/platform). Absent: the console and support view are off (404).
+	 */
+	systemDb?: Db;
 };
 
 export type DeviceCtx = {
@@ -60,6 +65,11 @@ export type AdminCtx = SessionCtx & {
 	manages: ReadonlySet<string>;
 	/** Owner/admin: org-level settings (menu, promotions, staff org roles). */
 	orgWide: boolean;
+	/**
+	 * A platform admin looking at an org they are not a member of (support
+	 * view). Read-only: the middleware refuses anything but GET/HEAD.
+	 */
+	support?: boolean;
 };
 
 export type AppEnv = {

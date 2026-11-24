@@ -39,6 +39,15 @@ const auth = createAuth(db, {
  */
 const planEnforcement = process.env.PLAN_ENFORCEMENT === "on";
 
+/**
+ * Platform console (/v1/platform) and support view: a bite_system login
+ * (BYPASSRLS). PLATFORM_DATABASE_URL, else the worker's login. Neither set:
+ * the console is off.
+ */
+const systemUrl =
+	process.env.PLATFORM_DATABASE_URL ?? process.env.WORKER_DATABASE_URL;
+const systemDb = systemUrl ? createDb(systemUrl, { max: 3 }).db : undefined;
+
 const realtime = new RealtimeHub();
 // postgres.js keeps a dedicated connection for LISTEN and re-listens after reconnects.
 await realtime.start((channel, fn) => client.listen(channel, fn));
@@ -51,6 +60,7 @@ const app = createApp({
 	auth,
 	adminOrigins,
 	planEnforcement,
+	...(systemDb ? { systemDb } : {}),
 });
 const port = Number(process.env.PORT ?? 3000);
 serve({ fetch: app.fetch, port });

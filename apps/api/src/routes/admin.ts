@@ -33,6 +33,7 @@ export const adminRoutes = new Hono<AppEnv>()
 			org: { id: a.orgId, name: org?.name ?? "", slug: org?.slug ?? "" },
 			locations: a.locations,
 			entitlements,
+			...(a.support ? { support: true } : {}),
 		};
 		return c.json(body);
 	})
