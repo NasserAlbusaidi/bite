@@ -1,6 +1,7 @@
 import { businessDate } from "@bite/core";
 import { type ReactNode, useState } from "react";
-import { data, Form, Link } from "react-router";
+import { data } from "react-router";
+import { RangeBar, useBusy } from "../components/range-bar";
 import { adminApi } from "../lib/api";
 import type { AdminCashSession } from "../lib/contracts";
 import type { Lang, T } from "../lib/i18n";
@@ -42,6 +43,7 @@ export async function clientLoader({ request }: Route.ClientLoaderArgs) {
 export default function Drawers({ loaderData }: Route.ComponentProps) {
 	const { sessions, today, from, to, report, timeZone } = loaderData;
 	const { t, lang, place } = useShell();
+	const busy = useBusy("/drawers");
 	const decimals = place?.decimals ?? 3;
 	const currency = place?.currencyCode ?? "OMR";
 	const money = (n: number) => (
@@ -59,7 +61,7 @@ export default function Drawers({ loaderData }: Route.ComponentProps) {
 		report.byMethod.find((m) => m.method === "cash")?.amount ?? 0;
 
 	return (
-		<>
+		<div className={busy ? "page is-busy" : "page"}>
 			<div className="page-head">
 				<div>
 					<h1>{t("drawers_title")}</h1>
@@ -74,46 +76,7 @@ export default function Drawers({ loaderData }: Route.ComponentProps) {
 				</button>
 			</div>
 
-			<div className="card presets no-print">
-				<div className="actions-row">
-					{presets(today).map((p) => (
-						<Link
-							key={p.key}
-							to={`?from=${p.from}&to=${p.to}`}
-							className={`chip${p.from === from && p.to === to ? " chip--on" : ""}`}
-						>
-							{t(p.key as "today")}
-						</Link>
-					))}
-				</div>
-				<Form method="get" className="inline-form">
-					<label>
-						{t("from")}
-						<input
-							type="date"
-							name="from"
-							className="input input--sm"
-							dir="ltr"
-							defaultValue={from}
-							max={today}
-						/>
-					</label>
-					<label>
-						{t("to")}
-						<input
-							type="date"
-							name="to"
-							className="input input--sm"
-							dir="ltr"
-							defaultValue={to}
-							max={today}
-						/>
-					</label>
-					<button type="submit" className="btn">
-						{t("show")}
-					</button>
-				</Form>
-			</div>
+			<RangeBar today={today} from={from} to={to} t={t} />
 
 			<section className="stats">
 				<div className="card stat">
@@ -175,7 +138,7 @@ export default function Drawers({ loaderData }: Route.ComponentProps) {
 					</div>
 				)}
 			</section>
-		</>
+		</div>
 	);
 }
 
@@ -260,8 +223,14 @@ function DrawerRow({
 										: "pill pill--completed"
 							}
 						>
-							{v > 0 && "+"}
-							{money(v)}
+							{v === 0 ? (
+								<>✓ {t("drawer_balanced")}</>
+							) : (
+								<>
+									{v > 0 && "+"}
+									{money(v)}
+								</>
+							)}
 						</span>
 					)}
 				</td>
