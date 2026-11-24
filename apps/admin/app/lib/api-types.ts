@@ -1,10 +1,12 @@
 import type {
+	AdminCashSession,
 	AdminCategory,
 	AdminDevice,
 	AdminLocationSettings,
 	AdminMe,
 	AdminMenu,
 	AdminModifierGroup,
+	AdminOrderDetail,
 	AdminOrderRow,
 	AdminOrdersQuery,
 	AdminProduct,
@@ -25,6 +27,7 @@ import type {
 	SalesReport,
 	SalesReportQuery,
 	SetLocationProduct,
+	TrendsReport,
 	UpdateCategory,
 	UpdateLocation,
 	UpdateModifierGroup,
@@ -98,4 +101,7 @@ export interface AdminApi {
 		q: Omit<AdminOrdersQuery, "limit"> & { limit?: number },
 	): Promise<{ items: AdminOrderRow[]; nextCursor?: string | undefined }>;
 	ordersCsv(q: Omit<AdminOrdersQuery, "cursor" | "limit">): Promise<Blob>;
+	trends(q: SalesReportQuery): Promise<TrendsReport>;
+	order(id: string): Promise<AdminOrderDetail>;
+	cashSessions(q: SalesReportQuery): Promise<AdminCashSession[]>;
 }

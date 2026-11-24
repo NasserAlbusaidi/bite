@@ -10,7 +10,14 @@ import {
 	type Minor,
 	taxFromInclusive,
 } from "@bite/core";
-import type { AdminMenu, AdminOrderRow, SalesReport } from "./contracts";
+import type {
+	AdminCashSession,
+	AdminMenu,
+	AdminOrderDetail,
+	AdminOrderRow,
+	SalesReport,
+	TrendsReport,
+} from "./contracts";
 
 type Method = SalesReport["byMethod"][number]["method"];
 export type DemoOrder = {
@@ -210,4 +217,220 @@ export function ordersCsv(
 			.join(","),
 	);
 	return [head.join(","), ...lines].join("\n");
+}
+
+/** Monday 0 ... Sunday 6, for a YYYY-MM-DD date. */
+export const weekdayOf = (date: string) =>
+	(new Date(`${date}T00:00:00Z`).getUTCDay() + 6) % 7;
+
+/** Same shapes /reports/trends returns, over the demo orders. */
+export function demoTrends(
+	locationId: string,
+	from: string,
+	to: string,
+	orders: readonly DemoOrder[],
+	menu: AdminMenu,
+): TrendsReport {
+	const live = orders.filter((o) => o.row.fulfillmentStatus !== "cancelled");
+	const net = (o: DemoOrder) => o.row.total - o.tax;
+	const days: TrendsReport["days"] = [];
+	for (let d = from, g = 0; d <= to && g < 400; d = addDays(d, 1), g++) {
+		const mine = live.filter((o) => o.row.businessDate === d);
+		days.push({
+			date: d,
+			orders: mine.length,
+			net: mine.reduce((s, o) => s + net(o), 0),
+			total: mine.reduce((s, o) => s + o.row.total, 0),
+		});
+	}
+	const bucket = <K extends string>(key: (o: DemoOrder) => K) => {
+		const m = new Map<K, { orders: number; net: number }>();
+		for (const o of live) {
+			const v = m.get(key(o)) ?? { orders: 0, net: 0 };
+			v.orders += 1;
+			v.net += net(o);
+			m.set(key(o), v);
+		}
+		return m;
+	};
+	const heat = bucket(
+		(o) =>
+			`${weekdayOf(o.row.businessDate)}:${Number(o.row.placedAt.slice(11, 13))}`,
+	);
+	const cat = new Map<string, { quantity: number; revenue: number }>();
+	for (const o of live)
+		for (const l of o.lines) {
+			const c =
+				menu.products.find((p) => p.id === l.productId)?.categoryId ?? "";
+			const v = cat.get(c) ?? { quantity: 0, revenue: 0 };
+			v.quantity += l.quantity;
+			v.revenue += l.net;
+			cat.set(c, v);
+		}
+	return {
+		locationId,
+		from,
+		to,
+		days,
+		heat: [...heat].map(([k, v]) => {
+			const [w, h] = k.split(":");
+			return { weekday: Number(w), hour: Number(h), ...v };
+		}),
+		bySource: [...bucket((o) => o.row.source as "counter")].map(
+			([source, v]) => ({ source, ...v }),
+		),
+		byType: [...bucket((o) => o.row.type)].map(([type, v]) => ({ type, ...v })),
+		byCategory: [...cat]
+			.sort((a, b) => b[1].revenue - a[1].revenue)
+			.map(([id, v]) => ({
+				categoryId: id || null,
+				name: menu.categories.find((c) => c.id === id)?.name ?? {
+					en: "Other",
+					ar: "أخرى",
+				},
+				...v,
+			})),
+		prep: live.length
+			? { count: live.length, medianMinutes: 7.5, p90Minutes: 14 }
+			: { count: 0, medianMinutes: null, p90Minutes: null },
+	};
+}
+
+/** One demo order with lines and its payment, the shape /orders/:id returns. */
+export function demoOrderDetail(
+	locationId: string,
+	o: DemoOrder,
+	menu: AdminMenu,
+): AdminOrderDetail {
+	const placed = Date.parse(o.row.placedAt);
+	const at = (min: number) => new Date(placed + min * 60_000).toISOString();
+	const cancelled = o.row.fulfillmentStatus === "cancelled";
+	return {
+		...o.row,
+		locationId,
+		subtotal: o.row.total,
+		discountTotal: o.discount,
+		taxTotal: o.tax,
+		pricesIncludeTax: true,
+		note: null,
+		customerPhone: null,
+		readyAt: cancelled ? null : at(8),
+		completedAt: cancelled ? null : at(12),
+		cancelledAt: cancelled ? at(3) : null,
+		cancelReason: cancelled ? "Guest left" : null,
+		deviceName: o.row.source === "counter" ? "Front till" : null,
+		createdByName: o.row.source === "counter" ? "Aisha" : null,
+		lines: o.lines.map((l, i) => {
+			const p = menu.products.find((x) => x.id === l.productId);
+			return {
+				id: `${o.row.id.slice(0, 24)}${String(i).padStart(12, "0")}`,
+				name: p?.name ?? { en: "?" },
+				quantity: l.quantity,
+				unitPrice: Math.trunc(l.net / l.quantity),
+				listUnitPrice: Math.trunc(l.gross / l.quantity),
+				modifiers: [],
+				lineTotal: l.net,
+				lineDiscount: l.gross - l.net,
+				lineTax: taxFromInclusive(l.net as Minor, RATE),
+				note: null,
+				voidedAt: null,
+				voidReason: null,
+			};
+		}),
+		payments: cancelled
+			? []
+			: [
+					{
+						id: `${o.row.id.slice(0, 24)}9999${o.row.id.slice(-8)}`,
+						method: o.method,
+						state: "succeeded",
+						amount: o.row.total,
+						tip: o.tip,
+						tendered: null,
+						reason: null,
+						businessDate: o.row.businessDate,
+						createdAt: at(1),
+						createdByName: "Aisha",
+					},
+				],
+	};
+}
+
+/** A drawer per day at the front till, shaped like /cash-sessions. */
+export function demoCashSessions(
+	locationId: string,
+	from: string,
+	to: string,
+	today: string,
+	orders: readonly DemoOrder[],
+): AdminCashSession[] {
+	const out: AdminCashSession[] = [];
+	for (let d = to, g = 0; d >= from && g < 400; d = addDays(d, -1), g++) {
+		if (d > today) continue;
+		const r = rng(hash(`${locationId}:cash:${d}`));
+		const cashSales = orders
+			.filter(
+				(o) =>
+					o.row.businessDate === d &&
+					o.method === "cash" &&
+					o.row.fulfillmentStatus !== "cancelled",
+			)
+			.reduce((s, o) => s + o.row.paidTotal, 0);
+		const openingFloat = 20_000;
+		const payOuts = r(3) === 0 ? 3_500 : 0;
+		const drops = cashSales > 30_000 ? 20_000 : 0;
+		const expected = openingFloat + cashSales - payOuts - drops;
+		const open = d === today;
+		const variance = open ? null : ([0, 0, 0, -100, 250, -500][r(6)] ?? 0);
+		const id = `0193a1b2-cccc-7000-8000-${String(
+			hash(`${locationId}${d}`) >>> 0,
+		)
+			.padStart(12, "0")
+			.slice(-12)}`;
+		out.push({
+			id,
+			businessDate: d,
+			deviceName: "Front till",
+			status: open ? "open" : "closed",
+			openedAt: `${d}T06:45:00+04:00`,
+			openedByName: "Aisha",
+			closedAt: open ? null : `${d}T23:10:00+04:00`,
+			closedByName: open ? null : "Khalid",
+			openingFloat,
+			cashSales,
+			cashRefunds: 0,
+			payIns: 0,
+			payOuts,
+			drops,
+			expectedCash: expected,
+			countedCash: variance === null ? null : expected + variance,
+			variance,
+			notes: variance && variance < 0 ? "Short, checked with Aisha" : null,
+			movements: [
+				...(payOuts
+					? [
+							{
+								kind: "pay_out" as const,
+								amount: payOuts,
+								reason: "Milk delivery",
+								createdAt: `${d}T10:20:00+04:00`,
+								byName: "Aisha",
+							},
+						]
+					: []),
+				...(drops
+					? [
+							{
+								kind: "drop" as const,
+								amount: drops,
+								reason: "To the safe",
+								createdAt: `${d}T16:00:00+04:00`,
+								byName: "Khalid",
+							},
+						]
+					: []),
+			],
+		});
+	}
+	return out;
 }

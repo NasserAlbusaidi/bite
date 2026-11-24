@@ -1,11 +1,13 @@
 /** Back-office contracts come from the API (packages/contracts/src/admin.ts). */
 export {
+	AdminCashSession,
 	AdminCategory,
 	AdminDevice,
 	AdminLocationSettings,
 	AdminMe,
 	AdminModifierGroup,
 	AdminModifierOption,
+	AdminOrderDetail,
 	AdminOrderRow,
 	AdminOrdersQuery,
 	AdminProduct,
@@ -28,6 +30,7 @@ export {
 	SalesReport,
 	SalesReportQuery,
 	SetLocationProduct,
+	TrendsReport,
 	UpdateCategory,
 	UpdateLocation,
 	UpdateModifierGroup,
