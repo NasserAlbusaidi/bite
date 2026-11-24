@@ -1,7 +1,19 @@
-import { Link } from "react-router";
+import { Badge, Icon } from "@bite/ui";
+import { useState } from "react";
+import { Link, useSearchParams } from "react-router";
 import { adminApi } from "../lib/api";
+import type { AdminStaff } from "../lib/contracts";
+import type { T } from "../lib/i18n";
 import { staffPowers } from "../lib/permissions";
-import { rolesSummary } from "../lib/staff-form";
+import {
+	filterStaff,
+	initials,
+	isOffice,
+	isPending,
+	STAFF_FILTERS,
+	type StaffFilter,
+	staffCounts,
+} from "../lib/staff-list";
 import { useShell } from "../lib/use-shell";
 import type { Route } from "./+types/staff";
 
@@ -10,19 +22,33 @@ export async function clientLoader() {
 }
 
 export default function StaffPage({ loaderData }: Route.ComponentProps) {
-	const { t, lang, places, me } = useShell();
+	const { t, places, place, me, locationId } = useShell();
 	const powers = staffPowers(me);
+	const [params, setParams] = useSearchParams();
+	const filter = (
+		STAFF_FILTERS.includes(params.get("show") as StaffFilter)
+			? params.get("show")
+			: "all"
+	) as StaffFilter;
+	const [q, setQ] = useState("");
+	const counts = staffCounts(loaderData.staff, locationId);
+	const list = filterStaff(loaderData.staff, { q, filter, locationId });
 	const names = new Map(places.map((p) => [p.id, p.name]));
-	const sep = lang === "ar" ? "، " : ", ";
-	const sorted = [...loaderData.staff].sort(
-		(a, b) =>
-			Number(b.isActive) - Number(a.isActive) ||
-			a.displayName.localeCompare(b.displayName),
+
+	const chips = STAFF_FILTERS.filter(
+		(f) =>
+			f === "all" ||
+			(f === "branch" && places.length > 1) ||
+			(f !== "branch" && counts[f] > 0),
 	);
+
 	return (
 		<>
 			<div className="page-head">
-				<h1>{t("staff")}</h1>
+				<div>
+					<h1>{t("staff")}</h1>
+					<p className="muted small page-sub">{t("staff_hint")}</p>
+				</div>
 				<div className="actions-row">
 					{powers.canInvite && (
 						<Link className="btn" to="/staff/new?kind=invite">
@@ -30,54 +56,172 @@ export default function StaffPage({ loaderData }: Route.ComponentProps) {
 						</Link>
 					)}
 					<Link className="btn btn--primary" to="/staff/new?kind=pin">
+						<Icon name="plus" />
 						{t("add_pin_staff")}
 					</Link>
 				</div>
 			</div>
-			<p className="muted">{t("staff_hint")}</p>
-			<section className="card">
-				<table className="table">
-					<thead>
-						<tr>
-							<th>{t("name")}</th>
-							<th>{t("access")}</th>
-							<th>{t("sign_in")}</th>
-						</tr>
-					</thead>
-					<tbody>
-						{sorted.map((s) => (
-							<tr key={s.id} className={s.isActive ? "" : "row-muted"}>
-								<td>
-									<Link to={`/staff/${s.id}`}>{s.displayName}</Link>
-									{s.email && (
-										<div className="muted small" dir="ltr">
-											{s.email}
-										</div>
-									)}
-								</td>
-								<td className="small">
-									{s.orgRole === "owner" || s.orgRole === "admin"
-										? t(`org_${s.orgRole}`)
-										: rolesSummary(
-												s,
-												names,
-												(r) => t(`role_${r}`),
-												(role, place) => t("role_at", { role, place }),
-												sep,
-											) || "—"}
-								</td>
-								<td className="small">
-									{!s.isActive
-										? t("deactivated")
-										: [s.email ? t("login") : null, s.hasPin ? t("pin") : null]
-												.filter(Boolean)
-												.join(" + ") || t("invite_pending")}
-								</td>
-							</tr>
+
+			<div className="toolbar">
+				<label className="search-field">
+					<Icon name="search" />
+					<span className="sr-only">{t("staff_search")}</span>
+					<input
+						type="search"
+						value={q}
+						onChange={(e) => setQ(e.target.value)}
+						placeholder={t("staff_search")}
+					/>
+				</label>
+				<fieldset className="seg seg--set">
+					<legend className="sr-only">{t("staff")}</legend>
+					{chips.map((f) => (
+						<button
+							key={f}
+							type="button"
+							className="seg__btn"
+							aria-pressed={filter === f}
+							onClick={() =>
+								setParams(
+									(p) => {
+										if (f === "all") p.delete("show");
+										else p.set("show", f);
+										return p;
+									},
+									{ replace: true },
+								)
+							}
+						>
+							{t(`staff_filter_${f}`, { branch: place?.name ?? "" })}
+							<span className="seg__count">{counts[f]}</span>
+						</button>
+					))}
+				</fieldset>
+			</div>
+
+			<section className="card card--flush">
+				{list.length === 0 ? (
+					<p className="empty">{t("staff_none_match")}</p>
+				) : (
+					<ul className="people">
+						{list.map((s) => (
+							<li key={s.id}>
+								<Link to={`/staff/${s.id}`} className="person">
+									<span
+										className={`avatar avatar--${isOffice(s) ? "office" : "floor"}`}
+										aria-hidden="true"
+									>
+										{initials(s.displayName)}
+									</span>
+									<span className="person__main">
+										<span className="person__name">{s.displayName}</span>
+										{s.email && (
+											<span className="muted small" dir="ltr">
+												{s.email}
+											</span>
+										)}
+									</span>
+									<span className="person__roles">
+										<Roles s={s} names={names} current={locationId} t={t} />
+									</span>
+									<span className="person__signin">
+										<SignIn s={s} t={t} />
+									</span>
+									<Icon name="chevron-forward" className="person__chev" />
+								</Link>
+							</li>
 						))}
-					</tbody>
-				</table>
+					</ul>
+				)}
 			</section>
+
+			<details className="card guide">
+				<summary>
+					<Icon name="info" />
+					{t("roles_guide_title")}
+				</summary>
+				<dl className="guide__list">
+					{(
+						[
+							"owner",
+							"admin",
+							"manager",
+							"cashier",
+							"server",
+							"kitchen",
+						] as const
+					).map((r) => (
+						<div key={r}>
+							<dt>
+								{r === "owner" || r === "admin"
+									? t(`role_${r}_short`)
+									: t(`role_${r}`)}
+							</dt>
+							<dd>{t(`role_desc_${r}`)}</dd>
+						</div>
+					))}
+				</dl>
+			</details>
+		</>
+	);
+}
+
+function Roles({
+	s,
+	names,
+	current,
+	t,
+}: {
+	s: AdminStaff;
+	names: Map<string, string>;
+	current: string | undefined;
+	t: T;
+}) {
+	if (s.orgRole === "owner" || s.orgRole === "admin")
+		return (
+			<Badge tone="brand">
+				{t(`role_${s.orgRole}_short`)} · {t("staff_everywhere")}
+			</Badge>
+		);
+	if (s.locations.length === 0) return <span className="muted">—</span>;
+	const sorted = [...s.locations].sort(
+		(a, b) =>
+			Number(b.locationId === current) - Number(a.locationId === current),
+	);
+	return (
+		<>
+			{sorted.map((l) => (
+				<Badge
+					key={l.locationId}
+					tone={l.locationId === current ? "success" : "neutral"}
+				>
+					{t("role_at", {
+						role: t(`role_${l.role}`),
+						place: names.get(l.locationId) ?? "?",
+					})}
+				</Badge>
+			))}
+		</>
+	);
+}
+
+function SignIn({ s, t }: { s: AdminStaff; t: T }) {
+	if (!s.isActive) return <Badge tone="danger">{t("deactivated")}</Badge>;
+	if (isPending(s)) return <Badge tone="warning">{t("invite_pending")}</Badge>;
+	return (
+		<>
+			{s.email && (
+				<span className="signin-tag">
+					<Icon name="user" size={14} />
+					{t("login")}
+				</span>
+			)}
+			{s.hasPin && (
+				<span className="signin-tag">
+					<Icon name="key" size={14} />
+					{t("pin")}
+				</span>
+			)}
 		</>
 	);
 }

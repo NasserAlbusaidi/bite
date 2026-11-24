@@ -10,6 +10,7 @@ import {
 	useRevalidator,
 } from "react-router";
 import { type Command, CommandPalette } from "../components/CommandPalette";
+import { FlashToasts } from "../components/FlashToasts";
 import { adminGate, saveOrg } from "../lib/account";
 import { account, adminApi, isDemo } from "../lib/api";
 import {
@@ -23,6 +24,7 @@ import { currentNav, type NavGroup, navItems } from "../lib/nav";
 import { catalogPowers, staffPowers } from "../lib/permissions";
 import { loadPlaces } from "../lib/places";
 import { rememberLocation, selectedLocationId } from "../lib/selected-location";
+import { initials } from "../lib/staff-list";
 import { applyTheme, nextTheme, savedTheme, type Theme } from "../lib/theme";
 import type { Route } from "./+types/shell";
 
@@ -55,15 +57,6 @@ const GROUPS: { id: NavGroup; label?: MessageKey }[] = [
 ];
 
 const THEME_ICON = { system: "monitor", light: "sun", dark: "moon" } as const;
-
-const initials = (name: string) =>
-	name
-		.trim()
-		.split(/\s+/)
-		.slice(0, 2)
-		.map((w) => w[0] ?? "")
-		.join("")
-		.toLocaleUpperCase();
 
 type Extra = { staff: Command[]; products: Command[] };
 
@@ -275,6 +268,7 @@ export default function Shell({ loaderData }: Route.ComponentProps) {
 	return (
 		<UiProvider lang={lang}>
 			<ToastProvider>
+				<FlashToasts />
 				<div className="app" data-drawer={drawer ? "open" : undefined}>
 					<header className="mobilebar">
 						<button
