@@ -17,18 +17,15 @@ const put = (h: Harness, loc: string, body: PutFloorRequest) =>
 		body: JSON.stringify(body),
 	});
 
-const push = (h: Harness, t: Tenant, mutations: unknown[]) =>
-	h.app
-		.request(
-			"/v1/sync/push",
-			json({ deviceId: t.device, mutations }, bearer(t)),
-		)
-		.then(
-			(r) =>
-				r.json() as Promise<{
-					results: { status: string; error?: { code: string } }[];
-				}>,
-		);
+const push = async (h: Harness, t: Tenant, mutations: unknown[]) => {
+	const r = await h.app.request(
+		"/v1/sync/push",
+		json({ deviceId: t.device, mutations }, bearer(t)),
+	);
+	return (await r.json()) as {
+		results: { status: string; error?: { code: string } }[];
+	};
+};
 
 const mut = (
 	kind: string,

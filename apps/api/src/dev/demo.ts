@@ -23,7 +23,7 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { buildCatalog, businessDate, localClock, priceCart } from "@bite/core";
 import { createDb, schema as s } from "@bite/db";
-import { and, eq, sql } from "@bite/db/orm";
+import { and, eq, inArray, isNotNull, sql } from "@bite/db/orm";
 import { hash } from "@node-rs/argon2";
 import { v7 as uuidv7 } from "uuid";
 import { createAuth } from "../auth/better-auth.js";
@@ -1272,6 +1272,268 @@ async function history(b: Built, tabs: Tablet[]) {
 	}
 }
 
+// ------------------------------------------------------------------ floor plan
+
+/** [label, x, y, w, h, seats, shape] on the 40 x 28 grid. */
+type T = [
+	string,
+	number,
+	number,
+	number,
+	number,
+	number,
+	"square" | "round" | "rect",
+];
+const FLOORS: Record<string, { name: string; tables: T[] }[]> = {
+	qurum: [
+		{
+			name: "Inside",
+			tables: [
+				["1", 2, 2, 3, 3, 2, "round"],
+				["2", 7, 2, 3, 3, 2, "round"],
+				["3", 12, 2, 3, 3, 2, "round"],
+				["4", 2, 8, 4, 3, 4, "square"],
+				["5", 8, 8, 4, 3, 4, "square"],
+				["6", 14, 8, 4, 3, 4, "square"],
+				["7", 2, 14, 7, 3, 6, "rect"],
+				["8", 11, 14, 7, 3, 6, "rect"],
+				["9", 22, 2, 3, 3, 2, "round"],
+				["10", 22, 8, 4, 3, 4, "square"],
+			],
+		},
+		{
+			name: "Terrace",
+			tables: [
+				["11", 2, 2, 4, 4, 4, "round"],
+				["12", 9, 2, 4, 4, 4, "round"],
+				["13", 16, 2, 4, 4, 4, "round"],
+				["14", 2, 9, 8, 3, 8, "rect"],
+			],
+		},
+		{
+			name: "Majlis",
+			tables: [
+				["15", 2, 2, 8, 4, 10, "rect"],
+				["16", 13, 2, 6, 4, 6, "rect"],
+			],
+		},
+	],
+	mouj: [
+		{
+			name: "Inside",
+			tables: [
+				["1", 2, 2, 3, 3, 2, "round"],
+				["2", 7, 2, 3, 3, 2, "round"],
+				["3", 2, 8, 4, 3, 4, "square"],
+				["4", 8, 8, 4, 3, 4, "square"],
+				["5", 2, 14, 7, 3, 6, "rect"],
+			],
+		},
+		{
+			name: "Beach side",
+			tables: [
+				["6", 2, 2, 4, 4, 4, "round"],
+				["7", 9, 2, 4, 4, 4, "round"],
+				["8", 16, 2, 4, 4, 4, "round"],
+			],
+		},
+	],
+};
+
+/** Lays out each branch's floor the first time; later runs leave edits alone. */
+async function floorPlans(b: Built) {
+	const ownerConn = createDb(OWNER_URL, { max: 1, onnotice: () => {} });
+	const o = ownerConn.db;
+	try {
+		for (const br of BRANCHES) {
+			const loc = b.locations[br.key] as string;
+			const [has] = await o
+				.select({ id: s.floorAreas.id })
+				.from(s.floorAreas)
+				.where(eq(s.floorAreas.locationId, loc))
+				.limit(1);
+			if (has) continue;
+			const staff = await o
+				.select({ id: s.members.id, name: s.members.displayName })
+				.from(s.members)
+				.where(eq(s.members.orgId, b.orgId));
+			const who = (n: string) => staff.find((m) => m.name === n)?.id ?? null;
+			let n = 0;
+			for (const [i, area] of (FLOORS[br.key] ?? []).entries()) {
+				const areaId = uuidv7();
+				await o.insert(s.floorAreas).values({
+					id: areaId,
+					orgId: b.orgId,
+					locationId: loc,
+					name: area.name,
+					sortOrder: i,
+				});
+				await o.insert(s.floorTables).values(
+					area.tables.map(([label, x, y, w, h, seats, shape]) => ({
+						id: uuidv7(),
+						orgId: b.orgId,
+						locationId: loc,
+						areaId,
+						label,
+						x,
+						y,
+						w,
+						h,
+						seats,
+						shape,
+						// Hamed has the terrace at Qurum; Maryam the inside window tables.
+						serverMemberId:
+							br.key === "qurum" && area.name === "Terrace"
+								? who("Hamed")
+								: br.key === "qurum" && ["1", "2", "3"].includes(label)
+									? who("Maryam")
+									: null,
+					})),
+				);
+				n += area.tables.length;
+			}
+			console.log(`floor  ${br.name}: ${n} tables`);
+		}
+	} finally {
+		await ownerConn.client.end();
+	}
+}
+
+/**
+ * A few tables busy right now, so the floor view has something to show:
+ * QR orders through the real guest endpoint (priced by the server), some of
+ * them paid at the till and started in the kitchen. Skipped while the
+ * branch already has open table orders, so re-runs don't pile up.
+ */
+async function liveTables(b: Built, tabs: Tablet[]) {
+	const ownerConn = createDb(OWNER_URL, { max: 1, onnotice: () => {} });
+	const o = ownerConn.db;
+	try {
+		for (const br of BRANCHES) {
+			const loc = b.locations[br.key] as string;
+			const [open] = await o
+				.select({ id: s.orders.id })
+				.from(s.orders)
+				.where(
+					and(
+						eq(s.orders.locationId, loc),
+						isNotNull(s.orders.tableLabel),
+						inArray(s.orders.fulfillmentStatus, [
+							"pending",
+							"preparing",
+							"ready",
+						]),
+					),
+				)
+				.limit(1);
+			if (open) continue;
+			const pos = tabs.find((t) => t.branch === br.key && t.kind === "pos");
+			if (!pos) continue;
+			const snap = await http("GET", "/v1/device/menu", pos.token);
+			const simple = snap.products.filter(
+				(p: any) => p.modifierGroupIds.length === 0,
+			);
+			if (simple.length < 3) continue;
+			// [table, items, then: unpaid | paid (kitchen pending) | preparing | ready]
+			const plan: [
+				string,
+				number,
+				"unpaid" | "paid" | "preparing" | "ready",
+			][] =
+				br.key === "qurum"
+					? [
+							["2", 2, "ready"],
+							["4", 3, "unpaid"],
+							["5", 4, "preparing"],
+							["8", 5, "paid"],
+							["11", 3, "unpaid"],
+							["12", 2, "preparing"],
+							["15", 6, "preparing"],
+						]
+					: [
+							["3", 3, "preparing"],
+							["6", 2, "unpaid"],
+						];
+			let made = 0;
+			for (const [table, size, then] of plan) {
+				const lines = Array.from({ length: size }, (_, i) => ({
+					id: uuidv7(),
+					productId: simple[(i * 7 + Number(table)) % simple.length].id,
+					quantity: 1,
+					modifierOptionIds: [],
+				}));
+				let res: Response;
+				try {
+					res = await fetch(`${API}/v1/public/locations/${br.slug}/orders`, {
+						method: "POST",
+						headers: {
+							"content-type": "application/json",
+							"idempotency-key": uuidv7(),
+						},
+						body: JSON.stringify({
+							locationSlug: br.slug,
+							type: "dine_in",
+							tableLabel: table,
+							lines,
+						}),
+					});
+				} catch {
+					break;
+				}
+				if (!res.ok) {
+					console.log(
+						`floor  ${br.name}: guest orders refused (${res.status}), live tables skipped`,
+					);
+					break;
+				}
+				const { order } = (await res.json()) as any;
+				const [row] = await o
+					.select({ id: s.orders.id, bd: s.orders.businessDate })
+					.from(s.orders)
+					.where(eq(s.orders.trackingToken, order.trackingToken));
+				if (!row) continue;
+				made += 1;
+				if (then === "unpaid") continue;
+				const memberId = b.cashier[br.key] as string;
+				const at = new Date().toISOString();
+				const m = (kind: string, payload: any) => ({
+					id: uuidv7(),
+					kind,
+					entityId: row.id,
+					memberId,
+					createdAt: at,
+					payload,
+				});
+				const muts = [
+					m("order.addPayment", {
+						id: uuidv7(),
+						orderId: row.id,
+						amount: order.total,
+						tip: 0,
+						method: "card",
+						businessDate: row.bd,
+					}),
+				];
+				if (then === "preparing" || then === "ready")
+					muts.push(
+						m("order.setFulfillment", { orderId: row.id, to: "preparing" }),
+					);
+				if (then === "ready")
+					muts.push(
+						m("order.setFulfillment", { orderId: row.id, to: "ready" }),
+					);
+				await http("POST", "/v1/sync/push", pos.token, {
+					deviceId: pos.deviceId,
+					mutations: muts,
+				});
+			}
+			if (made) console.log(`floor  ${br.name}: ${made} tables busy`);
+		}
+	} finally {
+		await ownerConn.client.end();
+	}
+}
+
 // ------------------------------------------------------------------ report
 function report(tabs: Tablet[]) {
 	const t = (br: string, k: string) =>
@@ -1302,6 +1564,8 @@ DEMO_NEW_TOKENS=1 issues new ones (re-pair the tablets after that).
 }
 
 const built = await build();
+await floorPlans(built);
 const tabs = await tablets(built);
 await history(built, tabs);
+await liveTables(built, tabs);
 report(tabs);
