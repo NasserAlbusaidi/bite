@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
 	data,
 	Link,
@@ -169,6 +169,7 @@ export default function OrderPage({ loaderData }: Route.ComponentProps) {
 					</p>
 				)}
 				<p className="ticket__status">{t(statusKey(order))}</p>
+				{!done && <Elapsed since={order.placedAt} t={t} />}
 				{order.fulfillmentStatus !== "cancelled" && (
 					<ol className="steps">
 						{orderSteps(order).map(({ step, state }) => (
@@ -225,5 +226,28 @@ export default function OrderPage({ loaderData }: Route.ComponentProps) {
 				{t("back_to_menu")}
 			</Link>
 		</main>
+	);
+}
+
+/** "Placed 4 min ago", ticking each half minute. Client only, to avoid a hydration mismatch. */
+function Elapsed({
+	since,
+	t,
+}: {
+	since: string;
+	t: ReturnType<typeof translator>;
+}) {
+	const [now, setNow] = useState<number | null>(null);
+	useEffect(() => {
+		setNow(Date.now());
+		const id = setInterval(() => setNow(Date.now()), 30_000);
+		return () => clearInterval(id);
+	}, []);
+	if (now === null) return <p className="ticket__since">&nbsp;</p>;
+	const min = Math.max(0, Math.floor((now - Date.parse(since)) / 60_000));
+	return (
+		<p className="ticket__since muted small">
+			{min < 1 ? t("placed_now") : t("placed_ago", { min })}
+		</p>
 	);
 }
