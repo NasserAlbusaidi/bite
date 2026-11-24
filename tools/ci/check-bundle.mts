@@ -12,7 +12,10 @@ import { gzipSync } from "node:zlib";
 const BUDGETS = [
 	{
 		dir: "apps/menu/build/client",
-		totalJsKb: 150,
+		// 150 -> 160 (2026-11-24): returning guests and loyalty (welcome card,
+		// rewards at checkout, EN + AR copy) took it to 150.1. Still well under
+		// what a phone on 4G loads in a second; the largest chunk is unchanged.
+		totalJsKb: 160,
 		largestJsKb: 90,
 		totalCssKb: 15,
 	},

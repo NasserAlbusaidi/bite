@@ -4,6 +4,8 @@ import { type AdminApi, AdminApiError } from "./api-types";
 import {
 	AdminCashSession,
 	AdminCategory,
+	AdminCustomer,
+	AdminCustomerDetail,
 	AdminDevice,
 	AdminLocationSettings,
 	AdminMe,
@@ -15,6 +17,7 @@ import {
 	AdminStaff,
 	InviteStaffResponse,
 	LocationProduct,
+	LoyaltyProgram,
 	Page,
 	RegisterDeviceResponse,
 	SalesReport,
@@ -187,6 +190,17 @@ export function httpAdminApi(
 			call(RegisterDeviceResponse, "/devices", send("POST", d)),
 		salesReport: (q) => call(SalesReport, `/reports/sales${qs(q)}`),
 		orders: (q) => call(Page(AdminOrderRow), `/orders${qs(q)}`),
+		loyalty: () => call(LoyaltyProgram, "/loyalty"),
+		saveLoyalty: (p) => call(LoyaltyProgram, "/loyalty", send("PUT", p)),
+		customers: async (q) =>
+			(await call(Page(AdminCustomer), `/customers${qs(q)}`)).items,
+		customer: (id) => call(AdminCustomerDetail, `/customers/${enc(id)}`),
+		adjustPoints: (id, a) =>
+			call(
+				AdminCustomerDetail,
+				`/customers/${enc(id)}/points`,
+				send("POST", a),
+			),
 		trends: (q) => call(TrendsReport, `/reports/trends${qs(q)}`),
 		order: (id) => call(AdminOrderDetail, `/orders/${enc(id)}`),
 		cashSessions: (q) =>

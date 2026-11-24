@@ -1,7 +1,11 @@
 /** Back-office contracts come from the API (packages/contracts/src/admin.ts). */
 export {
+	AdjustPoints,
 	AdminCashSession,
 	AdminCategory,
+	AdminCustomer,
+	AdminCustomerDetail,
+	AdminCustomersQuery,
 	AdminDevice,
 	AdminLocationSettings,
 	AdminMe,
@@ -22,6 +26,8 @@ export {
 	InviteStaff,
 	InviteStaffResponse,
 	LocationProduct,
+	LoyaltyProgram,
+	LoyaltyReward,
 	Page,
 	RegisterDeviceRequest,
 	RegisterDeviceResponse,

@@ -1420,19 +1420,19 @@ const REWARDS = [
 	{
 		id: "coffee",
 		name: { en: "Free coffee", ar: "قهوة مجانية" },
-		points: 60,
+		points: 150,
 		value: 1600,
 	},
 	{
 		id: "dessert",
 		name: { en: "Free dessert", ar: "حلى مجاني" },
-		points: 120,
+		points: 300,
 		value: 2500,
 	},
 	{
 		id: "two-off",
 		name: { en: "5 OMR off", ar: "خصم ٥ ريال" },
-		points: 250,
+		points: 600,
 		value: 5000,
 	},
 ];
@@ -1443,7 +1443,7 @@ function grand() {
 	return gseed / 0x7fffffff;
 }
 function pickGuest(): [string, string] | null {
-	if (grand() * 100 > 34) return null;
+	if (grand() * 100 > 11) return null;
 	const total = GUESTS.reduce((a, g) => a + g[2], 0);
 	let r = grand() * total;
 	for (const g of GUESTS) {

@@ -69,6 +69,20 @@ export function navItems(locationId: string | undefined): NavItem[] {
 			group: "menu",
 			go: "d",
 		},
+		{
+			key: "guests_title",
+			to: "/guests",
+			icon: "user",
+			group: "business",
+			go: "g",
+		},
+		{
+			key: "loyalty_title",
+			to: "/loyalty",
+			icon: "star",
+			group: "business",
+			go: "l",
+		},
 		{ key: "staff", to: "/staff", icon: "users", group: "business", go: "s" },
 		!!locationId && {
 			key: "location_nav",
