@@ -120,6 +120,13 @@
 			"when": 1795504735303,
 			"tag": "0016_loyalty",
 			"breakpoints": true
+		},
+		{
+			"idx": 17,
+			"version": "7",
+			"when": 1795505934746,
+			"tag": "0017_product_dietary_tags",
+			"breakpoints": true
 		}
 	]
 }
