@@ -11,6 +11,7 @@ import {
 	Version,
 } from "./common.js";
 import { ErrorBody } from "./errors.js";
+import { AssignTable, Floor, SetOrderTable } from "./floor.js";
 import { MenuSnapshot } from "./menu.js";
 import { CreatePosOrder, Order, SetFulfillment, VoidLine } from "./orders.js";
 import { AddPayment, RefundPayment } from "./payments.js";
@@ -30,7 +31,7 @@ const base = {
 	/**
 	 * The aggregate the mutation belongs to: the ORDER id for every order.*
 	 * kind (payments and refunds included), the cash session id for cash.*,
-	 * the product id for menu.*. Chains are blocked per entityId (see below).
+	 * the product id for menu.*, the floor table id for table.*. Chains are blocked per entityId (see below).
 	 */
 	entityId: Id,
 	/** Version the tablet last saw. Omit for creates. Mismatch => "conflict". */
@@ -63,6 +64,16 @@ export const SyncMutation = z.discriminatedUnion("kind", [
 		payload: SetFulfillment,
 	}),
 	z.object({ ...base, kind: z.literal("order.voidLine"), payload: VoidLine }),
+	z.object({
+		...base,
+		kind: z.literal("order.setTable"),
+		payload: SetOrderTable,
+	}),
+	z.object({
+		...base,
+		kind: z.literal("table.assign"),
+		payload: AssignTable,
+	}),
 	z.object({ ...base, kind: z.literal("cash.open"), payload: OpenCashSession }),
 	z.object({
 		...base,
@@ -163,6 +174,11 @@ export const SyncPullResponse = z.object({
 	 * `validUntil`; selling for cash is never gated by it.
 	 */
 	entitlements: Entitlements.optional(),
+	/**
+	 * This branch's floor plan with today's server assignments. Sent on every
+	 * page (it is small); absent from servers older than floor plans.
+	 */
+	floor: Floor.optional(),
 });
 
 export type SyncPushRequest = z.infer<typeof SyncPushRequest>;

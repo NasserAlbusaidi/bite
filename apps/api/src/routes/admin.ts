@@ -6,6 +6,7 @@ import type { AppEnv } from "../env.js";
 import { loadEntitlements } from "../lib/entitlements.js";
 import { adminAuth, adminTx } from "../middleware/admin-auth.js";
 import { adminCustomerRoutes } from "./admin-customers.js";
+import { adminFloorRoutes } from "./admin-floor.js";
 import { adminMenuRoutes } from "./admin-menu.js";
 import { adminOrgRoutes } from "./admin-org.js";
 import { adminReportRoutes } from "./admin-reports.js";
@@ -40,6 +41,7 @@ export const adminRoutes = new Hono<AppEnv>()
 		return c.json(body);
 	})
 	.route("/", adminMenuRoutes)
+	.route("/", adminFloorRoutes)
 	.route("/", adminOrgRoutes)
 	.route("/", adminReportRoutes)
 	.route("/", adminCustomerRoutes)

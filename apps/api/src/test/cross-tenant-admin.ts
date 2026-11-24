@@ -26,6 +26,8 @@ const ORG_TABLES = [
 	"member_invites",
 	"locations",
 	"devices",
+	"floor_areas",
+	"floor_tables",
 ];
 
 const MENU_TABLES = [
@@ -95,7 +97,40 @@ const pin = { pin: "9999" };
 const range = (h: Harness) =>
 	`locationId=${h.A.loc}&from=2026-01-01&to=2026-12-31`;
 
+async function aFloor(h: Harness) {
+	const [row] = await h.owner<{ id: string }[]>`
+		select id from floor_areas where location_id = ${h.A.loc} limit 1`;
+	if (row) return row.id;
+	const area = uuidv7();
+	await h.owner`insert into floor_areas (id, org_id, location_id, name) values (${area}, ${h.A.org}, ${h.A.loc}, 'A inside')`;
+	await h.owner`insert into floor_tables (id, org_id, location_id, area_id, label) values (${uuidv7()}, ${h.A.org}, ${h.A.loc}, ${area}, '7')`;
+	return area;
+}
+
 export const adminCases: Record<string, Case> = {
+	"GET /v1/admin/locations/:id/floor": async (h) => {
+		const area = await aFloor(h);
+		const res = await send(h, "GET", `/locations/${h.A.loc}/floor`);
+		expect(res.status).toBe(404);
+		expect(await res.text()).not.toContain(area);
+	},
+	"PUT /v1/admin/locations/:id/floor": async (h) => {
+		const area = await aFloor(h);
+		const before = await aDigest(h);
+		// Straight at A's branch: 404.
+		const res = await send(h, "PUT", `/locations/${h.A.loc}/floor`, {
+			areas: [],
+			tables: [],
+		});
+		expect(res.status).toBe(404);
+		// At B's own branch but reusing A's area id: refused, A untouched.
+		const res2 = await send(h, "PUT", `/locations/${h.B.loc}/floor`, {
+			areas: [{ id: area, name: "Mine now", sortOrder: 0 }],
+			tables: [],
+		});
+		expect([404, 409, 422]).toContain(res2.status);
+		expect(await aDigest(h)).toBe(before);
+	},
 	"POST /v1/admin/uploads": async (h) => {
 		// B's owner uploads, even naming A's org in the header: the photo
 		// still lands under B, and A's data is untouched.

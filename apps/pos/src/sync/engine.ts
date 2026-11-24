@@ -3,6 +3,7 @@ import type { ApiClient } from "../api/client.js";
 import type { SqlDriver } from "../db/driver.js";
 import { kvGet, kvSet } from "../db/kv.js";
 import { adoptCashSession } from "../domain/cash.js";
+import { saveFloor } from "../domain/floor.js";
 import { saveMenu } from "../domain/menu.js";
 import { upsertOrders } from "../domain/sale.js";
 import { type FlushSummary, Replayer } from "./replayer.js";
@@ -28,6 +29,7 @@ export class SyncEngine {
 	private readonly menuListeners = new Set<() => void>();
 	private readonly orderListeners = new Set<() => void>();
 	private readonly drawerListeners = new Set<() => void>();
+	private readonly floorListeners = new Set<() => void>();
 	state: SyncState = {
 		online: true,
 		lastPushAt: null,
@@ -77,6 +79,12 @@ export class SyncEngine {
 	onDrawerChanged(fn: () => void) {
 		this.drawerListeners.add(fn);
 		return () => this.drawerListeners.delete(fn);
+	}
+
+	/** The floor plan or a server assignment changed. */
+	onFloorChanged(fn: () => void) {
+		this.floorListeners.add(fn);
+		return () => this.floorListeners.delete(fn);
 	}
 
 	onOrdersChanged(fn: () => void) {
@@ -157,6 +165,14 @@ export class SyncEngine {
 				}
 				await kvSet(this.db, "sync.cursor", res.cursor);
 				if (!res.hasMore) {
+					if (res.floor) {
+						const before = await kvGet(this.db, "floor.plan");
+						const next = JSON.stringify(res.floor);
+						if (before !== next) {
+							await saveFloor(this.db, res.floor);
+							for (const fn of this.floorListeners) fn();
+						}
+					}
 					if (await adoptCashSession(this.db, res.cashSession, Date.now()))
 						for (const fn of this.drawerListeners) fn();
 					return;

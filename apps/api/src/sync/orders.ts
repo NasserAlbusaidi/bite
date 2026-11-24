@@ -2,6 +2,7 @@ import type { CreatePosOrder, SetFulfillment, VoidLine } from "@bite/contracts";
 import {
 	bps,
 	checkFulfillmentTransition,
+	fulfillmentPolicyFor,
 	type LineInput,
 	localClock,
 	minor,
@@ -276,6 +277,7 @@ export async function setFulfillment(
 		o.fulfillmentStatus,
 		p.to,
 		o.paymentStatus,
+		fulfillmentPolicyFor(o),
 	);
 	if (!check.ok) {
 		throw reject(check.error, `cannot go ${o.fulfillmentStatus} -> ${p.to}`);
