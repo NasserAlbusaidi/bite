@@ -3,6 +3,7 @@ import { serve } from "@hono/node-server";
 import { createApp } from "./app.js";
 import { createAuth } from "./auth/better-auth.js";
 import { PinLimiter } from "./lib/pin-limiter.js";
+import { diskStore } from "./lib/uploads.js";
 import { RealtimeHub } from "./realtime/hub.js";
 
 function required(name: string): string {
@@ -39,6 +40,9 @@ const auth = createAuth(db, {
  */
 const planEnforcement = process.env.PLAN_ENFORCEMENT === "on";
 
+/** Product photos on local disk. One API server (the demo box) needs nothing else. */
+const uploads = diskStore(process.env.UPLOAD_DIR ?? "./uploads");
+
 const realtime = new RealtimeHub();
 // postgres.js keeps a dedicated connection for LISTEN and re-listens after reconnects.
 await realtime.start((channel, fn) => client.listen(channel, fn));
@@ -51,6 +55,8 @@ const app = createApp({
 	auth,
 	adminOrigins,
 	planEnforcement,
+	uploads,
+	publicApiUrl: required("PUBLIC_API_URL"),
 });
 const port = Number(process.env.PORT ?? 3000);
 serve({ fetch: app.fetch, port });

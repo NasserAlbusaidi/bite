@@ -752,3 +752,67 @@ a.menu-item__name:hover {
 	display: inline-flex;
 	font-weight: 600;
 }
+
+/* photo drop target (product editor, menu rows, menu creator) */
+.photo-drop {
+	position: relative;
+	display: grid;
+	gap: var(--space-1);
+	justify-items: start;
+}
+.photo-drop__btn {
+	all: unset;
+	position: relative;
+	cursor: pointer;
+	border-radius: var(--radius-sm);
+	display: block;
+}
+.photo-drop__btn:focus-visible {
+	outline: 3px solid var(--focus);
+	outline-offset: 2px;
+}
+.photo-drop__btn:hover .menu-thumb {
+	filter: brightness(0.92);
+}
+.photo-drop.is-over .menu-thumb {
+	outline: 3px dashed var(--secondary);
+	outline-offset: 2px;
+}
+.photo-drop__busy {
+	position: absolute;
+	inset: 0;
+	display: grid;
+	place-items: center;
+	background: color-mix(in srgb, var(--surface) 75%, transparent);
+	font-size: var(--fs-xs);
+	font-weight: 700;
+	border-radius: var(--radius-sm);
+}
+.photo-drop__hint {
+	max-inline-size: 140px;
+}
+.photo-drop__flag {
+	position: absolute;
+	inset-block-start: -4px;
+	inset-inline-end: -4px;
+	inline-size: 16px;
+	block-size: 16px;
+	border-radius: 50%;
+	background: var(--danger);
+	color: var(--on-danger);
+	font-size: 11px;
+	font-weight: 700;
+	display: grid;
+	place-items: center;
+}
+.creator-row {
+	align-items: center;
+}
+.creator-row__names {
+	flex: 1;
+}
+.menu-thumb.creator-thumb {
+	inline-size: 40px;
+	block-size: 40px;
+	font-size: var(--fs-sm);
+}

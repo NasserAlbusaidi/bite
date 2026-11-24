@@ -101,6 +101,15 @@ const en = {
 	tax_override_hint:
 		"Leave empty to use the location's rate. 0 means zero-rated.",
 	image_url: "Image URL",
+	photo_drop: "Drop a photo here, or click to choose one",
+	photo_uploading: "Uploading…",
+	photo_upload_failed:
+		"Couldn't upload that photo. Use a JPEG, PNG or WebP under 5 MB.",
+	photo_uploads_off:
+		"Photo upload isn't set up on this server. Paste a link instead.",
+	photo_or_link: "Or paste a link",
+	photo_add: "Add photo",
+	photo_change: "Change photo of {name}",
 	creator_title: "Menu creator",
 	creator_intro:
 		"Start from a template or paste your menu. Check the preview, then create everything in one go.",
@@ -679,6 +688,15 @@ const ar: Record<MessageKey, string> = {
 	tax_override: "نسبة ضريبة خاصة (%)",
 	tax_override_hint: "اتركه فارغاً لاستخدام نسبة الفرع. صفر يعني معفى.",
 	image_url: "رابط الصورة",
+	photo_drop: "أفلت صورة هنا، أو انقر لاختيار واحدة",
+	photo_uploading: "جارٍ الرفع…",
+	photo_upload_failed:
+		"تعذّر رفع الصورة. استخدم JPEG أو PNG أو WebP أقل من 5 ميغابايت.",
+	photo_uploads_off:
+		"رفع الصور غير مُفعّل على هذا الخادم. الصق رابطاً بدلاً من ذلك.",
+	photo_or_link: "أو الصق رابطاً",
+	photo_add: "أضف صورة",
+	photo_change: "غيّر صورة {name}",
 	creator_title: "منشئ القائمة",
 	creator_intro:
 		"ابدأ من قالب أو الصق قائمتك. راجع المعاينة ثم أنشئ كل شيء دفعة واحدة.",

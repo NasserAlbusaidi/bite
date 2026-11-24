@@ -534,6 +534,15 @@ export function fixtureAdminApi(
 			reorderIn(state.menu.products, items);
 			persist();
 		},
+		async uploadImage(image) {
+			// Demo data lives in this browser, so the photo does too.
+			if (!image.type.startsWith("image/"))
+				throw new AdminApiError("bad_request", 400);
+			const bytes = new Uint8Array(await image.arrayBuffer());
+			let bin = "";
+			for (const b of bytes) bin += String.fromCharCode(b);
+			return `data:${image.type};base64,${btoa(bin)}`;
+		},
 		async createModifierGroup(input) {
 			const v = valid(CreateModifierGroup, input);
 			const g: AdminModifierGroup = { id: uuidv7(), ...v, options: [] };

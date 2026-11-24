@@ -10,6 +10,7 @@ import { deviceRoutes } from "./routes/device.js";
 import { publicRoutes } from "./routes/public.js";
 import { realtimeRoutes } from "./routes/realtime.js";
 import { syncRoutes } from "./routes/sync.js";
+import { publicUploadRoutes } from "./routes/uploads.js";
 
 export function createApp(deps: Deps) {
 	const backOfficeCors = cors({
@@ -38,6 +39,7 @@ export function createApp(deps: Deps) {
 		.route("/v1/device", deviceRoutes)
 		.route("/v1/public", publicRoutes)
 		.route("/v1/public", cartRoutes)
+		.route("/v1/uploads", publicUploadRoutes)
 		.route("/v1/realtime", realtimeRoutes)
 		.route("/v1", syncRoutes);
 	app.onError(onError);
