@@ -33,6 +33,7 @@ export function DeltaChip({ d, t }: { d: Delta; t: T }) {
 export function DayChart({
 	days,
 	prev,
+	partial,
 	money,
 	short,
 	lang,
@@ -40,6 +41,8 @@ export function DayChart({
 }: {
 	days: TrendsReport["days"];
 	prev?: TrendsReport["days"] | undefined;
+	/** A day still in progress (today): drawn lighter, labelled "so far". */
+	partial?: string | undefined;
 	/** Formatted money for the tooltip. */
 	money: (n: number) => ReactNode;
 	/** Compact axis label, no currency. */
@@ -113,7 +116,7 @@ export function DayChart({
 				{days.map((d, i) => (
 					<g key={d.date}>
 						<rect
-							className={`chart__bar${hover === i ? " chart__bar--on" : ""}`}
+							className={`chart__bar${hover === i ? " chart__bar--on" : ""}${d.date === partial ? " chart__bar--partial" : ""}`}
 							x={x(i) - bw / 2}
 							y={y(d.net)}
 							width={bw}
@@ -165,7 +168,12 @@ export function DayChart({
 					}}
 					dir={lang === "ar" ? "rtl" : "ltr"}
 				>
-					<strong>{longFmt.format(new Date(`${h.date}T00:00:00Z`))}</strong>
+					<strong>
+						{longFmt.format(new Date(`${h.date}T00:00:00Z`))}
+						{h.date === partial && (
+							<span className="muted"> · {t("so_far_today")}</span>
+						)}
+					</strong>
 					<span>{money(h.net)}</span>
 					<span className="muted">{t("n_orders", { count: h.orders })}</span>
 					{prev?.[hover] && (

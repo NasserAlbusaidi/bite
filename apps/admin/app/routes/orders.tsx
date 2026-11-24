@@ -1,16 +1,10 @@
 import { businessDate } from "@bite/core";
 import { type ReactNode, useEffect, useRef, useState } from "react";
-import {
-	data,
-	Form,
-	Link,
-	useRevalidator,
-	useSearchParams,
-} from "react-router";
+import { data, Form, useRevalidator, useSearchParams } from "react-router";
+import { RangeBar, useBusy } from "../components/range-bar";
 import { adminApi } from "../lib/api";
 import type { AdminOrderDetail, AdminOrderRow } from "../lib/contracts";
 import { type Lang, loc, type T } from "../lib/i18n";
-import { presets } from "../lib/insights";
 import { toDecimal } from "../lib/money";
 import { loadPlaces } from "../lib/places";
 import { selectedLocationId } from "../lib/selected-location";
@@ -86,6 +80,7 @@ export async function clientLoader({ request }: Route.ClientLoaderArgs) {
 export default function Orders({ loaderData }: Route.ComponentProps) {
 	const { today, from, to, filters, locationId, timeZone } = loaderData;
 	const { t, lang, place } = useShell();
+	const busy = useBusy("/orders");
 	const [params, setParams] = useSearchParams();
 	const decimals = place?.decimals ?? 3;
 	const currency = place?.currencyCode ?? "OMR";
@@ -117,7 +112,7 @@ export default function Orders({ loaderData }: Route.ComponentProps) {
 		else p.delete("order");
 		setParams(p, { preventScrollReset: true, replace: !id });
 	};
-	const range = (f: string, tt: string) => {
+	const _range = (f: string, tt: string) => {
 		const p = new URLSearchParams(params);
 		p.set("from", f);
 		p.set("to", tt);
@@ -127,7 +122,7 @@ export default function Orders({ loaderData }: Route.ComponentProps) {
 	const query = { locationId, from, to, ...filters };
 
 	return (
-		<>
+		<div className={busy ? "page is-busy" : "page"}>
 			<div className="page-head">
 				<div>
 					<h1>{t("orders_title")}</h1>
@@ -146,46 +141,7 @@ export default function Orders({ loaderData }: Route.ComponentProps) {
 				)}
 			</div>
 
-			<div className="card presets">
-				<div className="actions-row">
-					{presets(today).map((p) => (
-						<Link
-							key={p.key}
-							to={range(p.from, p.to)}
-							className={`chip${p.from === from && p.to === to ? " chip--on" : ""}`}
-						>
-							{t(p.key as "today")}
-						</Link>
-					))}
-				</div>
-				<Form method="get" className="inline-form">
-					<label>
-						{t("from")}
-						<input
-							type="date"
-							name="from"
-							className="input input--sm"
-							dir="ltr"
-							defaultValue={from}
-							max={today}
-						/>
-					</label>
-					<label>
-						{t("to")}
-						<input
-							type="date"
-							name="to"
-							className="input input--sm"
-							dir="ltr"
-							defaultValue={to}
-							max={today}
-						/>
-					</label>
-					<button type="submit" className="btn">
-						{t("show")}
-					</button>
-				</Form>
-			</div>
+			<RangeBar today={today} from={from} to={to} t={t} />
 
 			<OrdersList
 				key={`${from}:${to}:${JSON.stringify(filters)}`}
@@ -207,7 +163,7 @@ export default function Orders({ loaderData }: Route.ComponentProps) {
 					lang={lang}
 				/>
 			)}
-		</>
+		</div>
 	);
 }
 
