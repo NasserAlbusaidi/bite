@@ -16,9 +16,11 @@ import type {
 	CreatePinStaff,
 	CreateProduct,
 	CreatePromotion,
+	Floor,
 	InviteStaff,
 	InviteStaffResponse,
 	LocationProduct,
+	PutFloorRequest,
 	RegisterDeviceRequest,
 	RegisterDeviceResponse,
 	SalesReport,
@@ -87,6 +89,10 @@ export interface AdminApi {
 	deactivateStaff(id: string): Promise<void>;
 	updateLocation(id: string, l: UpdateLocation): Promise<AdminLocationSettings>;
 	devices(locationId: string): Promise<AdminDevice[]>;
+	/** The branch's floor plan. */
+	floor(locationId: string): Promise<Floor>;
+	/** Saves the whole plan; what's missing is deleted. Answers with the saved plan. */
+	saveFloor(locationId: string, f: PutFloorRequest): Promise<Floor>;
 	registerDevice(d: RegisterDeviceRequest): Promise<RegisterDeviceResponse>;
 	revokeDevice(id: string): Promise<void>;
 	salesReport(q: SalesReportQuery): Promise<SalesReport>;

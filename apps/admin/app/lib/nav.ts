@@ -33,6 +33,12 @@ export function navItems(locationId: string | undefined): NavItem[] {
 		{ key: "promotions", to: "/promotions", icon: "percent", group: "menu" },
 		{ key: "staff", to: "/staff", icon: "users", group: "business" },
 		!!locationId && {
+			key: "floor_nav",
+			to: `/locations/${locationId}/floor`,
+			icon: "layout",
+			group: "business",
+		},
+		!!locationId && {
 			key: "location_nav",
 			to: `/locations/${locationId}/settings`,
 			icon: "store",

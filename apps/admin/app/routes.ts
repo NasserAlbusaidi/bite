@@ -18,6 +18,7 @@ export default [
 			route("menu/modifiers/:groupId", "routes/modifier-group.tsx"),
 			route("locations/:locationId/menu", "routes/location-menu.tsx"),
 			route("locations/:locationId/settings", "routes/location-settings.tsx"),
+			route("locations/:locationId/floor", "routes/floor-plan.tsx"),
 			route("promotions", "routes/promotions.tsx"),
 			route("promotions/:promotionId", "routes/promotion.tsx"),
 			route("reports", "routes/reports.tsx"),

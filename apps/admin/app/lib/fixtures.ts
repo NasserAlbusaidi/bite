@@ -21,9 +21,11 @@ import {
 	CreatePinStaff,
 	CreateProduct,
 	CreatePromotion,
+	type Floor,
 	InviteStaff,
 	type InviteStaffResponse,
 	type LocationProduct,
+	PutFloorRequest,
 	RegisterDeviceRequest,
 	ResetPin,
 	SetLocationProduct,
@@ -36,6 +38,7 @@ import {
 	UpdateStaff,
 } from "./contracts";
 import { demoOrders, demoReport, ordersCsv } from "./demo-orders";
+import { starterFloor } from "./floor";
 import { uuidv7 } from "./uuid";
 
 const id = (n: number) =>
@@ -49,6 +52,8 @@ type DemoState = {
 	staff: AdminStaff[];
 	locations: AdminLocationSettings[];
 	devices: AdminDevice[];
+	/** locationId -> floor plan. Missing in older saves. */
+	floors?: Record<string, Floor>;
 	/** memberId -> invited email, until accepted. Missing in older saves. */
 	pendingInvites?: Record<string, string>;
 };
@@ -609,6 +614,50 @@ export function fixtureAdminApi(
 				if (v !== undefined) Object.assign(l, { [k]: v });
 			persist();
 			return clone(l);
+		},
+		async floor(lid) {
+			if (!state.locations.some((x) => x.id === lid))
+				throw new AdminApiError("not_found", 404);
+			state.floors ??= {};
+			if (!state.floors[lid]) {
+				const d = starterFloor("Inside");
+				state.floors[lid] = {
+					areas: d.areas,
+					tables: d.tables.map((t) => ({
+						...t,
+						serverMemberId: null,
+						version: 1,
+					})),
+				};
+				persist();
+			}
+			return clone(state.floors[lid]);
+		},
+		async saveFloor(lid, input) {
+			if (!state.locations.some((x) => x.id === lid))
+				throw new AdminApiError("not_found", 404);
+			const v = valid(PutFloorRequest, input);
+			const before = new Map(
+				(state.floors?.[lid]?.tables ?? []).map((t) => [t.id, t]),
+			);
+			state.floors ??= {};
+			state.floors[lid] = {
+				areas: [...v.areas].sort((a, b) => a.sortOrder - b.sortOrder),
+				tables: v.tables
+					.map((t) => {
+						const old = before.get(t.id);
+						return {
+							...t,
+							serverMemberId: old?.serverMemberId ?? null,
+							version: (old?.version ?? 0) + 1,
+						};
+					})
+					.sort((a, b) =>
+						a.label.localeCompare(b.label, "en", { numeric: true }),
+					),
+			};
+			persist();
+			return clone(state.floors[lid]);
 		},
 		async devices(lid) {
 			if (!state.locations.some((x) => x.id === lid))
