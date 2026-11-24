@@ -1,7 +1,7 @@
 import { addDays, businessDate } from "@bite/core";
 import { type ReactNode, useEffect, useState } from "react";
 import { Link, useRevalidator } from "react-router";
-import { DeltaChip, HourBars } from "../components/charts";
+import { DeltaChip, HourBars, MixList } from "../components/charts";
 import { adminApi } from "../lib/api";
 import type { AdminOrderRow } from "../lib/contracts";
 import {
@@ -411,23 +411,23 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
 				<section className="card">
 					<h2>{t("overview_top")}</h2>
-					{top.length === 0 ? (
-						<p className="muted">{t("overview_no_sales")}</p>
-					) : (
-						<table className="table">
-							<tbody>
-								{top.map((p) => (
-									<tr key={p.productId ?? p.name.en}>
-										<td>{loc(p.name, lang)}</td>
-										<td className="num muted">
-											<bdi dir="ltr">× {p.quantity}</bdi>
-										</td>
-										<td className="num">{money(p.revenue)}</td>
-									</tr>
-								))}
-							</tbody>
-						</table>
-					)}
+					<MixList
+						rows={top.map((p, i) => ({
+							key: p.productId ?? p.name.en,
+							label: (
+								<>
+									<span className="rank" aria-hidden="true">
+										{i + 1}
+									</span>
+									{loc(p.name, lang)}
+								</>
+							),
+							value: p.revenue,
+							shown: money(p.revenue),
+							sub: <bdi dir="ltr">×{p.quantity}</bdi>,
+						}))}
+						empty={t("overview_no_sales")}
+					/>
 				</section>
 			</div>
 		</>

@@ -11,6 +11,7 @@ import {
 } from "react-router";
 import { type Command, CommandPalette } from "../components/CommandPalette";
 import { FlashToasts } from "../components/FlashToasts";
+import { ShortcutsDialog } from "../components/ShortcutsDialog";
 import { SupportBanner } from "../components/SupportBanner";
 import { adminGate, saveOrg } from "../lib/account";
 import { account, adminApi, isDemo } from "../lib/api";
@@ -23,7 +24,13 @@ import {
 	translator,
 } from "../lib/i18n";
 import { pausedUntil } from "../lib/location-form";
-import { currentNav, type NavGroup, navItems } from "../lib/nav";
+import {
+	currentNav,
+	goTarget,
+	isTyping,
+	type NavGroup,
+	navItems,
+} from "../lib/nav";
 import { catalogPowers, staffPowers } from "../lib/permissions";
 import { loadPlaces } from "../lib/places";
 import { rememberLocation, selectedLocationId } from "../lib/selected-location";
@@ -73,12 +80,13 @@ export default function Shell({ loaderData }: Route.ComponentProps) {
 	const { revalidate } = useRevalidator();
 	const locationId = params.locationId ?? loaderData.locationId;
 	const place = places.find((p) => p.id === locationId);
-	const items = navItems(locationId);
+	const items = useMemo(() => navItems(locationId), [locationId]);
 	const here = currentNav(items, location.pathname);
 
 	const [theme, setTheme] = useState<Theme>(() => savedTheme());
 	const [drawer, setDrawer] = useState(false);
 	const [palette, setPalette] = useState(false);
+	const [keys, setKeys] = useState(false);
 	const [extra, setExtra] = useState<Extra | null>(null);
 
 	useEffect(() => saveLang(lang), [lang]);
@@ -92,15 +100,37 @@ export default function Shell({ loaderData }: Route.ComponentProps) {
 	}, [here, me.org.name, t]);
 
 	useEffect(() => {
+		let goUntil = 0;
 		const onKey = (e: KeyboardEvent) => {
 			if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
 				e.preventDefault();
 				setPalette((o) => !o);
+				return;
+			}
+			// Single-key shortcuts: never while typing, in a dialog, or with a modifier.
+			if (e.metaKey || e.ctrlKey || e.altKey || e.repeat) return;
+			if (isTyping(e.target) || document.querySelector("dialog[open]")) return;
+			if (goUntil > Date.now()) {
+				goUntil = 0;
+				const to = goTarget(items, e.key);
+				if (to) {
+					e.preventDefault();
+					navigate(to);
+				}
+				return;
+			}
+			if (e.key === "g" || e.key === "G") goUntil = Date.now() + 1500;
+			else if (e.key === "?") {
+				e.preventDefault();
+				setKeys(true);
+			} else if (e.key === "/") {
+				e.preventDefault();
+				setPalette(true);
 			}
 		};
 		window.addEventListener("keydown", onKey);
 		return () => window.removeEventListener("keydown", onKey);
-	}, []);
+	}, [items, navigate]);
 
 	const switchBranch = useCallback(
 		(id: string) => {
@@ -190,6 +220,7 @@ export default function Shell({ loaderData }: Route.ComponentProps) {
 			...items.map((i) => ({
 				id: `page-${i.to}`,
 				label: t(i.key),
+				hint: i.go ? `G ${i.go.toUpperCase()}` : undefined,
 				group: t("palette_pages"),
 				icon: i.icon,
 				run: () => navigate(i.to),
@@ -197,6 +228,7 @@ export default function Shell({ loaderData }: Route.ComponentProps) {
 			{
 				id: "page-account",
 				label: t("account"),
+				hint: "G A",
 				group: t("palette_pages"),
 				icon: "user",
 				run: () => navigate("/account"),
@@ -256,6 +288,15 @@ export default function Shell({ loaderData }: Route.ComponentProps) {
 				group: t("palette_actions"),
 				icon: THEME_ICON[nextTheme(theme)],
 				run: () => setTheme(nextTheme(theme)),
+			},
+			{
+				id: "act-keys",
+				label: t("keys_title"),
+				keywords: ["keyboard", "shortcuts", "اختصارات"],
+				hint: "?",
+				group: t("palette_actions"),
+				icon: "key",
+				run: () => setKeys(true),
 			},
 			{
 				id: "act-lang",
@@ -487,6 +528,13 @@ export default function Shell({ loaderData }: Route.ComponentProps) {
 						open={palette}
 						onClose={() => setPalette(false)}
 						commands={commands}
+						t={t}
+					/>
+					<ShortcutsDialog
+						open={keys}
+						onClose={() => setKeys(false)}
+						items={items}
+						mac={mac}
 						t={t}
 					/>
 				</div>
