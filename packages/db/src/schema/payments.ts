@@ -25,6 +25,7 @@ export const paymentMethod = pgEnum("payment_method", [
 	"thawani",
 	"stripe",
 	"other",
+	"loyalty", // points reward taken off the bill (never cash out)
 ]);
 
 export const paymentState = pgEnum("payment_state", [
