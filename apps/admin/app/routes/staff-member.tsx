@@ -1,3 +1,4 @@
+import { Dialog, Icon } from "@bite/ui";
 import { useState } from "react";
 import {
 	data,
@@ -7,11 +8,13 @@ import {
 	useFetcher,
 	useNavigation,
 	useSearchParams,
+	useSubmit,
 } from "react-router";
 import { adminApi } from "../lib/api";
 import { AdminApiError } from "../lib/api-types";
 import type { AdminStaff, InviteStaffResponse } from "../lib/contracts";
-import type { MessageKey } from "../lib/i18n";
+import { flash } from "../lib/flash";
+import { type MessageKey, savedLang, translator } from "../lib/i18n";
 import { staffPowers } from "../lib/permissions";
 import { loadPlaces } from "../lib/places";
 import {
@@ -22,6 +25,7 @@ import {
 	parseNewStaff,
 	parseRoles,
 } from "../lib/staff-form";
+import { initials, randomPin, weakPin } from "../lib/staff-list";
 import { useShell } from "../lib/use-shell";
 import type { Route } from "./+types/staff-member";
 
@@ -55,6 +59,8 @@ export async function clientAction({
 	const api = adminApi();
 	const visible = (await loadPlaces(api)).map((p) => p.id);
 	const intent = String(form.get("intent") ?? "save");
+	const t = translator(savedLang());
+	const name = String(form.get("displayName") ?? "").trim();
 	try {
 		if (params.staffId === "new") {
 			const parsed = parseNewStaff(form, visible);
@@ -62,12 +68,18 @@ export async function clientAction({
 			const { kind, ...body } = parsed.value;
 			if (kind === "invite" && "email" in body)
 				return invited(await api.inviteStaff(body));
-			if ("pin" in body) await api.createPinStaff(body);
+			if ("pin" in body) {
+				if (weakPin(body.pin))
+					return { errors: { pin: { key: "pin_weak" } } as Errors };
+				await api.createPinStaff(body);
+				flash(t("staff_added", { name: body.displayName }));
+			}
 			return redirect("/staff");
 		}
 		const id = params.staffId;
 		if (intent === "deactivate") {
 			await api.deactivateStaff(id);
+			flash(t("staff_deactivated", { name }), "neutral");
 			return redirect("/staff");
 		}
 		if (intent === "reissue") {
@@ -83,6 +95,8 @@ export async function clientAction({
 			const pin = String(form.get("pin") ?? "").trim();
 			if (!PIN.test(pin))
 				return { errors: { pin: { key: "invalid_pin" } } as Errors };
+			if (weakPin(pin))
+				return { errors: { pin: { key: "pin_weak" } } as Errors };
 			await api.resetPin(id, pin);
 			return { pinReset: true };
 		}
@@ -104,6 +118,7 @@ export async function clientAction({
 				visible,
 			),
 		});
+		flash(t("staff_saved", { name: displayName }));
 		return redirect("/staff");
 	} catch (e) {
 		if (e instanceof AdminApiError && e.status === 409)
@@ -166,9 +181,26 @@ export default function StaffMember({
 
 	return (
 		<>
+			<Link to="/staff" className="back-link">
+				<Icon name="chevron-back" />
+				{t("staff")}
+			</Link>
 			<div className="page-head">
-				<h1>{title}</h1>
-				<Link to="/staff">{t("cancel")}</Link>
+				<div className="person-head">
+					{member && (
+						<span className="avatar avatar--lg" aria-hidden="true">
+							{initials(member.displayName)}
+						</span>
+					)}
+					<div>
+						<h1>{title}</h1>
+						{member?.email && (
+							<p className="muted small page-sub" dir="ltr">
+								{member.email}
+							</p>
+						)}
+					</div>
+				</div>
 			</div>
 			{kind !== "edit" && (
 				<p className="muted">
@@ -218,20 +250,12 @@ export default function StaffMember({
 							</label>
 						)}
 						{kind === "pin" && (
-							<label>
-								{t("pin")}
-								<input
-									name="pin"
-									className="input"
-									inputMode="numeric"
-									autoComplete="off"
-									dir="ltr"
-									pattern="\d{4,8}"
-									required
-								/>
+							<div className="field">
+								<span>{t("pin")}</span>
+								<PinInput label={t("pin")} />
 								<span className="muted small">{t("pin_hint")}</span>
 								{err("pin")}
-							</label>
+							</div>
 						)}
 						{((kind === "invite" && powers.canSetOrgRole) ||
 							(member && powers.canChangeOrgRoleOf(member))) && (
@@ -268,24 +292,7 @@ export default function StaffMember({
 									: t("save")}
 						</button>
 						{member && member.orgRole !== "owner" && member.isActive && (
-							<button
-								type="submit"
-								name="intent"
-								value="deactivate"
-								className="btn btn--danger"
-								disabled={busy}
-								formNoValidate
-								onClick={(e) => {
-									if (
-										!window.confirm(
-											t("deactivate_confirm", { name: member.displayName }),
-										)
-									)
-										e.preventDefault();
-								}}
-							>
-								{t("deactivate")}
-							</button>
+							<Deactivate member={member} busy={busy} />
 						)}
 					</div>
 				</Form>
@@ -308,28 +315,117 @@ function RolePicker({
 		(member?.locations ?? []).map((l) => [l.locationId, l.role]),
 	);
 	return (
-		<fieldset className="fieldset">
+		<fieldset className="fieldset role-matrix">
 			<legend>{t("location_access")}</legend>
-			{places.map((p) => (
-				<label key={p.id} className="role-row">
-					<span>{p.name}</span>
-					<select
-						name={`role:${p.id}`}
-						className="input input--sm"
-						defaultValue={current.get(p.id) ?? ""}
-					>
-						<option value="">{t("no_access")}</option>
-						{LOCATION_ROLES.filter(
-							(r) => grantable.includes(r) || current.get(p.id) === r,
-						).map((r) => (
-							<option key={r} value={r}>
-								{t(`role_${r}`)}
-							</option>
-						))}
-					</select>
-				</label>
-			))}
+			{places.map((p) => {
+				const roles = LOCATION_ROLES.filter(
+					(r) => grantable.includes(r) || current.get(p.id) === r,
+				);
+				return (
+					<div key={p.id} className="role-matrix__row">
+						<span className="role-matrix__place">{p.name}</span>
+						<fieldset className="seg seg--set">
+							<legend className="sr-only">{p.name}</legend>
+							{(["", ...roles] as const).map((r) => (
+								<label
+									key={r || "none"}
+									className="seg__btn seg__radio"
+									title={r ? t(`role_desc_${r}`) : undefined}
+								>
+									<input
+										type="radio"
+										name={`role:${p.id}`}
+										value={r}
+										defaultChecked={(current.get(p.id) ?? "") === r}
+									/>
+									{r ? t(`role_${r}`) : t("no_access")}
+								</label>
+							))}
+						</fieldset>
+					</div>
+				);
+			})}
 		</fieldset>
+	);
+}
+
+/** PIN box with a Generate button that fills in a hard-to-guess PIN. */
+function PinInput({ label }: { label: string }) {
+	const { t } = useShell();
+	const [pin, setPin] = useState("");
+	return (
+		<span className="pin-input">
+			<input
+				name="pin"
+				aria-label={label}
+				className="input"
+				inputMode="numeric"
+				autoComplete="off"
+				dir="ltr"
+				pattern="\d{4,8}"
+				maxLength={8}
+				required
+				value={pin}
+				onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}
+			/>
+			<button type="button" className="btn" onClick={() => setPin(randomPin())}>
+				<Icon name="refresh" />
+				{t("pin_generate")}
+			</button>
+			{pin.length >= 4 && weakPin(pin) && (
+				<span className="warn-text small">{t("pin_weak")}</span>
+			)}
+		</span>
+	);
+}
+
+/** Asks first, in a dialog, then submits the deactivate intent. */
+function Deactivate({ member, busy }: { member: AdminStaff; busy: boolean }) {
+	const { t } = useShell();
+	const [open, setOpen] = useState(false);
+	const submit = useSubmit();
+	return (
+		<>
+			<button
+				type="button"
+				className="btn btn--danger"
+				disabled={busy}
+				onClick={() => setOpen(true)}
+			>
+				{t("deactivate")}
+			</button>
+			<Dialog
+				open={open}
+				onClose={() => setOpen(false)}
+				title={t("deactivate_title", { name: member.displayName })}
+				footer={
+					<div className="actions-row">
+						<button
+							type="button"
+							className="btn"
+							onClick={() => setOpen(false)}
+						>
+							{t("cancel")}
+						</button>
+						<button
+							type="button"
+							className="btn btn--danger"
+							onClick={() => {
+								setOpen(false);
+								submit(
+									{ intent: "deactivate", displayName: member.displayName },
+									{ method: "post" },
+								);
+							}}
+						>
+							{t("deactivate")}
+						</button>
+					</div>
+				}
+			>
+				<p>{t("deactivate_confirm", { name: member.displayName })}</p>
+			</Dialog>
+		</>
 	);
 }
 
@@ -421,17 +517,10 @@ function ResetPin({ errors }: { errors: Errors }) {
 	return (
 		<fetcher.Form method="post" className="card form inline-form">
 			<input type="hidden" name="intent" value="resetPin" />
-			<label>
-				{t("new_pin")}
-				<input
-					name="pin"
-					className="input input--sm"
-					inputMode="numeric"
-					autoComplete="off"
-					dir="ltr"
-					required
-				/>
-			</label>
+			<div className="field">
+				<span>{t("new_pin")}</span>
+				<PinInput key={done ? "done" : "edit"} label={t("new_pin")} />
+			</div>
 			<button type="submit" className="btn" disabled={fetcher.state !== "idle"}>
 				{t("reset_pin")}
 			</button>
