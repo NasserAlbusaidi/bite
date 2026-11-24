@@ -676,7 +676,14 @@ export function fixtureAdminApi(
 		async devices(lid) {
 			if (!state.locations.some((x) => x.id === lid))
 				throw new AdminApiError("not_found", 404);
-			return clone(state.devices.filter((d) => d.locationId === lid));
+			// The demo's own tablets are "on" and calling in; new ones stay unpaired.
+			const demoTablets = new Set([id(600), id(601)]);
+			return clone(state.devices.filter((d) => d.locationId === lid)).map(
+				(d) =>
+					demoTablets.has(d.id) && !d.revokedAt
+						? { ...d, lastSeenAt: new Date(Date.now() - 40_000).toISOString() }
+						: d,
+			);
 		},
 		async registerDevice(input) {
 			const v = valid(RegisterDeviceRequest, input);

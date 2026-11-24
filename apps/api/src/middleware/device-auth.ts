@@ -1,3 +1,4 @@
+import { withTenant } from "@bite/db";
 import { sql } from "@bite/db/orm";
 import { createMiddleware } from "hono/factory";
 import type { AppEnv, DeviceCtx } from "../env.js";
@@ -35,5 +36,28 @@ export const deviceAuth = createMiddleware<AppEnv>(async (c, next) => {
 		ticketPrefix: r.ticket_prefix,
 		name: r.name,
 	});
+	await touchLastSeen(c.var.deps.db, r.org_id, r.device_id);
 	await next();
 });
+
+/**
+ * The back office shows when each tablet last called in. At most one write a
+ * minute per device, and a failure here never blocks the tablet's request.
+ */
+async function touchLastSeen(
+	db: Parameters<typeof withTenant>[0],
+	orgId: string,
+	deviceId: string,
+): Promise<void> {
+	try {
+		await withTenant(db, orgId, (tx) =>
+			tx.execute(
+				sql`update devices set last_seen_at = now()
+					where id = ${deviceId}
+					and (last_seen_at is null or last_seen_at < now() - interval '1 minute')`,
+			),
+		);
+	} catch {
+		// Seen-at is a convenience; the request goes on.
+	}
+}
