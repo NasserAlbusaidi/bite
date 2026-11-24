@@ -1,5 +1,5 @@
 import { Dialog, Icon } from "@bite/ui";
-import { useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import {
 	data,
 	Form,
@@ -73,7 +73,13 @@ export async function clientAction({
 				if (weakPin(body.pin))
 					return { errors: { pin: { key: "pin_weak" } } as Errors };
 				await api.createPinStaff(body);
-				flash(t("staff_added", { name: body.displayName }));
+				return {
+					created: {
+						name: body.displayName,
+						pin: body.pin,
+						locations: body.locations,
+					},
+				};
 			}
 			return redirect("/staff");
 		}
@@ -168,6 +174,36 @@ export default function StaffMember({
 			? t("invite_manager")
 			: t("add_pin_staff");
 
+	const formRef = useRef<HTMLFormElement>(null);
+	const submit = useSubmit();
+	const [askPin, setAskPin] = useState(false);
+	// A non-PIN error came back: close the dialog so the form error shows.
+	useEffect(() => {
+		const e = actionData && "errors" in actionData ? actionData.errors : {};
+		if (Object.keys(e ?? {}).some((k) => k !== "pin")) setAskPin(false);
+	}, [actionData]);
+	const created =
+		actionData && "created" in actionData ? actionData.created : undefined;
+	if (created && !member)
+		return (
+			<>
+				<div className="page-head">
+					<h1>{t("staff_added", { name: created.name })}</h1>
+				</div>
+				<PinSlip
+					name={created.name}
+					pin={created.pin}
+					locations={created.locations}
+					done={
+						<Link className="btn btn--primary" to="/staff">
+							<Icon name="check" />
+							{t("pin_told_them")}
+						</Link>
+					}
+				/>
+			</>
+		);
+
 	const invite =
 		actionData && "invite" in actionData ? actionData.invite : undefined;
 	if (invite && !member)
@@ -239,7 +275,18 @@ export default function StaffMember({
 				</Form>
 			)}
 			{editable && (
-				<Form method="post" className="card form" key={member?.id ?? kind}>
+				<Form
+					method="post"
+					className="card form"
+					key={member?.id ?? kind}
+					ref={formRef}
+					onSubmit={(e) => {
+						// Floor staff: name and roles first, then the PIN dialog.
+						if (kind !== "pin") return;
+						e.preventDefault();
+						setAskPin(true);
+					}}
+				>
 					<input type="hidden" name="kind" value={kind} />
 					{err("form")}
 					<div className="grid2">
@@ -279,14 +326,6 @@ export default function StaffMember({
 								/>
 							</label>
 						)}
-						{kind === "pin" && (
-							<div className="field">
-								<span>{t("pin")}</span>
-								<PinInput label={t("pin")} />
-								<span className="muted small">{t("pin_hint")}</span>
-								{err("pin")}
-							</div>
-						)}
 						{((kind === "invite" && powers.canSetOrgRole) ||
 							(member && powers.canChangeOrgRoleOf(member))) && (
 							<label>
@@ -319,7 +358,9 @@ export default function StaffMember({
 								? t("saving")
 								: kind === "invite"
 									? t("send_invite")
-									: t("save")}
+									: kind === "pin"
+										? t("next_create_pin")
+										: t("save_details")}
 						</button>
 						{member && member.orgRole !== "owner" && member.isActive && (
 							<Deactivate member={member} busy={busy} />
@@ -327,8 +368,28 @@ export default function StaffMember({
 					</div>
 				</Form>
 			)}
+			{kind === "pin" && (
+				<PinDialog
+					open={askPin}
+					name={String(
+						(askPin && formRef.current
+							? new FormData(formRef.current).get("displayName")
+							: "") ?? "",
+					)}
+					busy={busy}
+					error={errors.pin?.key}
+					onClose={() => setAskPin(false)}
+					onSave={(pin) => {
+						const form = formRef.current;
+						if (!form) return;
+						const fd = new FormData(form);
+						fd.set("pin", pin);
+						submit(fd, { method: "post" });
+					}}
+				/>
+			)}
 			{editable && member?.isActive && member.email && <Reissue />}
-			{editable && member?.isActive && <ResetPin errors={errors} />}
+			{editable && member?.isActive && <TabletPin member={member} />}
 		</>
 	);
 }
@@ -390,33 +451,149 @@ function RolePicker({
 	);
 }
 
-/** PIN box with a Generate button that fills in a hard-to-guess PIN. */
-function PinInput({ label }: { label: string }) {
+/**
+ * Pick a PIN in its own dialog, with its own Cancel and Save, so the page's
+ * Save button never looks like it saves the PIN. Starts with a generated PIN.
+ */
+function PinDialog({
+	open,
+	name,
+	busy,
+	error,
+	onClose,
+	onSave,
+}: {
+	open: boolean;
+	name: string;
+	busy: boolean;
+	error: MessageKey | undefined;
+	onClose: () => void;
+	onSave: (pin: string) => void;
+}) {
 	const { t } = useShell();
 	const [pin, setPin] = useState("");
+	useEffect(() => {
+		if (open) setPin(randomPin());
+	}, [open]);
+	const valid = PIN.test(pin) && !weakPin(pin);
 	return (
-		<span className="pin-input">
-			<input
-				name="pin"
-				aria-label={label}
-				className="input"
-				inputMode="numeric"
-				autoComplete="off"
-				dir="ltr"
-				pattern="\d{4,8}"
-				maxLength={8}
-				required
-				value={pin}
-				onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}
-			/>
-			<button type="button" className="btn" onClick={() => setPin(randomPin())}>
-				<Icon name="refresh" />
-				{t("pin_generate")}
-			</button>
-			{pin.length >= 4 && weakPin(pin) && (
-				<span className="warn-text small">{t("pin_weak")}</span>
-			)}
-		</span>
+		<Dialog
+			open={open}
+			onClose={onClose}
+			title={t("pin_dialog_title", { name })}
+			footer={
+				<div className="actions-row">
+					<button type="button" className="btn" onClick={onClose}>
+						{t("cancel")}
+					</button>
+					<button
+						type="button"
+						className="btn btn--primary"
+						disabled={!valid || busy}
+						onClick={() => onSave(pin)}
+					>
+						{busy ? t("saving") : t("save_pin")}
+					</button>
+				</div>
+			}
+		>
+			<form
+				className="pin-pick"
+				onSubmit={(e) => {
+					e.preventDefault();
+					if (valid && !busy) onSave(pin);
+				}}
+			>
+				<p className="muted small">{t("pin_dialog_hint")}</p>
+				<input
+					aria-label={t("pin")}
+					className="pin-pick__input"
+					inputMode="numeric"
+					autoComplete="off"
+					dir="ltr"
+					maxLength={8}
+					value={pin}
+					onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}
+				/>
+				<button
+					type="button"
+					className="btn"
+					onClick={() => setPin(randomPin())}
+				>
+					<Icon name="refresh" />
+					{t("pin_generate_another")}
+				</button>
+				{pin.length >= 4 && weakPin(pin) ? (
+					<span className="warn-text small">{t("pin_weak")}</span>
+				) : (
+					error && (
+						<span className="error small" role="alert">
+							{t(error)}
+						</span>
+					)
+				)}
+			</form>
+		</Dialog>
+	);
+}
+
+/**
+ * Shown once, right after a PIN is saved: a till-slip with the PIN to read
+ * out. Hide covers the digits if someone is looking over your shoulder.
+ */
+function PinSlip({
+	name,
+	pin,
+	locations,
+	done,
+}: {
+	name: string;
+	pin: string;
+	locations: readonly { locationId: string; role: string }[];
+	done: ReactNode;
+}) {
+	const { t, places } = useShell();
+	const [hidden, setHidden] = useState(false);
+	const names = new Map(places.map((p) => [p.id, p.name]));
+	return (
+		<div className="pin-done" role="status">
+			<strong className="pin-done__ok">
+				<Icon name="check" />
+				{t("pin_saved")}
+			</strong>
+			<div className="pin-slip">
+				<div className="pin-slip__title">{t("pin_slip_title")}</div>
+				<div className="pin-slip__row">
+					<span>{t("name")}</span>
+					<span>{name}</span>
+				</div>
+				{locations.map((l) => (
+					<div className="pin-slip__row" key={l.locationId}>
+						<span>{names.get(l.locationId) ?? ""}</span>
+						<span>{t(`role_${l.role}` as MessageKey)}</span>
+					</div>
+				))}
+				<div
+					className={`pin-slip__pin${hidden ? " pin-slip__pin--hidden" : ""}`}
+					dir="ltr"
+					aria-hidden={hidden}
+				>
+					{pin}
+				</div>
+				<p className="pin-slip__note">{t("pin_slip_tell")}</p>
+			</div>
+			<div className="actions-row">
+				<button
+					type="button"
+					className="btn"
+					onClick={() => setHidden((h) => !h)}
+				>
+					<Icon name="eye" />
+					{hidden ? t("pin_show") : t("pin_hide")}
+				</button>
+				{done}
+			</div>
+		</div>
 	);
 }
 
@@ -546,38 +723,77 @@ function Reissue() {
 	);
 }
 
-function ResetPin({ errors }: { errors: Errors }) {
+/** Shows whether they have a PIN; changing it happens in PinDialog. */
+function TabletPin({ member }: { member: AdminStaff }) {
 	const { t } = useShell();
 	const fetcher = useFetcher<typeof clientAction>();
-	const done =
-		fetcher.state === "idle" &&
-		fetcher.data &&
-		typeof fetcher.data === "object" &&
-		"pinReset" in fetcher.data;
-	const pinErr =
-		fetcher.data && typeof fetcher.data === "object" && "errors" in fetcher.data
-			? fetcher.data.errors?.pin
-			: errors.pin;
+	const [step, setStep] = useState<"idle" | "pick" | "done">("idle");
+	const [pin, setPin] = useState("");
+	const waiting = useRef(false);
+	const d = fetcher.state === "idle" ? fetcher.data : undefined;
+	const saved = d && typeof d === "object" && "pinReset" in d;
+	const error =
+		d && typeof d === "object" && "errors" in d
+			? d.errors?.pin?.key
+			: undefined;
+	useEffect(() => {
+		if (saved && waiting.current) {
+			waiting.current = false;
+			setStep("done");
+		}
+	}, [saved]);
 	return (
-		<fetcher.Form method="post" className="card form inline-form">
-			<input type="hidden" name="intent" value="resetPin" />
-			<div className="inline-form__head">
+		<section className="card pin-row">
+			<span className="pin-row__icon" aria-hidden="true">
+				<Icon name="key" />
+			</span>
+			<div className="pin-row__text">
 				<h2>{t("tablet_pin_title")}</h2>
 				<span className="muted small">{t("tablet_pin_hint")}</span>
 			</div>
-			<div className="field">
-				<span>{t("new_pin")}</span>
-				<PinInput key={done ? "done" : "edit"} label={t("new_pin")} />
-			</div>
-			<button type="submit" className="btn" disabled={fetcher.state !== "idle"}>
-				{t("reset_pin")}
+			<span
+				className={`pin-row__state${member.hasPin ? "" : " pin-row__state--none"}`}
+			>
+				{member.hasPin ? t("pin_is_set") : t("no_pin_yet")}
+			</span>
+			<button type="button" className="btn" onClick={() => setStep("pick")}>
+				{member.hasPin ? t("change_pin") : t("create_pin")}
 			</button>
-			{done && <span className="muted small">{t("pin_updated")}</span>}
-			{pinErr && (
-				<span className="error small" role="alert">
-					{t(pinErr.key)}
-				</span>
-			)}
-		</fetcher.Form>
+			<PinDialog
+				open={step === "pick"}
+				name={member.displayName}
+				busy={fetcher.state !== "idle"}
+				error={error}
+				onClose={() => setStep("idle")}
+				onSave={(p) => {
+					setPin(p);
+					waiting.current = true;
+					fetcher.submit({ intent: "resetPin", pin: p }, { method: "post" });
+				}}
+			/>
+			<Dialog
+				open={step === "done"}
+				onClose={() => setStep("idle")}
+				title={member.displayName}
+			>
+				{step === "done" && (
+					<PinSlip
+						name={member.displayName}
+						pin={pin}
+						locations={member.locations}
+						done={
+							<button
+								type="button"
+								className="btn btn--primary"
+								onClick={() => setStep("idle")}
+							>
+								<Icon name="check" />
+								{t("pin_told_them")}
+							</button>
+						}
+					/>
+				)}
+			</Dialog>
+		</section>
 	);
 }
