@@ -152,7 +152,7 @@
 .pf-back:hover {
 	color: var(--text-strong);
 }
-[dir="rtl"] .pf-back svg {
+:where([dir="rtl"]) .pf-back svg {
 	transform: scaleX(-1);
 }
 .pf-panel {
@@ -500,8 +500,8 @@
 .pf-row:hover .pf-org {
 	text-decoration: underline;
 }
-.pf-empty {
-	padding-block: var(--space-8) !important;
+.pf-table .pf-empty {
+	padding-block: var(--space-8);
 	text-align: center;
 	color: var(--text-muted);
 }
@@ -923,6 +923,9 @@
 	.pf-table tbody {
 		display: block;
 	}
+	.table-wrap .pf-table.table {
+		min-inline-size: 0;
+	}
 	.pf-table tr {
 		display: grid;
 		grid-template-columns: 1fr auto;
@@ -930,11 +933,11 @@
 		padding: var(--space-3) 0;
 		border-block-end: 1px solid var(--line);
 	}
-	.pf-table td {
+	.pf-table.table td {
 		display: block;
-		padding: 0 !important;
-		border: 0 !important;
-		text-align: start !important;
+		padding: 0;
+		border: 0;
+		text-align: start;
 	}
 	.pf-table td:first-child {
 		grid-column: 1 / -1;
