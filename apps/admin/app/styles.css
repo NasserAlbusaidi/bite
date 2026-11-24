@@ -731,7 +731,8 @@ textarea.input {
 	font-size: var(--fs-md);
 	margin: var(--space-2) 0 0;
 }
-.hours {
+/* Branch opening hours editor ("hours" is the reports hour chart). */
+.hours-editor {
 	display: grid;
 	gap: var(--space-2);
 }

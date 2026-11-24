@@ -61,7 +61,14 @@ export async function clientLoader({ params }: Route.ClientLoaderArgs) {
 	]);
 	const location = locations.find((l) => l.id === params.locationId);
 	if (!location) throw data(null, { status: 404 });
-	return { location, devices };
+	const others = locations
+		.filter((l) => l.id !== params.locationId && l.isActive)
+		.map((l) => ({
+			id: l.id,
+			name: l.name,
+			hours: hoursOf(locationFormDefaults(l).hours),
+		}));
+	return { location, devices, others };
 }
 
 export async function clientAction({
@@ -176,7 +183,7 @@ export default function LocationSettings({
 	loaderData,
 	actionData,
 }: Route.ComponentProps) {
-	const { location, devices } = loaderData;
+	const { location, devices, others } = loaderData;
 	const { t, me, place } = useShell();
 	const toast = useToast();
 	// Managers can't change name, tax or the day cutoff (the API returns 403).
@@ -357,6 +364,7 @@ export default function LocationSettings({
 						hours={hours}
 						extra={d.hours}
 						onChange={setHours}
+						others={others}
 						err={err}
 					/>
 				</section>
@@ -529,18 +537,20 @@ function HoursEditor({
 	extra,
 	onChange,
 	err,
+	others,
 }: {
 	hours: Record<Day, DayHours>;
 	extra: Record<Day, { extra: number }>;
 	onChange: (h: Record<Day, DayHours>) => void;
 	err: (k: string) => ReactNode;
+	others: { id: string; name: string; hours: Record<Day, DayHours> }[];
 }) {
 	const { t } = useShell();
 	const set = (day: Day, v: Partial<DayHours>) =>
 		onChange({ ...hours, [day]: { ...hours[day], ...v } });
 	const firstOpen = WEEK.find((day) => hours[day].open && hours[day].close);
 	return (
-		<div className="hours">
+		<div className="hours-editor">
 			{WEEK.map((day) => {
 				const h = hours[day];
 				const closed = !h.open && !h.close;
@@ -603,22 +613,42 @@ function HoursEditor({
 					</div>
 				);
 			})}
-			{firstOpen && (
-				<div>
-					<button
-						type="button"
-						className="btn btn--sm"
-						onClick={() =>
-							onChange(
-								Object.fromEntries(
-									WEEK.map((day) => [day, { ...hours[firstOpen] }]),
-								) as Record<Day, DayHours>,
-							)
-						}
-					>
-						<Icon name="copy" />
-						{t("hours_copy_all", { day: t(`weekday_${firstOpen}`) })}
-					</button>
+			{(firstOpen || others.length > 0) && (
+				<div className="hours-editor__tools">
+					{others.length > 0 && (
+						<select
+							className="input input--sm hours-editor__from"
+							value=""
+							aria-label={t("hours_copy_from")}
+							onChange={(e) => {
+								const from = others.find((o) => o.id === e.target.value);
+								if (from) onChange({ ...from.hours });
+							}}
+						>
+							<option value="">{t("hours_copy_from")}</option>
+							{others.map((o) => (
+								<option key={o.id} value={o.id}>
+									{o.name}
+								</option>
+							))}
+						</select>
+					)}
+					{firstOpen && (
+						<button
+							type="button"
+							className="btn btn--sm"
+							onClick={() =>
+								onChange(
+									Object.fromEntries(
+										WEEK.map((day) => [day, { ...hours[firstOpen] }]),
+									) as Record<Day, DayHours>,
+								)
+							}
+						>
+							<Icon name="copy" />
+							{t("hours_copy_all", { day: t(`weekday_${firstOpen}`) })}
+						</button>
+					)}
 				</div>
 			)}
 		</div>
