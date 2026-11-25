@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { type ReactNode, useSyncExternalStore } from "react";
 import {
 	Links,
 	Meta,
@@ -9,7 +9,9 @@ import {
 } from "react-router";
 import "@bite/ui/styles.css";
 import { Logo } from "@bite/ui";
+import { BiteLoader } from "./components/BiteLoader";
 import { ErrorPanel } from "./components/ErrorPanel";
+import { RootLoading } from "./components/RouteLoading";
 import { savedLang, translator } from "./lib/i18n";
 import { BOOT_SCRIPT } from "./lib/theme";
 import "./styles.css";
@@ -45,12 +47,47 @@ export function Layout({ children }: { children: ReactNode }) {
 	);
 }
 
-export default function App() {
-	return <Outlet />;
+const noSubscribe = () => () => {};
+/** The saved language, but "en" while hydrating the prerendered page. */
+function useLang() {
+	return useSyncExternalStore(
+		noSubscribe,
+		() => savedLang(),
+		() => "en" as const,
+	);
 }
 
+export default function App() {
+	const lang = useLang();
+	return (
+		<>
+			<RootLoading lang={lang} t={translator(lang)} />
+			<Outlet />
+		</>
+	);
+}
+
+const BOOT_CSS =
+	'.boot__lang[lang="ar"],:root[lang="ar"] .boot__lang[lang="en"]{display:none}:root[lang="ar"] .boot__lang[lang="ar"]{display:block}';
+
+/**
+ * First open: prerendered into index.html, so it plays before the app's code
+ * loads. Both scripts are in the page; the boot script sets <html lang> before
+ * first paint and CSS shows the matching one, so Arabic never flashes English.
+ */
 export function HydrateFallback() {
-	return <p className="loading">Loading…</p>;
+	return (
+		<main className="boot">
+			{/* Inline so it works before the stylesheet arrives. */}
+			<style>{BOOT_CSS}</style>
+			<div className="boot__lang" lang="en" dir="ltr">
+				<BiteLoader script="latin" label={translator("en")("loading")} />
+			</div>
+			<div className="boot__lang" lang="ar" dir="rtl">
+				<BiteLoader script="arabic" label={translator("ar")("loading")} />
+			</div>
+		</main>
+	);
 }
 
 /** Only reached when the shell itself can't load, or outside it. */
