@@ -5,12 +5,14 @@ import { migrate } from "../db/migrations.js";
 import { openSqlJs } from "../db/sqljs-driver.js";
 import { listOutbox } from "../sync/outbox.js";
 import {
+	alreadyAtTable,
 	assignServer,
 	atTable,
 	HOLD_HOURS,
 	loadFloor,
 	moveTable,
 	needsCheck,
+	ordersAtTable,
 	saveFloor,
 	statusOf,
 	type TableState,
@@ -226,5 +228,68 @@ describe("floor", () => {
 		expect((await tableStates(db, floor, later)).tables[0]?.status).toBe(
 			"free",
 		);
+	});
+});
+
+const line = (n: number, productId: string, over = {}) => ({
+	id: id(300 + n),
+	productId,
+	name: { en: "Hummus" },
+	quantity: 1,
+	unitPrice: 1200,
+	listUnitPrice: 1200,
+	promotionId: null,
+	modifiers: [],
+	taxBps: 0,
+	lineTotal: 1200,
+	lineDiscount: 0,
+	lineTax: 0,
+	note: null,
+	voidedAt: null,
+	voidReason: null,
+	...over,
+});
+
+describe("what's already at a table (till hint)", () => {
+	const HUMMUS = id(601);
+	const MISHKAK = id(602);
+
+	it("lists the open orders at the label, trimmed and any case", async () => {
+		await upsertOrders(db, [
+			order(1, {
+				tableLabel: "8",
+				lines: [line(1, MISHKAK, { name: { en: "Mishkak" } }), line(2, HUMMUS)],
+			}),
+			order(2, { tableLabel: "9" }),
+			order(3, { tableLabel: "8", fulfillmentStatus: "cancelled" }),
+			order(4, { tableLabel: "8", tableClearedAt: "2026-11-24T10:20:00Z" }),
+		]);
+		const at = await ordersAtTable(db, " 8 ", NOW);
+		expect(at.map((o) => o.order.ticketNumber)).toEqual(["Q-1"]);
+		expect(await ordersAtTable(db, "", NOW)).toEqual([]);
+	});
+
+	it("flags a till item the table's guest order already has", async () => {
+		await upsertOrders(db, [
+			order(1, {
+				tableLabel: "8",
+				lines: [line(1, MISHKAK), line(2, HUMMUS)],
+			}),
+		]);
+		const at = await ordersAtTable(db, "8", NOW);
+		const d = alreadyAtTable([HUMMUS, id(603)], at);
+		expect([...d]).toEqual([[HUMMUS, "Q-1"]]);
+		// A voided line doesn't count.
+		const voided = at.map((o) => ({
+			...o,
+			order: {
+				...o.order,
+				lines: o.order.lines.map((l) => ({
+					...l,
+					voidedAt: "2026-11-24T10:10:00Z",
+				})),
+			},
+		}));
+		expect(alreadyAtTable([HUMMUS], voided).size).toBe(0);
 	});
 });

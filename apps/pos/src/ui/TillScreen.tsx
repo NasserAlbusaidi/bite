@@ -7,6 +7,11 @@ import {
 	openCashSession,
 	openSession,
 } from "../domain/cash.js";
+import {
+	alreadyAtTable,
+	ordersAtTable,
+	type TableOrder,
+} from "../domain/floor.js";
 import { newId } from "../domain/ids.js";
 import { pointsFor, rewardOff, type TillGuest } from "../domain/loyalty.js";
 import {
@@ -67,6 +72,10 @@ export function TillScreen() {
 	const [ordersView, setOrdersView] = useState<OrdersView>("today");
 	/** Orders waiting to be paid at this counter (QR and group orders). */
 	const [waiting, setWaiting] = useState(0);
+	/** Open orders already at the dine-in table typed above the cart. */
+	const [atTable, setAtTable] = useState<TableOrder[]>([]);
+	/** Floor asked for a table while the cart still held items: ask first. */
+	const [carry, setCarry] = useState<string | null>(null);
 
 	const reloadMenu = useCallback(async () => {
 		const snap = await loadMenu(db);
@@ -90,6 +99,41 @@ export function TillScreen() {
 			offOrders();
 		};
 	}, [db, sync, reloadMenu]);
+
+	const tableKey = type === "dine_in" ? table.trim() : "";
+	useEffect(() => {
+		if (!tableKey) {
+			setAtTable([]);
+			return;
+		}
+		let live = true;
+		const load = () =>
+			void ordersAtTable(db, tableKey).then((o) => {
+				if (live) setAtTable(o);
+			});
+		load();
+		const off = sync.onOrdersChanged(load);
+		return () => {
+			live = false;
+			off();
+		};
+	}, [db, sync, tableKey]);
+	const dupes = useMemo(
+		() =>
+			alreadyAtTable(
+				lines.map((l) => l.productId),
+				atTable,
+			),
+		[lines, atTable],
+	);
+
+	/** Start an order for a floor table: never carry the cart over silently. */
+	function orderAt(label: string) {
+		setType("dine_in");
+		setTable(label);
+		setSheet(null);
+		if (lines.length > 0) setCarry(label);
+	}
 
 	const now = Date.now();
 	const q = useMemo(
@@ -381,6 +425,27 @@ export function TillScreen() {
 						/>
 					</label>
 				)}
+				{atTable.length > 0 && (
+					<div className="notice at-table">
+						<strong>{t("till.atTable", { table: tableKey })}</strong>
+						{atTable.map(({ order }) => (
+							<div key={order.id} className="row small">
+								<span>
+									<strong>{order.ticketNumber}</strong>
+									{order.source === "guest" && (
+										<span className="muted"> · {t("till.guestOrder")}</span>
+									)}{" "}
+									{order.lines
+										.filter((l) => !l.voidedAt)
+										.map((l) => `${l.quantity}× ${loc(l.name, lang)}`)
+										.join(", ")}
+								</span>
+								<span className="spacer" />
+								<Money amount={order.total} currency={OMR} />
+							</div>
+						))}
+					</div>
+				)}
 				<div className="cart-lines">
 					{lines.length === 0 && <p className="muted">{t("till.empty")}</p>}
 					{lines.map((l, i) => {
@@ -395,6 +460,14 @@ export function TillScreen() {
 											+ {loc(m.name, lang)}
 										</div>
 									))}
+									{dupes.has(l.productId) && (
+										<div className="warn-text small">
+											{t("till.alreadyOrdered", {
+												item: p ? loc(p.name, lang) : "?",
+												ticket: dupes.get(l.productId) ?? "",
+											})}
+										</div>
+									)}
 								</div>
 								<QuantityStepper
 									size="md"
@@ -586,11 +659,7 @@ export function TillScreen() {
 						setSheet(null);
 						void listToPay(db).then((w) => setWaiting(w.length));
 					}}
-					onNewOrder={(label) => {
-						setType("dine_in");
-						setTable(label);
-						setSheet(null);
-					}}
+					onNewOrder={orderAt}
 				/>
 			)}
 			{sheet === "guest" && (
@@ -616,6 +685,42 @@ export function TillScreen() {
 						void openSession(db).then(setDrawer);
 					}}
 				/>
+			)}
+			{carry !== null && (
+				<div className="sheet-backdrop">
+					<div className="sheet narrow center" role="dialog" aria-modal="true">
+						<h2>{t("till.carryTitle")}</h2>
+						<p>
+							{t("till.carryBody", {
+								items: lines
+									.map((l) => {
+										const p = snap.products.find((x) => x.id === l.productId);
+										return `${l.quantity}× ${p ? loc(p.name, lang) : "?"}`;
+									})
+									.join(", "),
+								table: carry,
+							})}
+						</p>
+						<button
+							type="button"
+							className="primary big"
+							onClick={() => {
+								setLines([]);
+								setGuest(null);
+								setCarry(null);
+							}}
+						>
+							{t("till.carryEmpty", { table: carry })}
+						</button>
+						<button
+							type="button"
+							className="big"
+							onClick={() => setCarry(null)}
+						>
+							{t("till.carryKeep", { table: carry })}
+						</button>
+					</div>
+				</div>
 			)}
 			{done && (
 				<div className="sheet-backdrop">

@@ -283,6 +283,15 @@ const en = {
 	"till.sendTab": "Send, pay later",
 	"till.tabSent": "Sent to table {table}",
 	"till.tabHint": "Goes to the kitchen now. The table pays at the end.",
+	"till.atTable": "Already at table {table}",
+	"till.guestOrder": "guest order",
+	"till.alreadyOrdered":
+		"{item} is already on {ticket}. Send it only if the table asked for another.",
+	"till.carryTitle": "The till already has items",
+	"till.carryBody":
+		"{items}. Put these on table {table}, or start the table with an empty order?",
+	"till.carryEmpty": "Start empty for table {table}",
+	"till.carryKeep": "Keep these for table {table}",
 	"pay.splitBill": "Split bill",
 	"pay.splitEqual": "Equal shares",
 	"pay.partAmount": "Or an amount for this payment",
@@ -614,6 +623,15 @@ const ar: Record<MessageKey, string> = {
 	"till.sendTab": "أرسل وادفع لاحقاً",
 	"till.tabSent": "أُرسل إلى طاولة {table}",
 	"till.tabHint": "يذهب للمطبخ الآن. تدفع الطاولة في النهاية.",
+	"till.atTable": "موجود على الطاولة {table}",
+	"till.guestOrder": "طلب ضيف",
+	"till.alreadyOrdered":
+		"{item} موجود في {ticket}. أرسله فقط إذا طلبت الطاولة واحداً آخر.",
+	"till.carryTitle": "في الكاشير أصناف من قبل",
+	"till.carryBody":
+		"{items}. هل تضعها على الطاولة {table}، أم تبدأ الطاولة بطلب فارغ؟",
+	"till.carryEmpty": "ابدأ فارغاً للطاولة {table}",
+	"till.carryKeep": "أبقها للطاولة {table}",
 	"pay.splitBill": "تقسيم الفاتورة",
 	"pay.splitEqual": "حصص متساوية",
 	"pay.partAmount": "أو مبلغ لهذه الدفعة",
