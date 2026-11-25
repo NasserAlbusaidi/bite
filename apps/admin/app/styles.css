@@ -2110,3 +2110,130 @@ p.warn {
 		min-inline-size: 640px;
 	}
 }
+
+/* Staff tablet PIN: status row, pick dialog, handover slip. */
+.pin-row {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--space-3);
+}
+.pin-row__icon {
+	display: grid;
+	place-items: center;
+	width: 44px;
+	height: 44px;
+	border-radius: 50%;
+	background: var(--success-bg);
+	color: var(--success);
+}
+.pin-row__text {
+	display: grid;
+	gap: var(--space-1);
+	flex: 1 1 220px;
+	min-width: 0;
+}
+.pin-row__text h2 {
+	margin: 0;
+}
+.pin-row__state {
+	font-size: var(--text-label);
+	font-weight: 600;
+	padding: 4px 12px;
+	border-radius: var(--radius-pill);
+	background: var(--success-bg);
+	color: var(--success);
+}
+.pin-row__state--none {
+	background: var(--warning-bg);
+	color: var(--warning);
+}
+.pin-pick {
+	display: grid;
+	gap: var(--space-3);
+	justify-items: center;
+	text-align: center;
+}
+.pin-pick__input {
+	width: 100%;
+	max-width: 280px;
+	font: inherit;
+	font-size: 40px;
+	font-weight: 700;
+	font-variant-numeric: tabular-nums;
+	letter-spacing: 0.3em;
+	text-align: center;
+	padding: var(--space-2) var(--space-3);
+	padding-inline-start: calc(var(--space-3) + 0.3em);
+	border: 2px solid var(--text-strong);
+	border-radius: var(--radius-md);
+	background: var(--surface);
+	color: var(--text-strong);
+}
+.pin-done {
+	display: grid;
+	gap: var(--space-4);
+	justify-items: center;
+}
+.pin-done__ok {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-2);
+	color: var(--success);
+}
+.pin-slip {
+	width: min(100%, 300px);
+	padding: var(--space-4);
+	display: grid;
+	gap: var(--space-2);
+	font-family: var(--font-mono);
+	font-size: 13px;
+	background: var(--surface);
+	color: var(--text);
+	border-top: 6px solid var(--secondary);
+	box-shadow: var(--shadow-md);
+	animation: pin-slip-print 0.9s steps(12) both;
+}
+.pin-slip__title {
+	text-align: center;
+	font-weight: 700;
+	text-transform: uppercase;
+	padding-bottom: var(--space-2);
+	border-bottom: 1px dashed var(--line-strong);
+}
+.pin-slip__row {
+	display: flex;
+	justify-content: space-between;
+	gap: var(--space-3);
+}
+.pin-slip__pin {
+	text-align: center;
+	font-size: 44px;
+	font-weight: 700;
+	letter-spacing: 0.3em;
+	padding: var(--space-2) 0 var(--space-2) 0.3em;
+	border-block: 1px dashed var(--line-strong);
+	font-variant-numeric: tabular-nums;
+}
+.pin-slip__pin--hidden {
+	filter: blur(10px);
+	user-select: none;
+}
+.pin-slip__note {
+	margin: 0;
+	text-align: center;
+	font-size: 12px;
+}
+@keyframes pin-slip-print {
+	from {
+		clip-path: inset(0 0 100% 0);
+	}
+	to {
+		clip-path: inset(0 0 0 0);
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	.pin-slip {
+		animation: none;
+	}
+}
