@@ -54,8 +54,8 @@ describe.runIf(ownerUrl)("floor plan", () => {
 
 	const plan = (labels: [string, string]): PutFloorRequest => ({
 		areas: [
-			{ id: inside, name: "Inside", sortOrder: 0 },
-			{ id: terrace, name: "Terrace", sortOrder: 1 },
+			{ id: inside, name: "Inside", sortOrder: 0, outline: null },
+			{ id: terrace, name: "Terrace", sortOrder: 1, outline: null },
 		],
 		tables: [
 			{
@@ -96,6 +96,31 @@ describe.runIf(ownerUrl)("floor plan", () => {
 		expect(got.areas.map((a) => a.name)).toEqual(["Inside", "Terrace"]);
 		expect(got.tables.find((t) => t.id === t1)?.label).toBe("2");
 		expect(got.tables.find((t) => t.id === t2)?.label).toBe("1");
+	});
+
+	it("keeps an area's walls, and an area saved without walls has none", async () => {
+		const walls = plan(["1", "2"]);
+		const outline = [
+			{ x: 2, y: 2 },
+			{ x: 24, y: 2 },
+			{ x: 24, y: 12 },
+			{ x: 38, y: 12 },
+			{ x: 38, y: 26 },
+			{ x: 2, y: 26 },
+		];
+		walls.areas[0] = { ...walls.areas[0]!, outline };
+		const got = (await (await put(h, h.A.loc, walls)).json()) as Floor;
+		expect(got.areas[0]?.outline).toEqual(outline);
+		expect(got.areas[1]?.outline).toBeNull();
+		// An older client that doesn't know about walls leaves the field out.
+		const legacy = plan(["1", "2"]);
+		for (const a of legacy.areas) delete (a as { outline?: unknown }).outline;
+		const old = (await (await put(h, h.A.loc, legacy)).json()) as Floor;
+		expect(old.areas[0]?.outline).toBeNull();
+		// Two corners is not a room.
+		const bad = plan(["1", "2"]);
+		bad.areas[0] = { ...bad.areas[0]!, outline: outline.slice(0, 2) };
+		expect((await put(h, h.A.loc, bad)).status).toBe(400);
 	});
 
 	it("refuses a duplicate label and a table in an unknown area", async () => {

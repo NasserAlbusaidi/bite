@@ -15,10 +15,26 @@ export type TableShape = z.infer<typeof TableShape>;
 
 export const FLOOR_GRID = { cols: 40, rows: 28 } as const;
 
+/** A corner of a room's walls, on the plan's dot grid (dots, not cells). */
+export const FloorPoint = z.object({
+	x: z.int().min(0).max(FLOOR_GRID.cols),
+	y: z.int().min(0).max(FLOOR_GRID.rows),
+});
+export type FloorPoint = z.infer<typeof FloorPoint>;
+
+/**
+ * An area's walls, corner by corner, as the admin drew them. Null when the
+ * area has none yet: the whole canvas is the room.
+ */
+export const FloorOutline = z.array(FloorPoint).min(3).max(40);
+export type FloorOutline = z.infer<typeof FloorOutline>;
+
 export const FloorArea = z.object({
 	id: Id,
 	name: z.string().trim().min(1).max(40),
 	sortOrder: z.int().min(0).max(999),
+	/** Older clients leave it out; that keeps (or clears to) the full canvas. */
+	outline: FloorOutline.nullable().default(null),
 });
 export type FloorArea = z.infer<typeof FloorArea>;
 

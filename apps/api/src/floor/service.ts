@@ -36,6 +36,7 @@ export async function loadFloor(tx: Tx, locationId: string): Promise<Floor> {
 			id: a.id,
 			name: a.name,
 			sortOrder: a.sortOrder,
+			outline: a.outline ?? null,
 		})),
 		tables: tables.map((t) => ({
 			id: t.id,
@@ -112,6 +113,7 @@ export async function saveFloor(
 					locationId,
 					name: a.name,
 					sortOrder: a.sortOrder,
+					outline: a.outline,
 				})),
 			)
 			.onConflictDoUpdate({
@@ -119,6 +121,7 @@ export async function saveFloor(
 				set: {
 					name: sql`excluded.name`,
 					sortOrder: sql`excluded.sort_order`,
+					outline: sql`excluded.outline`,
 					updatedAt: sql`now()`,
 				},
 			});

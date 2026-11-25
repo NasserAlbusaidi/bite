@@ -164,22 +164,26 @@ export function FloorSheet(props: {
 
 	// Show the part of the room that has tables, with a cell of margin, so
 	// the tables fill the screen instead of a corner of the full grid.
+	// With walls drawn in the back office, show the whole room instead.
+	const walls = area?.outline ?? null;
 	const box = useMemo(() => {
-		if (here.length === 0)
+		if (here.length === 0 && !walls)
 			return { x: 0, y: 0, w: FLOOR_GRID.cols, h: FLOOR_GRID.rows };
-		const x = Math.max(0, Math.min(...here.map((s) => s.table.x)) - 1);
-		const y = Math.max(0, Math.min(...here.map((s) => s.table.y)) - 1);
-		const r = Math.min(
-			FLOOR_GRID.cols,
-			Math.max(...here.map((s) => s.table.x + s.table.w)) + 1,
-		);
-		const b = Math.min(
-			FLOOR_GRID.rows,
-			Math.max(...here.map((s) => s.table.y + s.table.h)) + 1,
-		);
+		const xs = [
+			...here.flatMap((s) => [s.table.x - 1, s.table.x + s.table.w + 1]),
+			...(walls ?? []).map((p) => p.x),
+		];
+		const ys = [
+			...here.flatMap((s) => [s.table.y - 1, s.table.y + s.table.h + 1]),
+			...(walls ?? []).map((p) => p.y),
+		];
+		const x = Math.max(0, Math.min(...xs));
+		const y = Math.max(0, Math.min(...ys));
+		const r = Math.min(FLOOR_GRID.cols, Math.max(...xs));
+		const b = Math.min(FLOOR_GRID.rows, Math.max(...ys));
 		// Never narrower than 4:3 tall, so a single row of tables isn't a strip.
 		return { x, y, w: r - x, h: Math.max(b - y, Math.ceil((r - x) / 2.2)) };
-	}, [here]);
+	}, [here, walls]);
 	const busy = states.filter((s) => s.status !== "free");
 	const guests = busy.reduce((n, s) => n + s.table.seats, 0);
 
@@ -293,6 +297,18 @@ export function FloorSheet(props: {
 										inlineSize: `min(100cqw, calc(100cqh * ${box.w} / ${box.h}))`,
 									}}
 								>
+									{walls && (
+										<svg
+											className="floor-walls"
+											viewBox={`${box.x} ${box.y} ${box.w} ${box.h}`}
+											preserveAspectRatio="none"
+											aria-hidden="true"
+										>
+											<polygon
+												points={walls.map((p) => `${p.x},${p.y}`).join(" ")}
+											/>
+										</svg>
+									)}
 									{here.map((s) => {
 										const mine = s.table.serverMemberId === member.memberId;
 										const dim = onlyMine && !mine;
