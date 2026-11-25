@@ -25,8 +25,14 @@ The mode is picked per tablet and stored locally.
 
 ## Flow
 
-Pair (server URL + device token from the back office, `GET /v1/device/me`)
-→ lock screen (staff list, PIN) → till or kitchen display by `device.kind`.
+Connect (type the 8-character code from the back office's Tablets page, or
+scan its QR; `POST /v1/pair` trades it for the device token) → lock screen
+(staff list, PIN) → till or kitchen display by `device.kind`.
+
+- The tablet sends the code to its default server: the page's own address in
+  a browser, `VITE_API_URL` (build time) in the native app. **Set
+  `VITE_API_URL` for Android/iPad builds.** "Advanced settings" on the
+  connect screen still takes a server address and a raw device token.
 
 - PIN login is online first. On success the tablet keeps a PBKDF2 verifier
   so the same person can unlock offline for 7 days. A server "wrong PIN"

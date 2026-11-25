@@ -250,6 +250,18 @@ export const adminCases: Record<string, Case> = {
 		(h) => `/devices/${h.A.device}/revoke`,
 		() => undefined,
 	),
+	"POST /v1/admin/devices/:id/connect-code": async (h) => {
+		const before = await aDigest(h);
+		const res = await send(h, "POST", `/devices/${h.A.device}/connect-code`);
+		expect(res.status).toBe(404);
+		expect(await res.text()).not.toMatch(/pairingCode/);
+		expect(await aDigest(h)).toBe(before);
+	},
+	"PATCH /v1/admin/devices/:id": write(
+		"PATCH",
+		(h) => `/devices/${h.A.device}`,
+		() => ({ name: "hijacked" }),
+	),
 
 	"GET /v1/admin/categories": read(() => "/categories"),
 	"POST /v1/admin/categories": write(

@@ -72,19 +72,21 @@ export function setupGuide(input: {
 			key: "team",
 			done: floor.length > 0,
 			optional: false,
-			to: "/staff/new?kind=pin",
+			to: "/staff/new",
 		},
 		{
 			key: "till",
-			done: live.some((d) => d.kind === "pos"),
+			// Connected, not just added: an added till nobody typed the code into
+			// can't sell anything yet.
+			done: live.some((d) => d.kind === "pos" && !!d.lastSeenAt),
 			optional: false,
-			to: `${base}#devices`,
+			to: "/devices",
 		},
 		{
 			key: "kitchen",
-			done: live.some((d) => d.kind === "kds"),
+			done: live.some((d) => d.kind === "kds" && !!d.lastSeenAt),
 			optional: true,
-			to: `${base}#devices`,
+			to: "/devices",
 		},
 		{ key: "qr", done: ticked.has("qr"), optional: true, to: `${base}#qr` },
 	];

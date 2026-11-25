@@ -4,6 +4,7 @@ import { DEMO_ME, demoState, fixtureAdminApi } from "./fixtures";
 import {
 	inviteLink,
 	mergeRoles,
+	parseAddPerson,
 	parseNewStaff,
 	parseRoles,
 } from "./staff-form";
@@ -155,5 +156,102 @@ describe("invite links", () => {
 		expect(inviteLink("ab+c/d=", "https://admin.bite.om")).toBe(
 			"https://admin.bite.om/accept-invite?token=ab%2Bc%2Fd%3D",
 		);
+	});
+});
+
+describe("parseAddPerson", () => {
+	const form = (o: Record<string, string | string[]>) => {
+		const f = new FormData();
+		for (const [k, v] of Object.entries(o))
+			for (const x of Array.isArray(v) ? v : [v]) f.append(k, x);
+		return f;
+	};
+	const never = () => false;
+
+	it("a cashier at the only branch needs just a name and a PIN", () => {
+		expect(
+			parseAddPerson(
+				form({ displayName: " Aisha ", job: "cashier", pin: "4821" }),
+				["b1"],
+				never,
+			),
+		).toEqual({
+			ok: true,
+			value: {
+				kind: "pin",
+				displayName: "Aisha",
+				pin: "4821",
+				locations: [{ locationId: "b1", role: "cashier" }],
+			},
+		});
+	});
+
+	it("uses the ticked branches, and only ones this person may manage", () => {
+		const r = parseAddPerson(
+			form({
+				displayName: "Omar",
+				job: "kitchen",
+				pin: "7390",
+				loc: ["b2", "zz"],
+			}),
+			["b1", "b2"],
+			never,
+		);
+		expect(r.ok && r.value.locations).toEqual([
+			{ locationId: "b2", role: "kitchen" },
+		]);
+		const none = parseAddPerson(
+			form({ displayName: "Omar", job: "kitchen", pin: "7390" }),
+			["b1", "b2"],
+			never,
+		);
+		expect(!none.ok && none.errors.locations?.key).toBe("pick_a_location");
+	});
+
+	it("a manager with an email gets a login and keeps the PIN", () => {
+		const r = parseAddPerson(
+			form({
+				displayName: "Sara",
+				job: "manager",
+				pin: "5172",
+				email: "sara@cafe.om",
+			}),
+			["b1"],
+			never,
+		);
+		expect(r).toMatchObject({
+			ok: true,
+			value: { kind: "invite", orgRole: "staff", pin: "5172" },
+		});
+	});
+
+	it("an admin needs an email and no PIN or branch", () => {
+		const bad = parseAddPerson(
+			form({ displayName: "Ali", job: "admin" }),
+			["b1", "b2"],
+			never,
+		);
+		expect(!bad.ok && Object.keys(bad.errors)).toEqual(["email"]);
+		const ok = parseAddPerson(
+			form({ displayName: "Ali", job: "admin", email: "ali@cafe.om" }),
+			["b1", "b2"],
+			never,
+		);
+		expect(ok).toMatchObject({
+			ok: true,
+			value: { kind: "invite", orgRole: "admin", locations: [] },
+		});
+	});
+
+	it("refuses an easy PIN and a missing job", () => {
+		const r = parseAddPerson(
+			form({ displayName: "X", pin: "1234" }),
+			["b1"],
+			(p) => p === "1234",
+		);
+		expect(!r.ok && r.errors).toMatchObject({
+			job: { key: "ap_pick_job" },
+			pin: { key: "pin_weak" },
+		});
 	});
 });

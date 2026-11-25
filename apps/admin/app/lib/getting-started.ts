@@ -28,8 +28,8 @@ export function setupSteps(input: {
 	const branch = `/locations/${input.locationId}/settings`;
 	return [
 		{ key: "menu", done: input.products > 0, to: "/menu" },
-		{ key: "team", done: input.withPin > 0, to: "/staff" },
-		{ key: "tablet", done: input.tablets > 0, to: branch },
+		{ key: "team", done: input.withPin > 0, to: "/staff/new" },
+		{ key: "tablet", done: input.tablets > 0, to: "/devices" },
 		{ key: "order", done: input.orders > 0, to: branch },
 	];
 }

@@ -3,6 +3,11 @@
  * State persists in localStorage so edits survive a refresh. Validation is
  * the same schema validation the API does; tenancy and auth are not modelled.
  */
+import {
+	CONNECT_CODE_ALPHABET,
+	CONNECT_CODE_LENGTH,
+	CONNECT_CODE_TTL_MINUTES,
+} from "@bite/contracts";
 import { addDays, resolveEntitlements } from "@bite/core";
 import { type AdminApi, AdminApiError } from "./api-types";
 import {
@@ -66,7 +71,8 @@ type DemoState = {
 	promotions: AdminPromotion[];
 	staff: AdminStaff[];
 	locations: AdminLocationSettings[];
-	devices: AdminDevice[];
+	/** demoConnectAt: when the pretend tablet types its code (demo only). */
+	devices: (AdminDevice & { demoConnectAt?: string })[];
 	/** locationId -> floor plan. Missing in older saves. */
 	floors?: Record<string, Floor>;
 	/** memberId -> invited email, until accepted. Missing in older saves. */
@@ -357,6 +363,7 @@ export function demoState(): DemoState {
 				ticketPrefix: "A",
 				lastSeenAt: "2026-11-17T10:12:00Z",
 				revokedAt: null,
+				pairingExpiresAt: null,
 			},
 			{
 				id: id(601),
@@ -366,12 +373,31 @@ export function demoState(): DemoState {
 				ticketPrefix: "K",
 				lastSeenAt: "2026-11-17T10:14:00Z",
 				revokedAt: null,
+				pairingExpiresAt: null,
 			},
 		],
 	};
 }
 
 const KEY = "bite.admin.demo.v5";
+
+/** How long the demo's pretend tablet takes to type its code. */
+const DEMO_CONNECT_MS = 12_000;
+
+function demoConnectCode() {
+	let pairingCode = "";
+	for (let i = 0; i < CONNECT_CODE_LENGTH; i++)
+		pairingCode +=
+			CONNECT_CODE_ALPHABET[
+				Math.floor(Math.random() * CONNECT_CODE_ALPHABET.length)
+			];
+	return {
+		pairingCode,
+		pairingExpiresAt: new Date(
+			Date.now() + CONNECT_CODE_TTL_MINUTES * 60_000,
+		).toISOString(),
+	};
+}
 
 /** Like the API: every id must exist, else nothing changes. */
 function reorderIn(
@@ -763,13 +789,32 @@ export function fixtureAdminApi(
 		async devices(lid) {
 			if (!state.locations.some((x) => x.id === lid))
 				throw new AdminApiError("not_found", 404);
-			// The demo's own tablets are "on" and calling in; new ones stay unpaired.
+			// The demo's own tablets are "on" and calling in. A new one "types
+			// its code" a few seconds after it's added, so the connect screen
+			// can be seen finishing.
 			const demoTablets = new Set([id(600), id(601)]);
+			const now = Date.now();
+			let changed = false;
+			for (const d of state.devices) {
+				if (d.demoConnectAt && Date.parse(d.demoConnectAt) <= now) {
+					if (!d.revokedAt) {
+						d.lastSeenAt = d.demoConnectAt;
+						d.pairingExpiresAt = null;
+					}
+					delete d.demoConnectAt;
+					changed = true;
+				}
+				if (d.pairingExpiresAt && Date.parse(d.pairingExpiresAt) <= now) {
+					d.pairingExpiresAt = null;
+					changed = true;
+				}
+			}
+			if (changed) persist();
 			return clone(state.devices.filter((d) => d.locationId === lid)).map(
-				(d) =>
+				({ demoConnectAt: _, ...d }) =>
 					demoTablets.has(d.id) && !d.revokedAt
-						? { ...d, lastSeenAt: new Date(Date.now() - 40_000).toISOString() }
-						: d,
+						? { ...d, lastSeenAt: new Date(now - 40_000).toISOString() }
+						: { ...d, pairingExpiresAt: d.pairingExpiresAt ?? null },
 			);
 		},
 		async registerDevice(input) {
@@ -777,33 +822,65 @@ export function fixtureAdminApi(
 			if (v.ticketPrefix === "G") throw new AdminApiError("bad_request", 400);
 			if (!state.locations.some((x) => x.id === v.locationId))
 				throw new AdminApiError("not_found", 404);
-			if (
-				state.devices.some(
-					(d) =>
-						d.locationId === v.locationId &&
-						!d.revokedAt &&
-						d.ticketPrefix === v.ticketPrefix,
-				)
-			)
+			const used = new Set(
+				state.devices
+					.filter((d) => d.locationId === v.locationId)
+					.map((d) => d.ticketPrefix),
+			);
+			if (v.ticketPrefix && used.has(v.ticketPrefix))
 				throw new AdminApiError("conflict", 409);
+			const ticketPrefix =
+				v.ticketPrefix ??
+				[..."ABCDEFHIJKLMNOPRSTUVWXYZ"].find((c) => !used.has(c)) ??
+				"ZZ";
 			const deviceId = uuidv7();
+			const connect = demoConnectCode();
 			state.devices.push({
 				id: deviceId,
 				locationId: v.locationId,
 				name: v.name,
 				kind: v.kind,
-				ticketPrefix: v.ticketPrefix,
+				ticketPrefix,
 				lastSeenAt: null,
 				revokedAt: null,
+				pairingExpiresAt: connect.pairingExpiresAt,
+				demoConnectAt: new Date(Date.now() + DEMO_CONNECT_MS).toISOString(),
 			});
 			persist();
 			// Demo only: a real token comes from the API and is shown once.
-			return { deviceId, token: `demo_${deviceId.replaceAll("-", "")}` };
+			return {
+				deviceId,
+				ticketPrefix,
+				token: `demo_${deviceId.replaceAll("-", "")}`,
+				...connect,
+			};
+		},
+		async connectCode(did) {
+			const d = state.devices.find((x) => x.id === did);
+			if (!d) throw new AdminApiError("not_found", 404);
+			if (d.revokedAt) throw new AdminApiError("conflict", 409);
+			const connect = demoConnectCode();
+			d.pairingExpiresAt = connect.pairingExpiresAt;
+			d.demoConnectAt = new Date(Date.now() + DEMO_CONNECT_MS).toISOString();
+			persist();
+			return connect;
+		},
+		async renameDevice(did, name) {
+			const d = state.devices.find((x) => x.id === did);
+			if (!d) throw new AdminApiError("not_found", 404);
+			const n = name.trim();
+			if (!n || n.length > 80) throw new AdminApiError("bad_request", 400);
+			d.name = n;
+			persist();
+			const { demoConnectAt: _, ...out } = d;
+			return clone({ ...out, pairingExpiresAt: out.pairingExpiresAt ?? null });
 		},
 		async revokeDevice(did) {
 			const d = state.devices.find((x) => x.id === did);
 			if (!d) throw new AdminApiError("not_found", 404);
 			d.revokedAt ??= new Date().toISOString();
+			d.pairingExpiresAt = null;
+			delete d.demoConnectAt;
 			persist();
 		},
 		async salesReport(q) {

@@ -109,3 +109,95 @@ export function rolesSummary(
  */
 export const inviteLink = (token: string, origin: string) =>
 	`${new URL("/accept-invite", origin).href}?token=${encodeURIComponent(token)}`;
+
+/** The jobs "Add a person" offers, in the order a restaurant hires them. */
+export const JOBS = [
+	"cashier",
+	"server",
+	"kitchen",
+	"manager",
+	"admin",
+] as const;
+export type Job = (typeof JOBS)[number];
+const isJob = (v: string): v is Job => (JOBS as readonly string[]).includes(v);
+
+/**
+ * How a new person gets set up, derived from their job so the owner never
+ * has to know about "org roles" or logins:
+ * - cashier, server, kitchen: a PIN for the tablet, nothing else
+ * - manager: a PIN, plus a back-office login if an email is given
+ * - admin: a back-office login (email) at every branch
+ */
+export type AddPerson =
+	| {
+			kind: "pin";
+			displayName: string;
+			pin: string;
+			locations: StaffLocation[];
+	  }
+	| {
+			kind: "invite";
+			displayName: string;
+			email: string;
+			orgRole: "admin" | "staff";
+			locations: StaffLocation[];
+			/** A manager who also signs in on the tablet. */
+			pin?: string;
+	  };
+
+export function parseAddPerson(
+	f: FormData,
+	visible: readonly string[],
+	weak: (pin: string) => boolean,
+): StaffParse<AddPerson> {
+	const errors: Record<string, FieldError> = {};
+	const displayName = text(f, "displayName");
+	if (!displayName || displayName.length > 80)
+		errors.displayName = { key: "required_field" };
+	const jobRaw = text(f, "job");
+	if (!isJob(jobRaw)) errors.job = { key: "ap_pick_job" };
+	const job = isJob(jobRaw) ? jobRaw : "cashier";
+	// One branch? It's that one. Otherwise the ticked boxes.
+	const picked =
+		visible.length === 1
+			? [...visible]
+			: f
+					.getAll("loc")
+					.map(String)
+					.filter((id) => visible.includes(id));
+	const email = text(f, "email");
+	const pin = text(f, "pin");
+	if (job !== "admin") {
+		if (picked.length === 0) errors.locations = { key: "pick_a_location" };
+		if (!PIN.test(pin)) errors.pin = { key: "invalid_pin" };
+		else if (weak(pin)) errors.pin = { key: "pin_weak" };
+	}
+	if ((job === "admin" || email) && !EMAIL.test(email))
+		errors.email = { key: "invalid_email" };
+	if (Object.keys(errors).length > 0) return { ok: false, errors };
+	if (job === "admin")
+		return {
+			ok: true,
+			value: {
+				kind: "invite",
+				displayName,
+				email,
+				orgRole: "admin",
+				locations: [],
+			},
+		};
+	const locations = picked.map((locationId) => ({ locationId, role: job }));
+	if (job === "manager" && email)
+		return {
+			ok: true,
+			value: {
+				kind: "invite",
+				displayName,
+				email,
+				orgRole: "staff",
+				locations,
+				pin,
+			},
+		};
+	return { ok: true, value: { kind: "pin", displayName, pin, locations } };
+}

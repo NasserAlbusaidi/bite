@@ -29,6 +29,9 @@ const PUBLIC_ROUTES = new Set([
 	"POST /v1/auth/*",
 	// Product photos guests' phones load; random names, served only as images.
 	"GET /v1/uploads/:org/:file",
+	// A tablet with no token yet trades a one-time connect code for one. The
+	// code is the only input; pair.test.ts covers expiry, reuse and revoked.
+	"POST /v1/pair",
 ]);
 
 /**

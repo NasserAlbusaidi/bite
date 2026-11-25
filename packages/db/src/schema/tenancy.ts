@@ -188,6 +188,13 @@ export const devices = pgTable(
 		/** Offline-safe ticket prefix, e.g. "A" gives A-042. Unique per location. */
 		ticketPrefix: text("ticket_prefix").notNull(),
 		tokenHash: text("token_hash").notNull().unique(),
+		/**
+		 * sha256 of the short connect code the back office shows. Typing it on
+		 * a tablet (POST /v1/pair, once, before pairing_expires_at) swaps in a
+		 * fresh token_hash and clears both columns.
+		 */
+		pairingCodeHash: text("pairing_code_hash").unique(),
+		pairingExpiresAt: timestamp("pairing_expires_at", { withTimezone: true }),
 		lastSeenAt: timestamp("last_seen_at", { withTimezone: true }),
 		revokedAt: timestamp("revoked_at", { withTimezone: true }),
 		createdAt: createdAt(),

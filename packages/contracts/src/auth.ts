@@ -16,17 +16,29 @@ export const RegisterDeviceRequest = z.object({
 	locationId: Id,
 	name: z.string().min(1).max(80),
 	kind: DeviceKind,
+	/** Left out: the server picks the next free letter at this location. */
 	ticketPrefix: z
 		.string()
 		.regex(
 			/^(?:[A-FH-PR-Z]|[A-Z]{2})$/,
 			"1-2 letters; Q and G alone are reserved for QR and group orders",
-		),
+		)
+		.optional(),
 });
-export const RegisterDeviceResponse = z.object({
+/** A connect code the tablet types (or scans) once, within its lifetime. */
+export const DeviceConnectCode = z.object({
+	/** 8 characters, no dash. Show it with formatConnectCode. */
+	pairingCode: z.string(),
+	pairingExpiresAt: Instant,
+});
+export const RegisterDeviceResponse = DeviceConnectCode.extend({
 	deviceId: Id,
-	/** Plaintext device token. Only returned here; the server stores a hash. */
+	/**
+	 * Plaintext device token, for typing in by hand. Only returned here; the
+	 * server stores a hash. Connecting with the code replaces it.
+	 */
 	token: z.string(),
+	ticketPrefix: z.string(),
 });
 
 export const DeviceMe = z.object({
@@ -36,6 +48,18 @@ export const DeviceMe = z.object({
 	kind: DeviceKind,
 	ticketPrefix: z.string(),
 	name: z.string(),
+});
+
+/** POST /v1/pair: the tablet trades a connect code for its device token. */
+export const PairDeviceRequest = z.object({ code: z.string().max(64) });
+export const PairDeviceResponse = z.object({
+	token: z.string(),
+	device: DeviceMe,
+});
+
+/** PATCH /v1/admin/devices/:id */
+export const RenameDevice = z.object({
+	name: z.string().trim().min(1).max(80),
 });
 
 /** PIN-only staff picker on the lock screen. No PIN hashes, ever. */
@@ -64,6 +88,10 @@ export const PinLoginResponse = z.object({
 export type RegisterDeviceRequest = z.infer<typeof RegisterDeviceRequest>;
 export type RegisterDeviceResponse = z.infer<typeof RegisterDeviceResponse>;
 export type DeviceMe = z.infer<typeof DeviceMe>;
+export type DeviceConnectCode = z.infer<typeof DeviceConnectCode>;
+export type PairDeviceRequest = z.infer<typeof PairDeviceRequest>;
+export type PairDeviceResponse = z.infer<typeof PairDeviceResponse>;
+export type RenameDevice = z.infer<typeof RenameDevice>;
 export type StaffListItem = z.infer<typeof StaffListItem>;
 export type StaffListResponse = z.infer<typeof StaffListResponse>;
 export type PinLoginRequest = z.infer<typeof PinLoginRequest>;

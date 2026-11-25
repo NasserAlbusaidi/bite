@@ -1,13 +1,4 @@
-import { encodePairingCode } from "@bite/contracts";
-import {
-	Badge,
-	Dialog,
-	Icon,
-	Logo,
-	Sheet,
-	tenantAccent,
-	useToast,
-} from "@bite/ui";
+import { Badge, Dialog, Icon, Logo, tenantAccent, useToast } from "@bite/ui";
 import {
 	type CSSProperties,
 	type ReactNode,
@@ -18,30 +9,23 @@ import {
 import {
 	data,
 	Form,
+	Link,
 	useBlocker,
 	useFetcher,
 	useNavigation,
 } from "react-router";
 import { QrCode, qrSvg } from "../components/QrCode";
 import { adminApi, isDemo } from "../lib/api";
-import { AdminApiError } from "../lib/api-types";
-import {
-	agoText,
-	type DayHours,
-	deviceStatus,
-	openStatus,
-	suggestPrefix,
-	vatExample,
-} from "../lib/branch-settings";
+import { type DayHours, openStatus, vatExample } from "../lib/branch-settings";
 import type { AdminDevice } from "../lib/contracts";
+import { deviceState } from "../lib/devices";
 import type { MessageKey } from "../lib/i18n";
-import { guestMenuUrl, pairingServerUrl } from "../lib/links";
+import { guestMenuUrl } from "../lib/links";
 import {
 	type Day,
 	locationFormDefaults,
 	parseLocationForm,
 	pausedUntil,
-	TICKET_PREFIX,
 	WEEK,
 } from "../lib/location-form";
 import { fromDecimal, toDecimal } from "../lib/money";
@@ -88,42 +72,6 @@ export async function clientAction({
 		await api.updateLocation(id, { ordersPausedUntil: pausedUntil(minutes) });
 		return { intent, ok: true };
 	}
-	if (intent === "register") {
-		const name = String(form.get("name") ?? "").trim();
-		const kind = String(form.get("kind") ?? "");
-		const ticketPrefix = String(form.get("ticketPrefix") ?? "")
-			.trim()
-			.toUpperCase();
-		const errors: Errors = {};
-		if (!name || name.length > 80)
-			errors.deviceName = { key: "required_field" };
-		if (!TICKET_PREFIX.test(ticketPrefix))
-			errors.ticketPrefix = { key: "invalid_prefix" };
-		if (kind !== "pos" && kind !== "kds" && kind !== "kiosk")
-			errors.kind = { key: "required_field" };
-		if (Object.keys(errors).length > 0) return { intent, errors };
-		try {
-			const r = await api.registerDevice({
-				locationId: id,
-				name,
-				kind: kind as AdminDevice["kind"],
-				ticketPrefix,
-			});
-			return { intent, token: r.token, deviceName: name };
-		} catch (e) {
-			if (e instanceof AdminApiError && e.status === 409)
-				return {
-					intent,
-					errors: { ticketPrefix: { key: "prefix_taken" } } as Errors,
-				};
-			throw e;
-		}
-	}
-	if (intent === "revoke") {
-		await api.revokeDevice(String(form.get("deviceId") ?? ""));
-		return { intent, ok: true };
-	}
-
 	const [current, me] = await Promise.all([
 		api.locations().then((ls) => ls.find((l) => l.id === id)),
 		api.me(),
@@ -521,7 +469,7 @@ export default function LocationSettings({
 				<GuestQr name={location.name} slug={location.slug} />
 			</div>
 			<div id="devices" className="anchor">
-				<Devices devices={devices} />
+				<DevicesSummary devices={devices} />
 			</div>
 		</>
 	);
@@ -948,291 +896,22 @@ function PauseCard({ until }: { until: string | null }) {
 	);
 }
 
-function StatusBadge({ d }: { d: AdminDevice }) {
+/** Tablets live on their own page now; this is the signpost to it. */
+function DevicesSummary({ devices }: { devices: AdminDevice[] }) {
 	const { t } = useShell();
-	const st = deviceStatus(d);
-	if (st.kind === "online")
-		return (
-			<Badge tone="success">
-				<span className="dot" aria-hidden="true" />
-				{t("device_online")}
-			</Badge>
-		);
-	if (st.kind === "unpaired")
-		return <Badge tone="warning">{t("device_unpaired")}</Badge>;
-	return <Badge>{t("device_offline")}</Badge>;
-}
-
-const KIND_ICON = { pos: "tablet", kds: "monitor", kiosk: "bag" } as const;
-
-function Devices({ devices }: { devices: AdminDevice[] }) {
-	const { t, lang } = useShell();
-	const toast = useToast();
-	const reg = useFetcher<typeof clientAction>();
-	const revoker = useFetcher();
-	const [adding, setAdding] = useState(false);
-	const [kind, setKind] = useState<AdminDevice["kind"]>("pos");
-	const [revoking, setRevoking] = useState<AdminDevice | null>(null);
-	const res = reg.data && reg.data.intent === "register" ? reg.data : undefined;
-	const [stale, setStale] = useState<unknown>(undefined);
-	const fresh = res !== stale ? res : undefined;
-	const token = fresh && "token" in fresh ? fresh.token : undefined;
-	const errors: Errors = fresh && "errors" in fresh ? (fresh.errors ?? {}) : {};
 	const live = devices.filter((d) => !d.revokedAt);
-	const revoked = devices.filter((d) => d.revokedAt);
-	const prefix = suggestPrefix(devices);
-	const when = (iso: string | null) =>
-		iso
-			? new Date(iso).toLocaleString(lang === "ar" ? "ar-OM" : "en-GB", {
-					dateStyle: "medium",
-					timeStyle: "short",
-					numberingSystem: "latn",
-				})
-			: t("never");
-	const open = () => {
-		setStale(res);
-		setKind("pos");
-		setAdding(true);
-	};
-
+	const on = live.filter((d) => deviceState(d).kind === "on").length;
 	return (
 		<section className="card">
 			<div className="card-head">
 				<h2>{t("devices")}</h2>
-				<button type="button" className="btn btn--primary" onClick={open}>
-					<Icon name="plus" />
-					{t("device_add")}
-				</button>
+				<Link className="btn btn--primary" to="/devices">
+					{t("dv_manage")}
+				</Link>
 			</div>
-			<p className="muted small">{t("devices_hint")}</p>
-			{devices.length === 0 ? (
-				<p className="empty">{t("devices_empty")}</p>
-			) : (
-				<ul className="device-grid">
-					{[...live, ...revoked].map((d) => (
-						<li
-							key={d.id}
-							className={`device${d.revokedAt ? " device--off" : ""}`}
-						>
-							<span className="device__icon">
-								<Icon name={KIND_ICON[d.kind]} size={22} />
-							</span>
-							<span className="device__body">
-								<strong>{d.name}</strong>
-								<span className="muted small">
-									{t(`kind_${d.kind}`)} · {t("ticket_prefix")}{" "}
-									<b dir="ltr">{d.ticketPrefix}</b>
-								</span>
-								{d.lastSeenAt && (
-									<span className="muted small" title={when(d.lastSeenAt)}>
-										{t("last_seen")}:{" "}
-										{agoText(
-											Math.max(
-												0,
-												Math.floor(
-													(Date.now() - Date.parse(d.lastSeenAt)) / 60_000,
-												),
-											),
-											lang,
-										)}
-									</span>
-								)}
-							</span>
-							<span className="device__side">
-								{d.revokedAt ? (
-									<Badge tone="danger">{t("revoked")}</Badge>
-								) : (
-									<>
-										<StatusBadge d={d} />
-										<button
-											type="button"
-											className="link-btn danger small"
-											onClick={() => setRevoking(d)}
-										>
-											{t("revoke")}
-										</button>
-									</>
-								)}
-							</span>
-						</li>
-					))}
-				</ul>
-			)}
-
-			<Dialog
-				open={revoking !== null}
-				onClose={() => setRevoking(null)}
-				title={t("device_revoke_title", { name: revoking?.name ?? "" })}
-				footer={
-					<div className="actions-row">
-						<button
-							type="button"
-							className="btn"
-							onClick={() => setRevoking(null)}
-						>
-							{t("cancel")}
-						</button>
-						<button
-							type="button"
-							className="btn btn--danger"
-							onClick={() => {
-								if (!revoking) return;
-								revoker.submit(
-									{ intent: "revoke", deviceId: revoking.id },
-									{ method: "post" },
-								);
-								toast(t("device_revoked", { name: revoking.name }), "neutral");
-								setRevoking(null);
-							}}
-						>
-							{t("revoke")}
-						</button>
-					</div>
-				}
-			>
-				<p>{t("revoke_confirm", { name: revoking?.name ?? "" })}</p>
-			</Dialog>
-
-			<Sheet
-				open={adding}
-				onClose={() => setAdding(false)}
-				title={
-					token
-						? t("pair_title", {
-								name: res && "deviceName" in res ? res.deviceName : "",
-							})
-						: t("device_add")
-				}
-			>
-				{token ? (
-					<PairingPanel
-						token={token}
-						deviceName={res && "deviceName" in res ? res.deviceName : ""}
-					/>
-				) : (
-					<reg.Form method="post" className="form device-form">
-						<input type="hidden" name="intent" value="register" />
-						<fieldset className="kind-pick bare">
-							<legend className="field">{t("device_kind")}</legend>
-							{(["pos", "kds", "kiosk"] as const).map((k) => (
-								<label
-									key={k}
-									className={`kind-card${kind === k ? " kind-card--on" : ""}`}
-								>
-									<input
-										type="radio"
-										name="kind"
-										value={k}
-										checked={kind === k}
-										onChange={() => setKind(k)}
-									/>
-									<Icon name={KIND_ICON[k]} size={24} />
-									<strong>{t(`kind_${k}`)}</strong>
-									<span className="muted small">{t(`kind_${k}_desc`)}</span>
-								</label>
-							))}
-						</fieldset>
-						<div className="grid2">
-							<label>
-								{t("device_name")}
-								<input
-									name="name"
-									className="input"
-									placeholder={t("device_name_ph")}
-									required
-									maxLength={80}
-								/>
-								{errors.deviceName && (
-									<span className="error small" role="alert">
-										{t(errors.deviceName.key)}
-									</span>
-								)}
-							</label>
-							<label>
-								{t("ticket_prefix")}
-								<input
-									name="ticketPrefix"
-									className="input input--short"
-									dir="ltr"
-									maxLength={2}
-									required
-									autoCapitalize="characters"
-									defaultValue={prefix}
-								/>
-								<span className="muted small">
-									{t("prefix_hint", { prefix: prefix || "A" })}
-								</span>
-								{errors.ticketPrefix && (
-									<span className="error small" role="alert">
-										{t(errors.ticketPrefix.key)}
-									</span>
-								)}
-							</label>
-						</div>
-						<div className="form-actions">
-							<button
-								type="submit"
-								className="btn btn--primary"
-								disabled={reg.state !== "idle"}
-							>
-								{t("register_device")}
-							</button>
-						</div>
-					</reg.Form>
-				)}
-			</Sheet>
+			<p className="muted small">
+				{t("dv_summary", { total: live.length, on })}
+			</p>
 		</section>
-	);
-}
-
-/**
- * Shown once, right after a device is added: a QR the tablet scans to pair
- * (API address + token in one code), with copy and the bare token as fallbacks.
- */
-function PairingPanel({
-	token,
-	deviceName,
-}: {
-	token: string;
-	deviceName: string;
-}) {
-	const { t } = useShell();
-	const [copied, setCopied] = useState(false);
-	const code = encodePairingCode({ serverUrl: pairingServerUrl(), token });
-	return (
-		<div className="token" role="status">
-			<strong>{t("pair_title", { name: deviceName })}</strong>
-			<div className="qr-row">
-				<QrCode value={code} size={196} label={t("pair_qr_alt")} />
-				<div className="qr-row__body">
-					<ol className="steps small">
-						<li>{t("pair_step_open")}</li>
-						<li>{t("pair_step_scan")}</li>
-					</ol>
-					<p className="small strong">{t("pair_once")}</p>
-					<div className="actions-row">
-						<button
-							type="button"
-							className="btn"
-							onClick={() => {
-								navigator.clipboard?.writeText(code).then(
-									() => setCopied(true),
-									() => setCopied(false),
-								);
-							}}
-						>
-							{copied ? t("copied") : t("copy_pairing_code")}
-						</button>
-					</div>
-					<details className="small">
-						<summary>{t("pair_manual")}</summary>
-						<p className="muted">{t("pair_server")}</p>
-						<code dir="ltr">{pairingServerUrl()}</code>
-						<p className="muted">{t("pair_token")}</p>
-						<code dir="ltr">{token}</code>
-					</details>
-				</div>
-			</div>
-		</div>
 	);
 }

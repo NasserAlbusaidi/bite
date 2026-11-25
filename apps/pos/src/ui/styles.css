@@ -851,11 +851,77 @@ p.strong {
 	}
 }
 
-/* ---- pairing: camera scan ---- */
+/* ---- pairing: type the connect code, or scan it ---- */
 .pair {
 	display: flex;
 	flex-direction: column;
 	gap: var(--space-4);
+}
+.pair-steps {
+	margin: 0;
+	padding-inline-start: 1.4em;
+	display: grid;
+	gap: var(--space-2);
+	color: var(--text);
+	font-size: 1.05rem;
+	line-height: 1.45;
+}
+.pair-steps li::marker {
+	font-weight: 700;
+	color: var(--text-strong);
+}
+.pair-code__input {
+	inline-size: 100%;
+	text-align: center;
+	font-family: var(--font-mono);
+	font-size: clamp(1.8rem, 6vw, 2.6rem);
+	font-weight: 700;
+	letter-spacing: 0.12em;
+	padding-block: var(--space-4);
+	border-radius: var(--radius-lg);
+	border: 2px solid var(--line-strong);
+	color: var(--text-strong);
+	text-transform: uppercase;
+}
+.pair-code__input::placeholder {
+	color: var(--text-muted);
+	opacity: 0.45;
+}
+.pair-code__input:focus-visible {
+	border-color: var(--action);
+	outline: 3px solid color-mix(in srgb, var(--action) 30%, transparent);
+}
+.pair-code__input[aria-invalid="true"] {
+	border-color: var(--danger);
+}
+.pair-error {
+	margin: 0;
+	padding: var(--space-3) var(--space-4);
+	border-radius: var(--radius-md);
+	background: color-mix(in srgb, var(--danger) 10%, var(--surface));
+	color: var(--danger);
+	font-weight: 600;
+	line-height: 1.4;
+}
+.pair-or {
+	margin: 0;
+	text-align: center;
+}
+.pair-advanced summary {
+	cursor: pointer;
+	color: var(--text-muted);
+	font-size: 0.9rem;
+}
+.pair-advanced[open] summary {
+	margin-block-end: var(--space-3);
+}
+.sr-only {
+	position: absolute;
+	inline-size: 1px;
+	block-size: 1px;
+	overflow: hidden;
+	clip-path: inset(50%);
+	white-space: nowrap;
 }
 .scanner {
 	position: relative;

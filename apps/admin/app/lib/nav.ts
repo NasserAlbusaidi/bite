@@ -85,6 +85,13 @@ export function navItems(locationId: string | undefined): NavItem[] {
 		},
 		{ key: "staff", to: "/staff", icon: "users", group: "business", go: "s" },
 		!!locationId && {
+			key: "dv_nav",
+			to: "/devices",
+			icon: "tablet",
+			group: "business",
+			go: "v",
+		},
+		!!locationId && {
 			key: "floor_nav",
 			to: `/locations/${locationId}/floor`,
 			icon: "layout",

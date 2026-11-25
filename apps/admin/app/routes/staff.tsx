@@ -3,7 +3,6 @@ import { useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { Roles, SignIn } from "../components/StaffBadges";
 import { adminApi } from "../lib/api";
-import { staffPowers } from "../lib/permissions";
 import {
 	filterStaff,
 	initials,
@@ -20,8 +19,7 @@ export async function clientLoader() {
 }
 
 export default function StaffPage({ loaderData }: Route.ComponentProps) {
-	const { t, places, place, me, locationId } = useShell();
-	const powers = staffPowers(me);
+	const { t, places, place, locationId } = useShell();
 	const [params, setParams] = useSearchParams();
 	const filter = (
 		STAFF_FILTERS.includes(params.get("show") as StaffFilter)
@@ -47,17 +45,10 @@ export default function StaffPage({ loaderData }: Route.ComponentProps) {
 					<h1>{t("staff")}</h1>
 					<p className="muted small page-sub">{t("staff_hint")}</p>
 				</div>
-				<div className="actions-row">
-					{powers.canInvite && (
-						<Link className="btn" to="/staff/new?kind=invite">
-							{t("invite_manager")}
-						</Link>
-					)}
-					<Link className="btn btn--primary" to="/staff/new?kind=pin">
-						<Icon name="plus" />
-						{t("add_pin_staff")}
-					</Link>
-				</div>
+				<Link className="btn btn--primary" to="/staff/new">
+					<Icon name="plus" />
+					{t("ap_title")}
+				</Link>
 			</div>
 
 			<div className="toolbar">

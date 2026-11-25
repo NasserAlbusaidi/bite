@@ -3,10 +3,12 @@ import {
 	type AdminLocationSettings,
 	type AdminStaff,
 	CreatePinStaff,
+	type DeviceConnectCode,
 	InviteStaff,
 	type InviteStaffResponse,
 	RegisterDeviceRequest,
 	type RegisterDeviceResponse,
+	RenameDevice,
 	ResetPin,
 	UpdateLocation,
 	UpdateStaff,
@@ -18,6 +20,7 @@ import type { Context } from "hono";
 import { Hono } from "hono";
 import { z } from "zod";
 import type { AdminCtx, AppEnv } from "../env.js";
+import { newConnectCode, nextTicketPrefix } from "../lib/connect-code.js";
 import {
 	loadEntitlements,
 	requireFeature,
@@ -254,6 +257,11 @@ const deviceDto = (d: DeviceRow): AdminDevice => ({
 	ticketPrefix: d.ticketPrefix,
 	lastSeenAt: iso(d.lastSeenAt),
 	revokedAt: iso(d.revokedAt),
+	// An expired code is as good as none: the page offers a new one.
+	pairingExpiresAt:
+		d.pairingExpiresAt && d.pairingExpiresAt.getTime() > Date.now()
+			? iso(d.pairingExpiresAt)
+			: null,
 });
 
 const now = (c: Context<AppEnv>) => c.var.deps.now?.() ?? new Date();
@@ -533,62 +541,136 @@ export const adminOrgRoutes = new Hono<AppEnv>()
 		const b = c.req.valid("json");
 		requireLocation(c, b.locationId);
 		const token = newSecret("dev_");
-		try {
-			const [row] = await adminTx(c, async (tx) => {
-				const { deps, admin } = c.var;
-				if (deps.planEnforcement && b.kind === "kds") {
-					requireFeature(await loadEntitlements(tx, deps, admin.orgId), "kds");
+		const connect = newConnectCode(now(c));
+		// A picked prefix can lose a race with another tablet being added at
+		// the same moment; an automatic one just tries the next letter.
+		for (let attempt = 0; ; attempt++) {
+			try {
+				const row = await adminTx(c, async (tx) => {
+					const { deps, admin } = c.var;
+					if (deps.planEnforcement && b.kind === "kds") {
+						requireFeature(
+							await loadEntitlements(tx, deps, admin.orgId),
+							"kds",
+						);
+					}
+					// Revoked devices don't count: replacing a broken tablet is free.
+					await requireRoomFor(
+						tx,
+						deps,
+						admin.orgId,
+						"devicesPerLocation",
+						async () => {
+							const [r] = await tx
+								.select({ n: sql<number>`count(*)::int` })
+								.from(devices)
+								.where(
+									and(
+										eq(devices.locationId, b.locationId),
+										isNull(devices.revokedAt),
+									),
+								);
+							return r?.n ?? 0;
+						},
+						b.locationId,
+					);
+					const ticketPrefix =
+						b.ticketPrefix ??
+						nextTicketPrefix(
+							(
+								await tx
+									.select({ p: devices.ticketPrefix })
+									.from(devices)
+									.where(eq(devices.locationId, b.locationId))
+							).map((r) => r.p),
+						);
+					const [r] = await tx
+						.insert(devices)
+						.values({
+							orgId: admin.orgId,
+							locationId: b.locationId,
+							name: b.name,
+							kind: b.kind,
+							ticketPrefix,
+							tokenHash: sha256(token),
+							pairingCodeHash: sha256(connect.code),
+							pairingExpiresAt: connect.expiresAt,
+						})
+						.returning({ id: devices.id, ticketPrefix: devices.ticketPrefix });
+					return r as { id: string; ticketPrefix: string };
+				});
+				const res: RegisterDeviceResponse = {
+					deviceId: row.id,
+					token,
+					ticketPrefix: row.ticketPrefix,
+					pairingCode: connect.code,
+					pairingExpiresAt: connect.expiresAt.toISOString(),
+				};
+				return c.json(res, 201);
+			} catch (err) {
+				if (
+					isUniqueViolation(err, "devices_location_id_ticket_prefix_unique")
+				) {
+					if (!b.ticketPrefix && attempt < 3) continue;
+					throw new ApiError(
+						"conflict",
+						"ticket prefix in use at this location",
+						{ field: "ticketPrefix" },
+					);
 				}
-				// Revoked devices don't count: replacing a broken tablet is free.
-				await requireRoomFor(
-					tx,
-					deps,
-					admin.orgId,
-					"devicesPerLocation",
-					async () => {
-						const [r] = await tx
-							.select({ n: sql<number>`count(*)::int` })
-							.from(devices)
-							.where(
-								and(
-									eq(devices.locationId, b.locationId),
-									isNull(devices.revokedAt),
-								),
-							);
-						return r?.n ?? 0;
-					},
-					b.locationId,
-				);
-				return tx
-					.insert(devices)
-					.values({
-						orgId: admin.orgId,
-						locationId: b.locationId,
-						name: b.name,
-						kind: b.kind,
-						ticketPrefix: b.ticketPrefix,
-						tokenHash: sha256(token),
-					})
-					.returning({ id: devices.id });
-			});
-			const res: RegisterDeviceResponse = {
-				deviceId: (row as { id: string }).id,
-				token,
-			};
-			return c.json(res, 201);
-		} catch (err) {
-			if (isUniqueViolation(err, "devices_location_id_ticket_prefix_unique")) {
-				throw new ApiError(
-					"conflict",
-					"ticket prefix in use at this location",
-					{
-						field: "ticketPrefix",
-					},
-				);
+				throw err;
 			}
-			throw err;
 		}
 	})
+	/**
+	 * A new connect code for a tablet that isn't connected yet, or to move a
+	 * device onto a new tablet. The old tablet keeps working until the code
+	 * is used; then only the new one does.
+	 */
+	.post("/devices/:id/connect-code", validate("param", idParam), async (c) => {
+		const { id } = c.req.valid("param");
+		const connect = newConnectCode(now(c));
+		await adminTx(c, async (tx) => {
+			const [d] = await tx.select().from(devices).where(eq(devices.id, id));
+			if (!d) throw notFound("device");
+			requireLocation(c, d.locationId);
+			if (d.revokedAt) throw new ApiError("conflict", "device was removed");
+			await tx
+				.update(devices)
+				.set({
+					pairingCodeHash: sha256(connect.code),
+					pairingExpiresAt: connect.expiresAt,
+					updatedAt: new Date(),
+				})
+				.where(eq(devices.id, id));
+		});
+		const res: DeviceConnectCode = {
+			pairingCode: connect.code,
+			pairingExpiresAt: connect.expiresAt.toISOString(),
+		};
+		return c.json(res);
+	})
+	.patch(
+		"/devices/:id",
+		validate("param", idParam),
+		validate("json", RenameDevice),
+		async (c) => {
+			const { id } = c.req.valid("param");
+			const { name } = c.req.valid("json");
+			const row = await adminTx(c, async (tx) => {
+				const [d] = await tx.select().from(devices).where(eq(devices.id, id));
+				if (!d) throw notFound("device");
+				requireLocation(c, d.locationId);
+				const [u] = await tx
+					.update(devices)
+					.set({ name, updatedAt: new Date() })
+					.where(eq(devices.id, id))
+					.returning();
+				return u as DeviceRow;
+			});
+			return c.json(deviceDto(row));
+		},
+	)
 	.post("/devices/:id/revoke", validate("param", idParam), async (c) => {
 		const { id } = c.req.valid("param");
 		const row = await adminTx(c, async (tx) => {
@@ -599,6 +681,8 @@ export const adminOrgRoutes = new Hono<AppEnv>()
 				.update(devices)
 				.set({
 					revokedAt: sql`coalesce(${devices.revokedAt}, now())`,
+					pairingCodeHash: null,
+					pairingExpiresAt: null,
 					updatedAt: new Date(),
 				})
 				.where(eq(devices.id, id))

@@ -107,8 +107,8 @@ describe("getting started", () => {
 	it("starts with nothing done and points at the right pages", () => {
 		expect(setupSteps(input)).toEqual([
 			{ key: "menu", done: false, to: "/menu" },
-			{ key: "team", done: false, to: "/staff" },
-			{ key: "tablet", done: false, to: "/locations/loc1/settings" },
+			{ key: "team", done: false, to: "/staff/new" },
+			{ key: "tablet", done: false, to: "/devices" },
 			{ key: "order", done: false, to: "/locations/loc1/settings" },
 		]);
 	});

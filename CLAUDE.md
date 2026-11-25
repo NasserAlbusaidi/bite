@@ -11,6 +11,7 @@ Legacy app: `NasserAlbusaidi/pos-system` (Laravel). It stays in production until
 - `packages/core` pure TS, zero runtime deps: money, pricing, VAT, order state machine. Runs on the server AND offline on the tablet.
 - `packages/db` Drizzle schema, migrations, RLS policies. Read `docs/data-model.md` before touching it.
 - `packages/contracts` Zod schemas shared by API and clients (not yet scaffolded)
+- Setup flows (connecting tablets, adding staff) follow `docs/onboarding-ux.md`: plain words, picked defaults, short connect codes.
 - Platform console (super admin, `/platform` in apps/admin, `/v1/platform` in the API): `docs/platform.md`.
 - Plans and limits (freemium): `docs/plans.md`. Tier boundaries live only in `packages/core/src/plans.ts`. Enforcement is off unless the API has `PLAN_ENFORCEMENT=on`.
 - `packages/ui` design system: tokens, fonts, React components, RTL-first. Read `packages/ui/README.md` before styling any app. Apps style with semantic tokens only.
