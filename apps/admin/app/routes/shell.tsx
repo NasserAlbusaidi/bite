@@ -11,29 +11,26 @@ import {
 } from "react-router";
 import { type Command, CommandPalette } from "../components/CommandPalette";
 import { FlashToasts } from "../components/FlashToasts";
+import { SetupCard } from "../components/SetupCard";
 import { ShortcutsDialog } from "../components/ShortcutsDialog";
 import { SupportBanner } from "../components/SupportBanner";
 import { adminGate, saveOrg } from "../lib/account";
 import { account, adminApi, isDemo } from "../lib/api";
 import { toastNow } from "../lib/flash";
-import {
-	loc,
-	type MessageKey,
-	savedLang,
-	saveLang,
-	translator,
-} from "../lib/i18n";
+import { loc, savedLang, saveLang, translator } from "../lib/i18n";
 import { pausedUntil } from "../lib/location-form";
 import {
 	currentNav,
 	goTarget,
 	isTyping,
 	type NavGroup,
+	navGroups,
 	navItems,
 } from "../lib/nav";
 import { catalogPowers } from "../lib/permissions";
 import { loadPlaces } from "../lib/places";
 import { rememberLocation, selectedLocationId } from "../lib/selected-location";
+import { type GuideStep, setupGuide, tickedSteps } from "../lib/setup-guide";
 import { ShellPrefsContext } from "../lib/shell-prefs";
 import { initials } from "../lib/staff-list";
 import { applyTheme, nextTheme, savedTheme, type Theme } from "../lib/theme";
@@ -61,12 +58,6 @@ export async function clientLoader({ request }: Route.ClientLoaderArgs) {
 	};
 }
 
-const GROUPS: { id: NavGroup; label?: MessageKey }[] = [
-	{ id: "main" },
-	{ id: "menu", label: "nav_group_menu" },
-	{ id: "business", label: "nav_group_business" },
-];
-
 const THEME_ICON = { system: "monitor", light: "sun", dark: "moon" } as const;
 
 type Extra = { staff: Command[]; products: Command[] };
@@ -82,6 +73,45 @@ export default function Shell({ loaderData }: Route.ComponentProps) {
 	const place = places.find((p) => p.id === locationId);
 	const items = useMemo(() => navItems(locationId), [locationId]);
 	const here = currentNav(items, location.pathname);
+	const groups = useMemo(() => navGroups(items), [items]);
+	// The group the panel shows: the one picked on the rail in the phone
+	// drawer, else the one the current page is in.
+	const [peek, setPeek] = useState<NavGroup | null>(null);
+	const shown =
+		groups.find((g) => g.id === (peek ?? here?.group ?? "home")) ?? groups[0];
+
+	const [setup, setSetup] = useState<GuideStep[] | null>(null);
+	const onSetupPage = location.pathname === "/setup";
+	// Setup counter: worked out after the page shows, again on leaving the
+	// guide (steps may have been ticked there) and when the branch changes.
+	useEffect(() => {
+		if (!locationId || onSetupPage) return;
+		let gone = false;
+		const api = adminApi();
+		Promise.all([
+			api.locations(),
+			api.menu(),
+			api.staff(),
+			api.devices(locationId),
+		])
+			.then(([locations, menu, staff, devices]) => {
+				const l = locations.find((x) => x.id === locationId);
+				if (gone || !l) return;
+				setSetup(
+					setupGuide({
+						location: l,
+						menu,
+						staff,
+						devices,
+						ticked: tickedSteps(l.id),
+					}),
+				);
+			})
+			.catch(() => undefined);
+		return () => {
+			gone = true;
+		};
+	}, [locationId, onSetupPage]);
 
 	const [theme, setTheme] = useState<Theme>(() => savedTheme());
 	const [drawer, setDrawer] = useState(false);
@@ -92,7 +122,10 @@ export default function Shell({ loaderData }: Route.ComponentProps) {
 	useEffect(() => saveLang(lang), [lang]);
 	useEffect(() => applyTheme(theme), [theme]);
 	// biome-ignore lint/correctness/useExhaustiveDependencies: close the drawer whenever the address changes
-	useEffect(() => setDrawer(false), [location.pathname]);
+	useEffect(() => {
+		setDrawer(false);
+		setPeek(null);
+	}, [location.pathname]);
 
 	useEffect(() => {
 		const page = here ? t(here.key) : t("overview");
@@ -383,130 +416,163 @@ export default function Shell({ loaderData }: Route.ComponentProps) {
 						onClick={() => setDrawer(false)}
 					/>
 					<aside className="sidebar" id="sidebar">
-						<div className="sidebar__brand">
-							<Logo height={22} className="brand__mark" />
-							<span className="sidebar__org" title={me.org.name}>
-								{me.org.name}
-							</span>
-							{!demo && (
+						<nav className="rail" aria-label={t("nav_group_label")}>
+							<Logo height={18} className="rail__logo" />
+							{groups.map((g) => (
 								<NavLink
-									className="icon-btn icon-btn--sm"
-									to="/orgs?switch=1"
-									aria-label={t("switch_business")}
-									title={t("switch_business")}
+									key={g.id}
+									to={g.first.to}
+									end={g.first.end ?? false}
+									className={() =>
+										`rail__item${shown?.id === g.id ? " active" : ""}`
+									}
+									aria-current={
+										here?.group === g.id && !peek ? "true" : undefined
+									}
+									onClick={(e) => {
+										// In the phone drawer, show the group's pages first.
+										if (window.matchMedia("(max-width: 900px)").matches) {
+											e.preventDefault();
+											setPeek(g.id);
+										}
+									}}
 								>
-									<Icon name="chevrons-updown" />
+									<Icon name={g.icon} className="rail__ico" />
+									<span>{t(g.label)}</span>
 								</NavLink>
-							)}
-						</div>
-						{places.length > 0 && (
-							<label className="branch-switch">
-								<Icon name="store" className="branch-switch__icon" />
-								<span className="branch-switch__text">
-									<span className="branch-switch__label">{t("branch")}</span>
-									<span className="branch-switch__name">
-										{place?.name ?? "—"}
-									</span>
-								</span>
-								{places.length > 1 && (
-									<Icon
-										name="chevrons-updown"
-										className="branch-switch__chev"
-									/>
-								)}
-								<select
-									value={locationId}
-									disabled={places.length < 2}
-									aria-label={t("branch")}
-									onChange={(e) => switchBranch(e.target.value)}
-								>
-									{places.map((l) => (
-										<option key={l.id} value={l.id}>
-											{l.name}
-										</option>
-									))}
-								</select>
-							</label>
-						)}
-						<button
-							type="button"
-							className="search-btn"
-							onClick={() => setPalette(true)}
-						>
-							<Icon name="search" />
-							<span>{t("search_short")}</span>
-							<kbd>{mac ? "⌘K" : "Ctrl K"}</kbd>
-						</button>
-						<nav className="sidenav" aria-label="Main">
-							{GROUPS.map((g) => {
-								const list = items.filter((i) => i.group === g.id);
-								if (list.length === 0) return null;
-								return (
-									<div key={g.id} className="sidenav__group">
-										{g.label && (
-											<span className="sidenav__label">{t(g.label)}</span>
-										)}
-										{list.map((i) => (
-											<NavLink
-												key={i.key}
-												to={i.to}
-												end={i.end ?? false}
-												className={() =>
-													here?.key === i.key ? "active" : undefined
-												}
-												aria-current={here?.key === i.key ? "page" : undefined}
-											>
-												<Icon name={i.icon} className="nav-ico" />
-												<span>{t(i.key)}</span>
-											</NavLink>
-										))}
-									</div>
-								);
-							})}
+							))}
 						</nav>
-						<div className="sidebar__foot">
-							<NavLink to="/account" className="me-chip" title={t("account")}>
-								<span className="avatar" aria-hidden="true">
-									{initials(me.member.displayName)}
+						<div className="panel">
+							<div className="sidebar__brand">
+								<span className="sidebar__org" title={me.org.name}>
+									{me.org.name}
 								</span>
-								<span className="me-chip__text">
-									<span className="me-chip__name">{me.member.displayName}</span>
-									<span className="me-chip__role">
-										{t(`role_${role}_short`)}
-									</span>
-								</span>
-							</NavLink>
-							<div className="foot-actions">
-								<button
-									type="button"
-									className="icon-btn"
-									onClick={() => setTheme(nextTheme(theme))}
-									aria-label={t("theme_set", { name: t(`theme_${theme}`) })}
-									title={t("theme_set", { name: t(`theme_${theme}`) })}
-								>
-									<Icon name={THEME_ICON[theme]} />
-								</button>
-								<button
-									type="button"
-									className="icon-btn lang-btn"
-									lang={lang === "en" ? "ar" : "en"}
-									onClick={toggleLang}
-									aria-label={t("switch_language")}
-									title={t("switch_language")}
-								>
-									{lang === "en" ? "ع" : "EN"}
-								</button>
 								{!demo && (
+									<NavLink
+										className="icon-btn icon-btn--sm"
+										to="/orgs?switch=1"
+										aria-label={t("switch_business")}
+										title={t("switch_business")}
+									>
+										<Icon name="chevrons-updown" />
+									</NavLink>
+								)}
+							</div>
+							{places.length > 0 && (
+								<label className="branch-switch">
+									<Icon name="store" className="branch-switch__icon" />
+									<span className="branch-switch__text">
+										<span className="branch-switch__label">{t("branch")}</span>
+										<span className="branch-switch__name">
+											{place?.name ?? "—"}
+										</span>
+									</span>
+									{places.length > 1 && (
+										<Icon
+											name="chevrons-updown"
+											className="branch-switch__chev"
+										/>
+									)}
+									<select
+										value={locationId}
+										disabled={places.length < 2}
+										aria-label={t("branch")}
+										onChange={(e) => switchBranch(e.target.value)}
+									>
+										{places.map((l) => (
+											<option key={l.id} value={l.id}>
+												{l.name}
+											</option>
+										))}
+									</select>
+								</label>
+							)}
+							<button
+								type="button"
+								className="search-btn"
+								onClick={() => setPalette(true)}
+							>
+								<Icon name="search" />
+								<span>{t("search_short")}</span>
+								<kbd>{mac ? "⌘K" : "Ctrl K"}</kbd>
+							</button>
+							{shown && (
+								<nav className="sidenav" aria-label={t(shown.label)}>
+									<span className="sidenav__label">{t(shown.label)}</span>
+									{shown.items.map((i) => (
+										<NavLink
+											key={i.key}
+											to={i.to}
+											end={i.end ?? false}
+											className={() =>
+												here?.key === i.key ? "active" : undefined
+											}
+											aria-current={here?.key === i.key ? "page" : undefined}
+										>
+											<Icon name={i.icon} className="nav-ico" />
+											<span>{t(i.key)}</span>
+										</NavLink>
+									))}
+								</nav>
+							)}
+							{setup && (
+								<SetupCard
+									key={location.pathname}
+									steps={setup}
+									title={
+										place
+											? t("setup_chip", { branch: place.name })
+											: t("setup_guide")
+									}
+									t={t}
+								/>
+							)}
+							<div className="sidebar__foot">
+								<NavLink to="/account" className="me-chip" title={t("account")}>
+									<span className="avatar" aria-hidden="true">
+										{initials(me.member.displayName)}
+									</span>
+									<span className="me-chip__text">
+										<span className="me-chip__name">
+											{me.member.displayName}
+										</span>
+										<span className="me-chip__role">
+											{t(`role_${role}_short`)}
+										</span>
+									</span>
+								</NavLink>
+								<div className="foot-actions">
 									<button
 										type="button"
 										className="icon-btn"
-										onClick={signOut}
-										aria-label={t("sign_out")}
-										title={t("sign_out")}
+										onClick={() => setTheme(nextTheme(theme))}
+										aria-label={t("theme_set", { name: t(`theme_${theme}`) })}
+										title={t("theme_set", { name: t(`theme_${theme}`) })}
 									>
-										<Icon name="logout" />
+										<Icon name={THEME_ICON[theme]} />
 									</button>
-								)}
+									<button
+										type="button"
+										className="icon-btn lang-btn"
+										lang={lang === "en" ? "ar" : "en"}
+										onClick={toggleLang}
+										aria-label={t("switch_language")}
+										title={t("switch_language")}
+									>
+										{lang === "en" ? "ع" : "EN"}
+									</button>
+									{!demo && (
+										<button
+											type="button"
+											className="icon-btn"
+											onClick={signOut}
+											aria-label={t("sign_out")}
+											title={t("sign_out")}
+										>
+											<Icon name="logout" />
+										</button>
+									)}
+								</div>
 							</div>
 						</div>
 					</aside>

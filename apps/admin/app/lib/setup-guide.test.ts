@@ -5,7 +5,7 @@ import type {
 	AdminMenu,
 	AdminStaff,
 } from "./contracts";
-import { setupGuide } from "./setup-guide";
+import { type GuideStep, nextStep, setupGuide } from "./setup-guide";
 
 const loc = {
 	id: "b1",
@@ -71,5 +71,25 @@ describe("setupGuide", () => {
 		});
 		expect(steps.find((s) => s.key === "vat")?.done).toBe(true);
 		expect(steps.find((s) => s.key === "qr")?.done).toBe(true);
+	});
+});
+
+describe("nextStep", () => {
+	const step = (key: GuideStep["key"], done: boolean, optional = false) =>
+		({ key, done, optional, to: "/" }) as GuideStep;
+	it("suggests the first open must-do step before optional ones", () => {
+		expect(
+			nextStep([
+				step("qr", false, true),
+				step("menu", true),
+				step("till", false),
+			])?.key,
+		).toBe("till");
+	});
+	it("falls back to an optional step, then to nothing", () => {
+		expect(nextStep([step("menu", true), step("qr", false, true)])?.key).toBe(
+			"qr",
+		);
+		expect(nextStep([step("menu", true)])).toBeUndefined();
 	});
 });
