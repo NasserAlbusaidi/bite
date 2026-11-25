@@ -720,6 +720,12 @@ label.check input {
 	padding: var(--space-3);
 	margin: 0;
 }
+/* Till: what's already at the dine-in table, so nobody rings it twice. */
+.at-table {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-1);
+}
 .problem {
 	border: 1px solid var(--line);
 	border-radius: var(--radius-md);

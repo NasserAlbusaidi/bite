@@ -165,6 +165,45 @@ export async function tableStates(
 	return { tables, unplaced: [...byLabel.values()].flat() };
 }
 
+/**
+ * Open orders already at one table (same match as the floor: trimmed,
+ * case-insensitive label). The till shows these while staff ring more for
+ * that table, so a guest's QR order isn't rung in a second time.
+ */
+export async function ordersAtTable(
+	db: SqlExecutor,
+	label: string,
+	now = Date.now(),
+): Promise<TableOrder[]> {
+	const k = keyOf(label);
+	if (!k) return [];
+	return (await openOrders(db, now)).filter(
+		(o) => keyOf(o.order.tableLabel ?? "") === k,
+	);
+}
+
+/**
+ * Products in the till cart that are already on an open order at the
+ * table, with the ticket that has them. A hint to check, not a block: a
+ * second hummus can be exactly what the table asked for.
+ */
+export function alreadyAtTable(
+	productIds: readonly string[],
+	orders: readonly TableOrder[],
+): Map<string, string> {
+	const out = new Map<string, string>();
+	for (const pid of productIds) {
+		if (out.has(pid)) continue;
+		for (const { order } of orders) {
+			if (order.lines.some((l) => !l.voidedAt && l.productId === pid)) {
+				out.set(pid, order.ticketNumber);
+				break;
+			}
+		}
+	}
+	return out;
+}
+
 function lastServed(orders: readonly Order[]): string | null {
 	let best: string | null = null;
 	for (const o of orders) {
