@@ -23,6 +23,7 @@ export {
 	CreatePinStaff,
 	CreateProduct,
 	CreatePromotion,
+	DeviceConnectCode,
 	DIETARY_TAGS,
 	DietaryTag,
 	Floor,

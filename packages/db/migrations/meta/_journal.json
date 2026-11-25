@@ -148,6 +148,13 @@
 			"when": 1795510773529,
 			"tag": "0020_table_lifecycle",
 			"breakpoints": true
+		},
+		{
+			"idx": 21,
+			"version": "7",
+			"when": 1795564900875,
+			"tag": "0021_device_connect_codes",
+			"breakpoints": true
 		}
 	]
 }

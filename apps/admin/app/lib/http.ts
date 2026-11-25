@@ -15,6 +15,7 @@ import {
 	AdminProduct,
 	AdminPromotion,
 	AdminStaff,
+	DeviceConnectCode,
 	Floor,
 	InviteStaffResponse,
 	LocationProduct,
@@ -197,6 +198,12 @@ export function httpAdminApi(
 			all(AdminDevice, `/locations/${enc(locationId)}/devices`),
 		registerDevice: (d) =>
 			call(RegisterDeviceResponse, "/devices", send("POST", d)),
+		connectCode: (id) =>
+			call(DeviceConnectCode, `/devices/${enc(id)}/connect-code`, {
+				method: "POST",
+			}),
+		renameDevice: (id, name) =>
+			call(AdminDevice, `/devices/${enc(id)}`, send("PATCH", { name })),
 		salesReport: (q) => call(SalesReport, `/reports/sales${qs(q)}`),
 		orders: (q) => call(Page(AdminOrderRow), `/orders${qs(q)}`),
 		loyalty: () => call(LoyaltyProgram, "/loyalty"),

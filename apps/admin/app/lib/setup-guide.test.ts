@@ -27,9 +27,7 @@ describe("setupGuide", () => {
 			ticked: new Set(),
 		});
 		expect(steps.filter((s) => s.done)).toEqual([]);
-		expect(steps.find((s) => s.key === "till")?.to).toBe(
-			"/locations/b1/settings#devices",
-		);
+		expect(steps.find((s) => s.key === "till")?.to).toBe("/devices");
 	});
 	it("counts only this branch's floor staff and live devices", () => {
 		const staff = [
@@ -42,8 +40,14 @@ describe("setupGuide", () => {
 			{ isActive: true, hasPin: true, orgRole: "owner", locations: [] },
 		] as unknown as AdminStaff[];
 		const devices = [
-			{ kind: "pos", revokedAt: "2026-01-01T00:00:00Z" },
-			{ kind: "kds", revokedAt: null },
+			{
+				kind: "pos",
+				revokedAt: "2026-01-01T00:00:00Z",
+				lastSeenAt: "2026-01-01T00:00:00Z",
+			},
+			{ kind: "kds", revokedAt: null, lastSeenAt: "2026-01-02T00:00:00Z" },
+			// Added but nobody typed its code in: not done yet.
+			{ kind: "pos", revokedAt: null, lastSeenAt: null },
 		] as AdminDevice[];
 		const steps = setupGuide({
 			location: loc,

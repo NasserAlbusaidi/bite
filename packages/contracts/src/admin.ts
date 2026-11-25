@@ -346,6 +346,8 @@ export const AdminDevice = z.object({
 	ticketPrefix: z.string(),
 	lastSeenAt: Instant.nullable(),
 	revokedAt: Instant.nullable(),
+	/** Set while a connect code is waiting to be typed on a tablet. */
+	pairingExpiresAt: Instant.nullable().default(null),
 });
 
 // ---------------------------------------------------------------- reports

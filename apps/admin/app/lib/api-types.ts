@@ -22,6 +22,7 @@ import type {
 	CreatePinStaff,
 	CreateProduct,
 	CreatePromotion,
+	DeviceConnectCode,
 	Floor,
 	InviteStaff,
 	InviteStaffResponse,
@@ -110,6 +111,9 @@ export interface AdminApi {
 	/** Saves the whole plan; what's missing is deleted. Answers with the saved plan. */
 	saveFloor(locationId: string, f: PutFloorRequest): Promise<Floor>;
 	registerDevice(d: RegisterDeviceRequest): Promise<RegisterDeviceResponse>;
+	/** A fresh connect code: for a tablet not connected yet, or a replacement. */
+	connectCode(id: string): Promise<DeviceConnectCode>;
+	renameDevice(id: string, name: string): Promise<AdminDevice>;
 	revokeDevice(id: string): Promise<void>;
 	salesReport(q: SalesReportQuery): Promise<SalesReport>;
 	orders(

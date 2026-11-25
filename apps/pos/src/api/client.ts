@@ -1,5 +1,6 @@
 import type {
 	DeviceMe,
+	PairDeviceResponse,
 	PinLoginResponse,
 	ServiceRequestList,
 	StaffListResponse,
@@ -14,6 +15,44 @@ import { STAFF_TOKEN_HEADER } from "@bite/contracts";
 import { SyncHttpError } from "../sync/transport.js";
 
 export type ApiConfig = { baseUrl: string; deviceToken: string };
+
+/**
+ * Trade a connect code from the back office for this tablet's device token.
+ * The only call made without one.
+ */
+export async function pairWithCode(
+	baseUrl: string,
+	code: string,
+	doFetch: typeof fetch = (...a) => fetch(...a),
+): Promise<{ cfg: ApiConfig; device: DeviceMe }> {
+	const base = baseUrl.replace(/\/+$/, "");
+	const res = await doFetch(`${base}/v1/pair`, {
+		method: "POST",
+		headers: { "content-type": "application/json" },
+		body: JSON.stringify({ code }),
+		signal: AbortSignal.timeout(15_000),
+	});
+	if (!res.ok) throw new SyncHttpError(res.status, `HTTP ${res.status}`);
+	const body = (await res.json()) as PairDeviceResponse;
+	return {
+		cfg: { baseUrl: base, deviceToken: body.token },
+		device: body.device,
+	};
+}
+
+/**
+ * Where Bite lives, unless someone changes it under "Advanced" on the pair
+ * screen. A browser tablet uses the page's own address (the dev server and a
+ * hosted till proxy /v1); the native app has no web address, so it uses the
+ * build's VITE_API_URL.
+ */
+export function defaultServerUrl(): string {
+	const env = (import.meta as { env?: Record<string, string | undefined> }).env;
+	if (env?.VITE_API_URL) return env.VITE_API_URL;
+	if (typeof location !== "undefined" && /^https?:$/.test(location.protocol))
+		return location.origin;
+	return "https://api.bite.om";
+}
 
 /** Thin fetch client for the tablet routes. Device token on every call. */
 export class ApiClient {

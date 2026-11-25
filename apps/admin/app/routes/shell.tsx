@@ -31,7 +31,7 @@ import {
 	type NavGroup,
 	navItems,
 } from "../lib/nav";
-import { catalogPowers, staffPowers } from "../lib/permissions";
+import { catalogPowers } from "../lib/permissions";
 import { loadPlaces } from "../lib/places";
 import { rememberLocation, selectedLocationId } from "../lib/selected-location";
 import { ShellPrefsContext } from "../lib/shell-prefs";
@@ -214,7 +214,6 @@ export default function Shell({ loaderData }: Route.ComponentProps) {
 	}, [palette, extra, lang, navigate, t]);
 
 	const commands = useMemo<Command[]>(() => {
-		const staff = staffPowers(me);
 		const catalog = catalogPowers(me);
 		const pages: Command[] = [
 			...items.map((i) => ({
@@ -245,18 +244,20 @@ export default function Shell({ loaderData }: Route.ComponentProps) {
 		}));
 		const actions: (Command | false)[] = [
 			{
-				id: "act-pin",
-				label: t("add_pin_staff"),
+				id: "act-person",
+				label: t("ap_title"),
+				keywords: ["staff", "pin", "invite", "employee", "موظف"],
 				group: t("palette_actions"),
 				icon: "plus",
-				run: () => navigate("/staff/new?kind=pin"),
+				run: () => navigate("/staff/new"),
 			},
-			staff.canInvite && {
-				id: "act-invite",
-				label: t("invite_manager"),
+			!!place && {
+				id: "act-tablet",
+				label: t("dv_add"),
+				keywords: ["device", "pair", "connect", "ipad", "جهاز"],
 				group: t("palette_actions"),
-				icon: "plus",
-				run: () => navigate("/staff/new?kind=invite"),
+				icon: "tablet",
+				run: () => navigate("/devices"),
 			},
 			catalog.canEditMenu && {
 				id: "act-product",

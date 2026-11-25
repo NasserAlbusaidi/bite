@@ -41,19 +41,29 @@ const en = {
 	"money.vatNumber": "VAT no.",
 	"money.currency": "OMR",
 	"receipt.thanks": "Thank you!",
-	"pair.title": "Pair this tablet",
-	"pair.hint":
-		"In the back office, open the location, add this tablet under Devices, then scan the pairing code it shows.",
-	"pair.scan": "Scan pairing code",
-	"pair.paste": "Or paste the pairing code",
-	"pair.manual": "Enter the server address and token by hand",
+	"pair.title": "Set up this tablet",
+	"pair.step1":
+		"On your phone or computer, open Bite and go to Tablets and screens.",
+	"pair.step2": "Tap Add a tablet. A code like K7QD-M2PX appears.",
+	"pair.step3": "Type that code here.",
+	"pair.codeLabel": "Connect code",
+	"pair.connect": "Connect",
+	"pair.connecting": "Connecting…",
+	"pair.or": "or",
+	"pair.scan": "Scan the square code instead",
 	"pair.noCamera":
-		"Can't use the camera on this tablet. Paste the pairing code instead.",
-	"pair.badCode": "That isn't a Bite pairing code.",
+		"This tablet's camera isn't available. Type the code instead.",
+	"pair.badQr":
+		"That isn't a Bite code. Scan the square on the Tablets and screens page.",
+	"pair.wrongCode":
+		"That code didn't work. Check the letters, or tap New code in Bite. A code works once, for 15 minutes.",
+	"pair.tooMany": "Too many wrong codes. Wait 10 minutes, then try again.",
+	"pair.offline":
+		"Can't reach Bite. Check this tablet's internet, then try again.",
+	"pair.advanced": "Advanced settings",
 	"pair.server": "Server address",
-	"pair.token": "Device token",
-	"pair.submit": "Pair",
-	"pair.failed": "Pairing failed: {error}",
+	"pair.token": "Device token (instead of a code)",
+	"pair.submit": "Connect with token",
 	"lock.title": "Who's working?",
 	"lock.pin": "Enter PIN for {name}",
 	"lock.wrong": "Wrong PIN",
@@ -62,7 +72,8 @@ const en = {
 	"lock.offlineExpired":
 		"Offline login expired. Connect to the internet and log in again.",
 	"lock.rateLimited": "Too many wrong PINs. Wait 5 minutes.",
-	"lock.noStaff": "No staff with a PIN at this location yet.",
+	"lock.noStaff":
+		"Nobody can sign in here yet. In Bite, go to Staff and tap Add a person.",
 	"role.manager": "Manager",
 	"role.cashier": "Cashier",
 	"role.server": "Server",
@@ -374,19 +385,28 @@ const ar: Record<MessageKey, string> = {
 	"money.vatNumber": "الرقم الضريبي",
 	"money.currency": "ر.ع.",
 	"receipt.thanks": "شكراً لزيارتكم!",
-	"pair.title": "ربط الجهاز",
-	"pair.hint":
-		"من لوحة الإدارة افتح الفرع وأضف هذا الجهاز ضمن الأجهزة، ثم امسح رمز الربط الظاهر هناك.",
-	"pair.scan": "مسح رمز الربط",
-	"pair.paste": "أو الصق رمز الربط",
-	"pair.manual": "إدخال عنوان الخادم ورمز الجهاز يدوياً",
-	"pair.noCamera":
-		"تعذر استخدام الكاميرا على هذا الجهاز. الصق رمز الربط بدلاً من ذلك.",
-	"pair.badCode": "هذا ليس رمز ربط من بايت.",
+	"pair.title": "إعداد هذا الجهاز",
+	"pair.step1":
+		"على هاتفك أو حاسوبك، افتح بايت واذهب إلى الأجهزة اللوحية والشاشات.",
+	"pair.step2": "اضغط «أضف جهازاً». سيظهر رمز مثل K7QD-M2PX.",
+	"pair.step3": "اكتب الرمز هنا.",
+	"pair.codeLabel": "رمز الربط",
+	"pair.connect": "ربط",
+	"pair.connecting": "جارٍ الربط…",
+	"pair.or": "أو",
+	"pair.scan": "امسح الرمز المربع بدلاً من ذلك",
+	"pair.noCamera": "كاميرا هذا الجهاز غير متاحة. اكتب الرمز بدلاً من ذلك.",
+	"pair.badQr":
+		"هذا ليس رمزاً من بايت. امسح المربع الظاهر في صفحة الأجهزة اللوحية والشاشات.",
+	"pair.wrongCode":
+		"الرمز غير صحيح. تحقق من الحروف أو اطلب رمزاً جديداً في بايت. كل رمز يعمل مرة واحدة ولمدة 15 دقيقة.",
+	"pair.tooMany": "محاولات خاطئة كثيرة. انتظر 10 دقائق ثم حاول مجدداً.",
+	"pair.offline":
+		"تعذر الوصول إلى بايت. تحقق من اتصال الجهاز بالإنترنت ثم حاول مجدداً.",
+	"pair.advanced": "إعدادات متقدمة",
 	"pair.server": "عنوان الخادم",
-	"pair.token": "رمز الجهاز",
-	"pair.submit": "ربط",
-	"pair.failed": "فشل الربط: {error}",
+	"pair.token": "رمز الجهاز (بدلاً من رمز الربط)",
+	"pair.submit": "ربط بالرمز",
 	"lock.title": "من يعمل الآن؟",
 	"lock.pin": "أدخل الرمز السري لـ {name}",
 	"lock.wrong": "رمز خاطئ",
@@ -395,7 +415,8 @@ const ar: Record<MessageKey, string> = {
 	"lock.offlineExpired":
 		"انتهت صلاحية الدخول دون اتصال. اتصل بالإنترنت وسجّل الدخول مجدداً.",
 	"lock.rateLimited": "محاولات خاطئة كثيرة. انتظر 5 دقائق.",
-	"lock.noStaff": "لا يوجد موظفون برمز سري في هذا الفرع بعد.",
+	"lock.noStaff":
+		"لا أحد يمكنه الدخول هنا بعد. في بايت، اذهب إلى الموظفين واضغط «أضف شخصاً».",
 	"role.manager": "مدير",
 	"role.cashier": "كاشير",
 	"role.server": "نادل",
