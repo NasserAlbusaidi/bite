@@ -79,7 +79,7 @@ const unpaid: Partial<Order> = {
 };
 
 const floor: Floor = {
-	areas: [{ id: AREA, name: "Inside", sortOrder: 0 }],
+	areas: [{ id: AREA, name: "Inside", sortOrder: 0, outline: null }],
 	tables: ["1", "2", "3"].map((label, i) => ({
 		id: id(700 + i),
 		areaId: AREA,

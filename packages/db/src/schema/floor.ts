@@ -5,6 +5,7 @@ import {
 	foreignKey,
 	index,
 	integer,
+	jsonb,
 	pgEnum,
 	pgTable,
 	smallint,
@@ -30,6 +31,11 @@ export const floorAreas = pgTable(
 		locationId: uuid("location_id").notNull(),
 		name: text("name").notNull(),
 		sortOrder: smallint("sort_order").notNull().default(0),
+		/**
+		 * The room's walls: corner points on the plan's dot grid, in order.
+		 * Null means the whole canvas (plans made before walls existed).
+		 */
+		outline: jsonb("outline").$type<{ x: number; y: number }[]>(),
 		createdAt: createdAt(),
 		updatedAt: updatedAt(),
 	},
